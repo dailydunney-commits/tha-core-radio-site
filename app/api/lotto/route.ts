@@ -16,27 +16,28 @@ function clean(text: string) {
 }
 
 function parseResults(text: string) {
-  const draws = ["Early Bird", "Morning", "Midday", "Mid Afternoon", "Drive Time", "Evening"];
   const results: any[] = [];
 
-  for (const drawName of draws) {
-    const pattern = new RegExp(
-      drawName + "\\s+#Draw\\s+(\\d+)\\s+(?:Verified\\s+)?(\\d{1,2})\\s+([A-Z ]{2,40})",
-      "i"
-    );
+  const pattern =
+    /(Early Bird|Morning|Midday|Mid Afternoon|Drive Time|Evening)\s+#Draw\s+(\d+)\s+(?:Verified\s+)?(\d{1,2})\s+([A-Z ]{2,40})/gi;
 
-    const match = text.match(pattern);
+  let match;
 
-    if (match) {
-      results.push({
-        label: `Cash Pot ${drawName}`,
-        draw: `#${match[1]}`,
-        result: `${match[2]} - ${match[3].trim()}`,
-      });
-    }
+  while ((match = pattern.exec(text)) !== null) {
+    results.push({
+      label: `Cash Pot ${match[1]}`,
+      draw: `#${match[2]}`,
+      result: `${match[3]} - ${match[4].trim()}`,
+    });
   }
 
-  return results;
+  const order = ["Early Bird", "Morning", "Midday", "Mid Afternoon", "Drive Time", "Evening"];
+
+  return results.sort((a, b) => {
+    const aIndex = order.findIndex((name) => a.label.includes(name));
+    const bIndex = order.findIndex((name) => b.label.includes(name));
+    return aIndex - bIndex;
+  });
 }
 
 export async function GET() {
