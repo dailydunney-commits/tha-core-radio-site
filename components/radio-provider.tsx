@@ -1,84 +1,28 @@
 "use client";
 
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import React, { createContext, useContext, useRef, useState } from "react";
+
+const STREAM_URL =
+  "https://thacoreonlinerad.com/listen/tha-core-online/radio.mp3";
 
 type RadioContextValue = {
   isPlaying: boolean;
-  volume: number;
-  streamUrl: string;
   play: () => Promise<void>;
   pause: () => void;
   toggle: () => Promise<void>;
-  setVolume: (value: number) => void;
-  audioRef: React.RefObject<HTMLAudioElement | null>;
 };
 
 const RadioContext = createContext<RadioContextValue | null>(null);
 
-const STREAM_URL =
-  process.env.NEXT_PUBLIC_STREAM_URL ||
-  "https://thacoreonlinerad.com/listen/tha-core-online/radio.mp3";
-
-const VOLUME_KEY = "tha-core-radio-volume";
-
 export function RadioProvider({ children }: { children: React.ReactNode }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [volume, setVolumeState] = useState(0.9);
-
-  useEffect(() => {
-    const audio = new Audio(STREAM_URL);
-
-    audio.preload = "none";
-    audio.crossOrigin = "anonymous";
-    audio.volume = volume;
-
-    audio.addEventListener("playing", () => setIsPlaying(true));
-    audio.addEventListener("pause", () => setIsPlaying(false));
-    audio.addEventListener("ended", () => setIsPlaying(false));
-    audio.addEventListener("error", () => setIsPlaying(false));
-
-    audioRef.current = audio;
-
-    const savedVolume = window.localStorage.getItem(VOLUME_KEY);
-    if (savedVolume) {
-      const parsed = Number(savedVolume);
-      if (!Number.isNaN(parsed)) {
-        const safeVolume = Math.min(1, Math.max(0, parsed));
-        audio.volume = safeVolume;
-        setVolumeState(safeVolume);
-      }
-    }
-
-    return () => {
-      audio.pause();
-      audio.src = "";
-      audio.load();
-      audioRef.current = null;
-    };
-  }, []);
-
-  function setVolume(value: number) {
-    const safeVolume = Math.min(1, Math.max(0, value));
-    setVolumeState(safeVolume);
-
-    if (audioRef.current) {
-      audioRef.current.volume = safeVolume;
-    }
-
-    window.localStorage.setItem(VOLUME_KEY, String(safeVolume));
-  }
 
   async function play() {
     if (!audioRef.current) return;
 
     audioRef.current.src = STREAM_URL;
+    audioRef.current.volume = 0.9;
     audioRef.current.load();
 
     await audioRef.current.play();
@@ -102,19 +46,19 @@ export function RadioProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <RadioContext.Provider
-      value={{
-        isPlaying,
-        volume,
-        streamUrl: STREAM_URL,
-        play,
-        pause,
-        toggle,
-        setVolume,
-        audioRef,
-      }}
-    >
+    <RadioContext.Provider value={{ isPlaying, play, pause, toggle }}>
       {children}
+
+      <audio
+        ref={audioRef}
+        src={STREAM_URL}
+        preload="none"
+        playsInline
+        onPlay={() => setIsPlaying(true)}
+        onPause={() => setIsPlaying(false)}
+        onEnded={() => setIsPlaying(false)}
+        onError={() => setIsPlaying(false)}
+      />
     </RadioContext.Provider>
   );
 }
