@@ -21,7 +21,7 @@ export default function HomePage() {
   const featuredProducts = useMemo(() => products.slice(0, 8), []);
 
   const tickerItems = [
-    `NOW PLAYING: ${nowArtist} Ã¢â‚¬â€ ${nowSong}`,
+    `NOW PLAYING: ${nowArtist} ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â ${nowSong}`,
     "UPCOMING SHOW: Dancehall Drive starts soon",
     "STORE SALE: Custom prints and radio promos available",
     "BIRTHDAY SHOUTOUT: Send your birthday shoutout live",
@@ -89,9 +89,7 @@ Sent from Tha Core Radio website`
         </div>
 
         <div className="mb-5 rounded-3xl border border-red-700 bg-gradient-to-br from-red-950 to-black p-5 shadow-[0_0_55px_rgba(34,197,94,.75)]">
-          <p className="text-xl font-black italic text-yellow-400">
-            Vote next song - Flash sale ends in 10 mins - Drop your shoutout live now
-          </p>
+          <p className="text-xl font-black italic text-yellow-400">Vote next song - Flash sale ends in 10 mins - Drop your shoutout live now</p>
         </div>
 
         <div className="rounded-[2rem] border-2 border-red-600 bg-gradient-to-br from-yellow-200 via-amber-300 to-yellow-500 p-6 shadow-[0_0_75px_rgba(34,197,94,.85)]">
@@ -130,7 +128,7 @@ Sent from Tha Core Radio website`
                     className="whitespace-nowrap text-base font-black text-white md:text-lg"
                     style={{ animation: "trackMarquee 12s linear infinite" }}
                   >
-                    Ã°Å¸Å½Âµ {nowArtist} Ã¢â‚¬â€ {nowSong} Ã¢â‚¬Â¢
+                    ÃƒÂ°Ã…Â¸Ã…Â½Ã‚Âµ {nowArtist} ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â {nowSong} ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢
                   </div>
                 </div>
 
@@ -188,8 +186,8 @@ Sent from Tha Core Radio website`
         <div className="mt-8 grid gap-6 md:grid-cols-4">
           <Card title="Listeners Online" text={`${listeners} tuned in now`} />
           <Card title="Joined Today" text="34 new listeners today" />
-          <Card title="Top Cities" text="Kingston Ã¢â‚¬Â¢ Montego Bay Ã¢â‚¬Â¢ London" />
-          <Card title="Live Energy" text="Music Ã¢â‚¬Â¢ Chat Ã¢â‚¬Â¢ Store Ã¢â‚¬Â¢ Giveaways" />
+          <Card title="Top Cities" text="Kingston ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ Montego Bay ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ London" />
+          <Card title="Live Energy" text="Music ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ Chat ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ Store ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ Giveaways" />
         </div>
 
         <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_.8fr]">
@@ -260,10 +258,10 @@ Sent from Tha Core Radio website`
           </Panel>
 
           <Panel title="Daily Reward / Check-In">
-            <p className="text-gray-300">YouÃ¢â‚¬â„¢ve visited 3 days in a row.</p>
+            <p className="text-gray-300">You have visited 3 days in a row.</p>
 
             <button onClick={() => setCheckedIn(true)} className="mt-5 rounded-xl bg-red-700 px-5 py-3 font-black">
-              {checkedIn ? "Badge Unlocked Ã¢Å“â€œ" : "Daily Check-In"}
+              {checkedIn ? "Badge Unlocked ÃƒÂ¢Ã…â€œÃ¢â‚¬Å“" : "Daily Check-In"}
             </button>
           </Panel>
 
@@ -278,9 +276,9 @@ Sent from Tha Core Radio website`
           <h2 className="text-3xl font-black text-red-400">News Preview</h2>
 
           <div className="mt-6 grid gap-5 md:grid-cols-3">
-            <NewsCard href="/news/world" icon="Ã°Å¸Å’Â" title="World News" text="Breaking headlines and global updates." />
-            <NewsCard href="/news/music" icon="Ã°Å¸Å½Â¤" title="Music & Culture" text="Reggae, dancehall, entertainment and artists." />
-            <NewsCard href="/news/business" icon="Ã°Å¸â€™Â¼" title="Money Moves" text="Business, ads, promos, and opportunities." />
+            <NewsCard href="/news/world" icon="WORLD" title="World News" text="Breaking headlines and global updates." />
+            <NewsCard href="/news/music" icon="MUSIC" title="Music & Culture" text="Reggae, dancehall, entertainment and artists." />
+            <NewsCard href="/news/business" icon="MONEY" title="Money Moves" text="Business, ads, promos, and opportunities." />
           </div>
         </div>
 
@@ -343,13 +341,13 @@ Sent from Tha Core Radio website`
 
           <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             {[
-              ["Sunday", "Gospel Morning Ã¢â‚¬Â¢ Family Vibes Ã¢â‚¬Â¢ Sunday Talk"],
-              ["Monday", "Money Moves Ã¢â‚¬Â¢ Business Promo Ã¢â‚¬Â¢ Fresh Start Mix"],
-              ["Tuesday", "Dancehall Drive Ã¢â‚¬Â¢ Listener Requests"],
-              ["Wednesday", "Midweek Motivation Ã¢â‚¬Â¢ Community Talk"],
-              ["Thursday", "Throwback Night Ã¢â‚¬Â¢ Old School Mix"],
-              ["Friday", "Weekend Warm Up Ã¢â‚¬Â¢ Party Mix"],
-              ["Saturday", "Live From Tha Core Ã¢â‚¬Â¢ DJ Special"],
+              ["Sunday", "Gospel Morning ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ Family Vibes ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ Sunday Talk"],
+              ["Monday", "Money Moves ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ Business Promo ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ Fresh Start Mix"],
+              ["Tuesday", "Dancehall Drive ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ Listener Requests"],
+              ["Wednesday", "Midweek Motivation ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ Community Talk"],
+              ["Thursday", "Throwback Night ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ Old School Mix"],
+              ["Friday", "Weekend Warm Up ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ Party Mix"],
+              ["Saturday", "Live From Tha Core ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ DJ Special"],
             ].map(([day, show]) => (
               <div key={day} className="rounded-2xl bg-black p-5">
                 <h3 className="text-2xl font-black text-red-400">{day}</h3>
@@ -385,15 +383,15 @@ Sent from Tha Core Radio website`
               <p className="text-3xl font-black">Tha Core Radio</p>
 
               <p className="mt-2 font-bold">
-                WhatsApp: 876-884-2867 Ã¢â‚¬Â¢ Email: dailydunney@gmail.com
+                WhatsApp: 876-884-2867 ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ Email: dailydunney@gmail.com
               </p>
 
               <p className="mt-2 font-bold">
-                Live radio Ã¢â‚¬Â¢ Store Ã¢â‚¬Â¢ Promos Ã¢â‚¬Â¢ Community
+                Live radio ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ Store ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ Promos ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ Community
               </p>
 
               <p className="mt-2 text-sm font-bold">
-                Ã‚Â© 2026 Tha Core. All rights reserved.
+                Ãƒâ€šÃ‚Â© 2026 Tha Core. All rights reserved.
               </p>
             </div>
           </div>
@@ -437,7 +435,7 @@ function NewsCard({
       <div className="text-5xl">{icon}</div>
       <h3 className="mt-4 text-2xl font-black text-red-400">{title}</h3>
       <p className="mt-2 text-gray-300">{text}</p>
-      <p className="mt-4 font-black text-red-400">Open Ã¢â€ â€™</p>
+      <p className="mt-4 font-black text-red-400">Open</p>
     </Link>
   );
 }
@@ -460,7 +458,7 @@ function BlogCard({
       </p>
       <h3 className="mt-3 text-2xl font-black text-white">{title}</h3>
       <p className="mt-3 text-gray-300">{text}</p>
-      <p className="mt-4 font-black text-red-400">Read Story Ã¢â€ â€™</p>
+      <p className="mt-4 font-black text-red-400">Read Story ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢</p>
     </Link>
   );
 }
