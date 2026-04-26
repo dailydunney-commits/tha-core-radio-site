@@ -4,45 +4,27 @@ import { notFound } from "next/navigation";
 const newsData: Record<string, { title: string; stories: string[] }> = {
   world: {
     title: "World News",
-    stories: [
-      "Breaking world stories will show here.",
-      "Global headlines and major updates for Tha Core listeners.",
-    ],
+    stories: ["Breaking world stories will show here."],
   },
   music: {
     title: "Music & Culture",
-    stories: [
-      "Dancehall, reggae, hip hop, artist updates, and culture news.",
-      "Tha Core music features will show here.",
-    ],
+    stories: ["Music, dancehall, reggae, entertainment, and culture updates."],
   },
   sports: {
     title: "Sports",
-    stories: [
-      "Sports scores, highlights, and match updates will show here.",
-      "Local and international sports updates coming soon.",
-    ],
+    stories: ["Sports scores, highlights, and updates will show here."],
   },
   business: {
     title: "Business",
-    stories: [
-      "Business updates, money moves, ads, and opportunities.",
-      "Tha Core business announcements will show here.",
-    ],
+    stories: ["Business, ads, promos, and money moves will show here."],
   },
   weather: {
     title: "Weather",
-    stories: [
-      "Weather updates and alerts will show here.",
-      "Use the Weather Reader for live weather reading.",
-    ],
+    stories: ["Weather updates and alerts will show here."],
   },
   "radio-updates": {
     title: "Radio Updates",
-    stories: [
-      "Station news, DJ drops, show announcements, and new features.",
-      "Tha Core Radio updates will show here.",
-    ],
+    stories: ["Tha Core Radio station updates will show here."],
   },
 };
 
@@ -53,9 +35,7 @@ export default function NewsCategoryPage({
 }) {
   const page = newsData[params.category];
 
-  if (!page) {
-    notFound();
-  }
+  if (!page) notFound();
 
   return (
     <main className="min-h-screen bg-black px-6 py-10 text-white">
@@ -69,8 +49,8 @@ export default function NewsCategoryPage({
             Listen Live
           </Link>
 
-          <Link href="/weather-reader" className="rounded-2xl border border-red-600 px-5 py-3 font-black hover:bg-red-600">
-            Weather Reader
+          <Link href="/store" className="rounded-2xl border border-red-600 px-5 py-3 font-black hover:bg-red-600">
+            Store
           </Link>
         </div>
 
