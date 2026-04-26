@@ -1,0 +1,95 @@
+import Link from "next/link";
+import { notFound } from "next/navigation";
+
+const newsData: Record<string, { title: string; stories: string[] }> = {
+  world: {
+    title: "World News",
+    stories: [
+      "Breaking world stories will show here.",
+      "Global headlines and major updates for Tha Core listeners.",
+    ],
+  },
+  music: {
+    title: "Music & Culture",
+    stories: [
+      "Dancehall, reggae, hip hop, artist updates, and culture news.",
+      "Tha Core music features will show here.",
+    ],
+  },
+  sports: {
+    title: "Sports",
+    stories: [
+      "Sports scores, highlights, and match updates will show here.",
+      "Local and international sports updates coming soon.",
+    ],
+  },
+  business: {
+    title: "Business",
+    stories: [
+      "Business updates, money moves, ads, and opportunities.",
+      "Tha Core business announcements will show here.",
+    ],
+  },
+  weather: {
+    title: "Weather",
+    stories: [
+      "Weather updates and alerts will show here.",
+      "Use the Weather Reader for live weather reading.",
+    ],
+  },
+  "radio-updates": {
+    title: "Radio Updates",
+    stories: [
+      "Station news, DJ drops, show announcements, and new features.",
+      "Tha Core Radio updates will show here.",
+    ],
+  },
+};
+
+export default function NewsCategoryPage({
+  params,
+}: {
+  params: { category: string };
+}) {
+  const page = newsData[params.category];
+
+  if (!page) {
+    notFound();
+  }
+
+  return (
+    <main className="min-h-screen bg-black px-6 py-10 text-white">
+      <section className="mx-auto max-w-5xl">
+        <div className="flex flex-wrap gap-3">
+          <Link href="/news" className="rounded-2xl bg-red-600 px-5 py-3 font-black">
+            ← Back To News
+          </Link>
+
+          <Link href="/" className="rounded-2xl border border-red-600 px-5 py-3 font-black hover:bg-red-600">
+            Listen Live
+          </Link>
+
+          <Link href="/weather-reader" className="rounded-2xl border border-red-600 px-5 py-3 font-black hover:bg-red-600">
+            Weather Reader
+          </Link>
+        </div>
+
+        <div className="mt-8 rounded-[2rem] border-2 border-red-600 bg-zinc-950 p-8">
+          <p className="text-sm tracking-[0.4em] text-red-400">THA CORE NEWS</p>
+          <h1 className="mt-3 text-5xl font-black md:text-7xl">{page.title}</h1>
+        </div>
+
+        <div className="mt-8 grid gap-4">
+          {page.stories.map((story, index) => (
+            <article
+              key={index}
+              className="rounded-3xl border border-red-700 bg-zinc-950 p-6"
+            >
+              <p className="text-lg text-gray-300">{story}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+    </main>
+  );
+}
