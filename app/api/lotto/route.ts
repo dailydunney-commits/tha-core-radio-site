@@ -1,14 +1,14 @@
 export const dynamic = "force-dynamic";
 export const revalidate = 300;
 
-const SOURCE_URL = "https://cashpotresults.info/";
+const SOURCE_URL =
+  "https://www.jamaicaindex.com/lottery/jamaica-lotto-results-for-today";
 
 function clean(text: string) {
   return text
     .replace(/<script[\s\S]*?<\/script>/gi, " ")
     .replace(/<style[\s\S]*?<\/style>/gi, " ")
     .replace(/<[^>]+>/g, " ")
-    .replace(/✅/g, " ")
     .replace(/&nbsp;/g, " ")
     .replace(/&amp;/g, "&")
     .replace(/\s+/g, " ")
@@ -16,28 +16,47 @@ function clean(text: string) {
 }
 
 function parseResults(text: string) {
+  const games = [
+    "Cash Pot",
+    "Pick 2",
+    "Pick 3",
+    "Pick 4",
+    "Hot Pick",
+    "Top Draw",
+    "Dollaz",
+    "Lotto",
+    "Super Lotto",
+  ];
+
   const results: any[] = [];
 
-  const pattern =
-    /(Early Bird|Morning|Midday|Mid Afternoon|Drive Time|Evening)\s+#Draw\s+(\d+)\s+(?:Verified\s+)?(\d{1,2})\s+([A-Z ]{2,40})/gi;
+  const rowPattern =
+    /(\d{1,2}\s+[A-Za-z]+\s+\d{4},\s+[A-Za-z]+)\s+(Cash Pot|Pick 2|Pick 3|Pick 4|Hot Pick|Top Draw|Dollaz|Lotto|Super Lotto)\s+([A-Z ]+)?\s+([\d\s+]+(?:\s+\$[\d,]+)?)(?:\s+[A-Za-z ]+)?\s*-?#(\d+)/gi;
 
   let match;
 
-  while ((match = pattern.exec(text)) !== null) {
+  while ((match = rowPattern.exec(text)) !== null) {
+    const date = match[1].trim();
+    const game = match[2].trim();
+    const drawName = (match[3] || "Latest Draw").trim();
+    const nums = match[4].trim().replace(/\s+/g, " ");
+    const draw = match[5].trim();
+
     results.push({
-      label: `Cash Pot ${match[1]}`,
-      draw: `#${match[2]}`,
-      result: `${match[3]} - ${match[4].trim()}`,
+      label: game,
+      draw: `#${draw} • ${drawName} • ${date}`,
+      result: nums,
     });
   }
 
-  const order = ["Early Bird", "Morning", "Midday", "Mid Afternoon", "Drive Time", "Evening"];
+  const latestByGame: any[] = [];
 
-  return results.sort((a, b) => {
-    const aIndex = order.findIndex((name) => a.label.includes(name));
-    const bIndex = order.findIndex((name) => b.label.includes(name));
-    return aIndex - bIndex;
-  });
+  for (const game of games) {
+    const found = results.filter((item) => item.label === game).slice(0, 6);
+    latestByGame.push(...found);
+  }
+
+  return latestByGame;
 }
 
 export async function GET() {
@@ -54,7 +73,7 @@ export async function GET() {
     const results = parseResults(text);
 
     return Response.json({
-      source: "Cashpot Results / Supreme Ventures",
+      source: "JamaicaIndex / Supreme Ventures",
       sourceUrl: SOURCE_URL,
       updatedAt: new Date().toISOString(),
       results:
@@ -62,7 +81,7 @@ export async function GET() {
           ? results
           : [
               {
-                label: "Cash Pot",
+                label: "Supreme Ventures Results",
                 draw: "Latest Draw",
                 result: "Live update pending",
               },
@@ -74,7 +93,7 @@ export async function GET() {
       updatedAt: new Date().toISOString(),
       results: [
         {
-          label: "Cash Pot",
+          label: "Supreme Ventures Results",
           draw: "Latest Draw",
           result: "Try refresh shortly",
         },
