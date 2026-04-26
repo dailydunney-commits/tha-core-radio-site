@@ -11,37 +11,37 @@ const feeds: Record<string,string> = {
 };
 
 function decode(text:string){
-  return text
-    .replace(/<!\[CDATA\[/g,"")
-    .replace(/\]\]>/g,"")
-    .replace(/&lt;/g,"<")
-    .replace(/&gt;/g,">")
-    .replace(/&quot;/g,'"')
-    .replace(/&#39;/g,"'")
-    .replace(/&apos;/g,"'")
-    .replace(/&amp;/g,"&")
-    .replace(/&nbsp;/g," ");
+  let out = text || "";
+  for (let i = 0; i < 3; i++) {
+    out = out
+      .replace(/<!\[CDATA\[/g,"")
+      .replace(/\]\]>/g,"")
+      .replace(/&lt;/g,"<")
+      .replace(/&gt;/g,">")
+      .replace(/&quot;/g,'"')
+      .replace(/&#39;/g,"'")
+      .replace(/&apos;/g,"'")
+      .replace(/&nbsp;/g," ")
+      .replace(/&amp;/g,"&");
+  }
+  return out;
 }
 
-function stripHtml(text:string){
+function clean(text:string){
   return decode(text)
-    .replace(/<a[^>]*>/gi," ")
-    .replace(/<\/a>/gi," ")
-    .replace(/<font[^>]*>/gi," ")
-    .replace(/<\/font>/gi," ")
-    .replace(/<li[^>]*>/gi," ")
-    .replace(/<\/li>/gi," ")
-    .replace(/<ul[^>]*>/gi," ")
-    .replace(/<\/ul>/gi," ")
-    .replace(/<br\s*\/?>/gi," ")
+    .replace(/<script[\s\S]*?<\/script>/gi," ")
+    .replace(/<style[\s\S]*?<\/style>/gi," ")
     .replace(/<[^>]+>/g," ")
+    .replace(/Ã¢â‚¬Â¢/g,"•")
+    .replace(/â€¢/g,"•")
+    .replace(/ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢/g,"•")
     .replace(/\s+/g," ")
     .trim();
 }
 
-function summary(text:string){
-  const cleaned = stripHtml(text);
-  return cleaned.length > 320 ? cleaned.slice(0,320) + "..." : cleaned;
+function shorten(text:string){
+  const c = clean(text);
+  return c.length > 320 ? c.slice(0,320) + "..." : c;
 }
 
 export async function GET(request:Request){
@@ -52,22 +52,20 @@ export async function GET(request:Request){
   try{
     const res = await fetch(feed,{next:{revalidate:900}});
     const xml = await res.text();
-
     const rawItems = xml.match(/<item>[\s\S]*?<\/item>/g) || [];
 
     const items = rawItems.slice(0,12).map((item)=>{
       const title = item.match(/<title>([\s\S]*?)<\/title>/)?.[1] || "";
-      const link = item.match(/<link>([\s\S]*?)<\/link>/)?.[1] || "";
       const pubDate = item.match(/<pubDate>([\s\S]*?)<\/pubDate>/)?.[1] || "";
       const source = item.match(/<source[^>]*>([\s\S]*?)<\/source>/)?.[1] || "News Source";
       const description = item.match(/<description>([\s\S]*?)<\/description>/)?.[1] || "";
 
       return {
-        title: stripHtml(title),
-        link: stripHtml(link),
-        source: stripHtml(source),
-        pubDate: stripHtml(pubDate),
-        description: summary(description)
+        title: clean(title),
+        link: "",
+        source: clean(source),
+        pubDate: clean(pubDate),
+        description: shorten(description)
       };
     });
 
@@ -76,7 +74,6 @@ export async function GET(request:Request){
       updatedAt:new Date().toISOString(),
       items
     });
-
   }catch{
     return Response.json({
       category,
@@ -84,7 +81,7 @@ export async function GET(request:Request){
       items:[
         {
           title:"Live news loading soon",
-          link:"/news",
+          link:"",
           source:"Tha Core Newsroom",
           pubDate:new Date().toUTCString(),
           description:"Live news is temporarily loading. Please refresh shortly."

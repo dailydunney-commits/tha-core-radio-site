@@ -18,18 +18,13 @@ export default function NewsCategoryPage() {
 
   async function loadNews() {
     setLoading(true);
-
     try {
-      const res = await fetch("/api/news?category=weather", {
-        cache: "no-store",
-      });
-
+      const res = await fetch("/api/news?category=weather", { cache: "no-store" });
       const data = await res.json();
       setItems(data.items || []);
     } catch {
       setItems([]);
     }
-
     setLoading(false);
   }
 
@@ -41,19 +36,19 @@ export default function NewsCategoryPage() {
 
   const tickerText =
     items.length > 0
-      ? items.map((item) => item.title).join("  ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢  ")
+      ? items.map((item) => item.title).join("   •   ")
       : "Loading live Weather headlines...";
 
   return (
     <main className="min-h-screen bg-black px-6 py-10 text-white">
-      <section className="mx-auto max-w-6xl">
-        <style>
-          {"@keyframes categoryNewsTicker { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }"}
-        </style>
+      <style>
+        {"@keyframes categoryNewsTicker { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }"}
+      </style>
 
+      <section className="mx-auto max-w-6xl">
         <div className="flex flex-wrap gap-3">
           <Link href="/news" className="rounded-2xl bg-red-600 px-5 py-3 font-black hover:bg-red-700">
-            ÃƒÂ¢Ã¢â‚¬Â Ã‚Â Back To News
+            Back To News
           </Link>
 
           <Link href="/" className="rounded-2xl border border-red-600 px-5 py-3 font-black hover:bg-red-600">
@@ -131,7 +126,7 @@ export default function NewsCategoryPage() {
                 </p>
 
                 <p className="mt-4 font-black text-red-400">
-                  Read Here ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢
+                  Read Here
                 </p>
               </button>
             ))}
@@ -157,8 +152,17 @@ export default function NewsCategoryPage() {
               </h2>
 
               <p className="mt-4 text-sm font-bold text-gray-400">
-                {selected.source} ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ {selected.pubDate}
+                {selected.source} • {selected.pubDate}
               </p>
+
+              <div className="mt-5 overflow-hidden rounded-2xl border border-red-700 bg-black p-3">
+                <div
+                  className="whitespace-nowrap text-sm font-black text-yellow-400"
+                  style={{ animation: "categoryNewsTicker 28s linear infinite" }}
+                >
+                  {tickerText}
+                </div>
+              </div>
 
               <div className="mt-6 rounded-2xl bg-black p-6">
                 <p className="text-lg leading-8 text-gray-200">
