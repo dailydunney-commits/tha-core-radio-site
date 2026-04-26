@@ -1,35 +1,37 @@
 export const dynamic = "force-dynamic";
 export const revalidate = 300;
 
-const SOURCE_URL = "https://supremeventurescashpotresults.com/cashpot-results/";
+const SOURCE_URL = "https://cashpotresults.info/";
 
 function clean(text: string) {
   return text
     .replace(/<script[\s\S]*?<\/script>/gi, " ")
     .replace(/<style[\s\S]*?<\/style>/gi, " ")
     .replace(/<[^>]+>/g, " ")
+    .replace(/✅/g, " ")
     .replace(/&nbsp;/g, " ")
     .replace(/&amp;/g, "&")
-    .replace(/&#8211;/g, "-")
-    .replace(/&#8217;/g, "'")
     .replace(/\s+/g, " ")
     .trim();
 }
 
 function parseResults(text: string) {
-  const drawNames = ["Early Bird", "Morning", "Midday", "Mid Afternoon", "Drive Time", "Evening"];
+  const draws = ["Early Bird", "Morning", "Midday", "Mid Afternoon", "Drive Time", "Evening"];
   const results: any[] = [];
 
-  for (const name of drawNames) {
-    const safeName = name.replace(" ", "\\s*");
-    const regex = new RegExp(`${safeName}[^0-9#]{0,80}(?:#\\s*Draw\\s*)?(\\d{4,6})?[^0-9]{0,80}(\\d{1,2})\\s*[-–]?\\s*([A-Za-z ]{2,30})`, "i");
-    const match = text.match(regex);
+  for (const drawName of draws) {
+    const pattern = new RegExp(
+      drawName + "\\s+#Draw\\s+(\\d+)\\s+(?:Verified\\s+)?(\\d{1,2})\\s+([A-Z ]{2,40})",
+      "i"
+    );
+
+    const match = text.match(pattern);
 
     if (match) {
       results.push({
-        label: `Cash Pot ${name}`,
-        draw: match[1] ? `#${match[1]}` : "Latest Draw",
-        result: `${match[2]} - ${match[3].trim()}`
+        label: `Cash Pot ${drawName}`,
+        draw: `#${match[1]}`,
+        result: `${match[2]} - ${match[3].trim()}`,
       });
     }
   }
@@ -51,7 +53,7 @@ export async function GET() {
     const results = parseResults(text);
 
     return Response.json({
-      source: "Supreme Ventures Cash Pot Results",
+      source: "Cashpot Results / Supreme Ventures",
       sourceUrl: SOURCE_URL,
       updatedAt: new Date().toISOString(),
       results:
