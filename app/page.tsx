@@ -82,7 +82,7 @@ Sent from Tha Core Radio website`
 
         <div className="mb-5 rounded-3xl border border-red-700 bg-gradient-to-br from-red-950 to-black p-5 shadow-[0_0_55px_rgba(34,197,94,.75)]">
           <p className="text-xl font-black italic text-yellow-400">
-            Vote next song ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ Flash sale ends in 10 mins ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ Drop your shoutout live now
+            Vote next song ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ Flash sale ends in 10 mins ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ Drop your shoutout live now
           </p>
         </div>
 
@@ -103,7 +103,7 @@ Sent from Tha Core Radio website`
 
               <div className="mt-6 rounded-3xl border-2 border-red-500 bg-black/90 p-6 shadow-[0_0_75px_rgba(34,197,94,1)]">
                 <p className="text-lg font-black italic text-yellow-400">
-                  ON AIR NOW ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ NOW PLAYING
+                  ON AIR NOW ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ NOW PLAYING
                 </p>
 
                 <div className="mt-3 flex gap-2">
@@ -120,7 +120,7 @@ Sent from Tha Core Radio website`
 
                   <div className="mt-3 max-w-full overflow-hidden rounded-xl border border-red-800 bg-zinc-950 p-3">
                     <div className="animate-[trackMarquee_12s_linear_infinite] whitespace-nowrap text-xl font-black text-white md:text-2xl">
-                      🎵 {nowArtist} — {nowSong} •
+                      ðŸŽµ {nowArtist} â€” {nowSong} â€¢
                     </div>
                   </div>
                 </div>
@@ -175,11 +175,11 @@ Sent from Tha Core Radio website`
               </div>
             </div>
 
-            <div className="flex items-center justify-center lg:justify-end">
+            <div className="flex items-start justify-center pt-2 lg:justify-end">
               <img
                 src="/logo-site.png?v=777"
                 alt="Tha Core Logo"
-                className="h-80 w-80 rounded-full border-[6px] border-green-400 bg-transparent object-contain p-0 shadow-[0_0_120px_rgba(34,197,94,1)]"
+                className="h-72 w-72 rounded-full border-[6px] border-green-400 bg-transparent object-contain p-0 shadow-[0_0_120px_rgba(34,197,94,1)]"
               />
             </div>
           </div>
@@ -188,8 +188,8 @@ Sent from Tha Core Radio website`
         <div className="mt-8 grid gap-6 md:grid-cols-4">
           <Card title="Listeners Online" text={`${listeners} tuned in now`} />
           <Card title="Joined Today" text="34 new listeners today" />
-          <Card title="Top Cities" text="Kingston ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ Montego Bay ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ London" />
-          <Card title="Live Energy" text="Music ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ Chat ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ Store ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ Giveaways" />
+          <Card title="Top Cities" text="Kingston ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ Montego Bay ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ London" />
+          <Card title="Live Energy" text="Music ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ Chat ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ Store ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ Giveaways" />
         </div>
 
         <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_.8fr]">
@@ -260,10 +260,10 @@ Sent from Tha Core Radio website`
           </Panel>
 
           <Panel title="Daily Reward / Check-In">
-            <p className="text-gray-300">YouÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ve visited 3 days in a row.</p>
+            <p className="text-gray-300">YouÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Ãƒâ€šÃ‚Â¢ve visited 3 days in a row.</p>
 
             <button onClick={() => setCheckedIn(true)} className="mt-5 rounded-xl bg-red-700 px-5 py-3 font-black">
-              {checkedIn ? "Badge Unlocked ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ" : "Daily Check-In"}
+              {checkedIn ? "Badge Unlocked ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“" : "Daily Check-In"}
             </button>
           </Panel>
 
@@ -278,9 +278,9 @@ Sent from Tha Core Radio website`
           <h2 className="text-3xl font-black text-red-400">News Preview</h2>
 
           <div className="mt-6 grid gap-5 md:grid-cols-3">
-            <NewsCard href="/news/world" icon="ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã¢â‚¬â„¢Ãƒâ€šÃ‚Â" title="World News" text="Breaking headlines and global updates." />
-            <NewsCard href="/news/music" icon="ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â½Ãƒâ€šÃ‚Â¤" title="Music & Culture" text="Reggae, dancehall, entertainment and artists." />
-            <NewsCard href="/news/business" icon="ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢Ãƒâ€šÃ‚Â¼" title="Money Moves" text="Business, ads, promos, and opportunities." />
+            <NewsCard href="/news/world" icon="ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â" title="World News" text="Breaking headlines and global updates." />
+            <NewsCard href="/news/music" icon="ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â½ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¤" title="Music & Culture" text="Reggae, dancehall, entertainment and artists." />
+            <NewsCard href="/news/business" icon="ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¼" title="Money Moves" text="Business, ads, promos, and opportunities." />
           </div>
         </div>
 
@@ -341,13 +341,13 @@ Sent from Tha Core Radio website`
 
           <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             {[
-              ["Sunday", "Gospel Morning ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ Family Vibes ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ Sunday Talk"],
-              ["Monday", "Money Moves ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ Business Promo ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ Fresh Start Mix"],
-              ["Tuesday", "Dancehall Drive ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ Listener Requests"],
-              ["Wednesday", "Midweek Motivation ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ Community Talk"],
-              ["Thursday", "Throwback Night ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ Old School Mix"],
-              ["Friday", "Weekend Warm Up ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ Party Mix"],
-              ["Saturday", "Live From Tha Core ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ DJ Special"],
+              ["Sunday", "Gospel Morning ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ Family Vibes ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ Sunday Talk"],
+              ["Monday", "Money Moves ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ Business Promo ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ Fresh Start Mix"],
+              ["Tuesday", "Dancehall Drive ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ Listener Requests"],
+              ["Wednesday", "Midweek Motivation ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ Community Talk"],
+              ["Thursday", "Throwback Night ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ Old School Mix"],
+              ["Friday", "Weekend Warm Up ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ Party Mix"],
+              ["Saturday", "Live From Tha Core ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ DJ Special"],
             ].map(([day, show]) => (
               <div key={day} className="rounded-2xl bg-black p-5">
                 <h3 className="text-2xl font-black text-red-400">{day}</h3>
@@ -383,15 +383,15 @@ Sent from Tha Core Radio website`
               <p className="text-3xl font-black">Tha Core Radio</p>
 
               <p className="mt-2 font-bold">
-                WhatsApp: 876-884-2867 ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ Email: dailydunney@gmail.com
+                WhatsApp: 876-884-2867 ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ Email: dailydunney@gmail.com
               </p>
 
               <p className="mt-2 font-bold">
-                Live radio ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ Store ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ Promos ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ Community
+                Live radio ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ Store ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ Promos ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ Community
               </p>
 
               <p className="mt-2 text-sm font-bold">
-                ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â© 2026 Tha Core. All rights reserved.
+                ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â© 2026 Tha Core. All rights reserved.
               </p>
             </div>
           </div>
@@ -435,7 +435,7 @@ function NewsCard({
       <div className="text-5xl">{icon}</div>
       <h3 className="mt-4 text-2xl font-black text-red-400">{title}</h3>
       <p className="mt-2 text-gray-300">{text}</p>
-      <p className="mt-4 font-black text-red-400">Open ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢</p>
+      <p className="mt-4 font-black text-red-400">Open ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢</p>
     </Link>
   );
 }
@@ -458,7 +458,7 @@ function BlogCard({
       </p>
       <h3 className="mt-3 text-2xl font-black text-white">{title}</h3>
       <p className="mt-3 text-gray-300">{text}</p>
-      <p className="mt-4 font-black text-red-400">Read Story ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢</p>
+      <p className="mt-4 font-black text-red-400">Read Story ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢</p>
     </Link>
   );
 }
