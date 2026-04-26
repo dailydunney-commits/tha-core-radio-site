@@ -1,201 +1,115 @@
-"use client";
+﻿"use client";
 
-import { useMemo, useState } from "react";
+import Link from "next/link";
+import { useState } from "react";
+
+const WHATSAPP_NUMBER = "18768842867";
 
 export default function UploadPage() {
   const [name, setName] = useState("");
-  const [title, setTitle] = useState("");
-  const [category, setCategory] = useState("song");
-  const [file, setFile] = useState<File | null>(null);
-  const [status, setStatus] = useState("Ready for uploads.");
-  const [uploading, setUploading] = useState(false);
+  const [whatsapp, setWhatsapp] = useState("");
+  const [entryType, setEntryType] = useState("Music Submission");
+  const [message, setMessage] = useState("");
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  const uploadText = encodeURIComponent(
+    `THA CORE RADIO UPLOAD ENTRY
 
-  const ready = useMemo(() => {
-    return Boolean(supabaseUrl && supabaseKey);
-  }, [supabaseUrl, supabaseKey]);
+Name:
+${name || "No name entered"}
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+WhatsApp:
+${whatsapp || "No WhatsApp entered"}
 
-    if (!ready) {
-      setStatus("Missing Supabase environment variables.");
-      return;
-    }
+Entry Type:
+${entryType}
 
-    if (!name.trim()) {
-      setStatus("Please enter your name.");
-      return;
-    }
+Message:
+${message || "No message entered"}
 
-    if (!title.trim()) {
-      setStatus("Please enter a title.");
-      return;
-    }
+NOTE:
+Visitor should send file/photo/music directly in this WhatsApp chat.
 
-    if (!file) {
-      setStatus("Please choose a file.");
-      return;
-    }
-
-    try {
-      setUploading(true);
-      setStatus("Uploading file...");
-
-      const { createClient } = await import("@supabase/supabase-js");
-
-      const supabase = createClient(supabaseUrl!, supabaseKey!);
-
-      const safeCategory = category.trim().toLowerCase();
-      const safeFileName = file.name.replace(/\s+/g, "-");
-      const uniquePath = `${safeCategory}/${Date.now()}-${safeFileName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from("listener_uploads")
-        .upload(uniquePath, file, {
-          upsert: false,
-          contentType: file.type || undefined,
-        });
-
-      if (uploadError) {
-        setStatus(`Upload error: ${uploadError.message}`);
-        setUploading(false);
-        return;
-      }
-
-      const { data: publicData } = supabase.storage
-        .from("listener_uploads")
-        .getPublicUrl(uniquePath);
-
-      const fileUrl = publicData?.publicUrl || "";
-      const filePath = uniquePath;
-
-      setStatus("Saving upload details...");
-
-      const payload: any = {
-        name: name.trim(),
-        title: title.trim(),
-        category: safeCategory,
-        file_url: fileUrl,
-        file_path: filePath,
-        created_at: new Date().toISOString(),
-      };
-
-      const { error: insertError } = await (supabase as any)
-        .from("listener_uploads")
-        .insert([payload]);
-
-      if (insertError) {
-        setStatus(`Database error: ${insertError.message}`);
-        setUploading(false);
-        return;
-      }
-
-      setName("");
-      setTitle("");
-      setCategory("song");
-      setFile(null);
-      setStatus("Upload sent successfully.");
-      setUploading(false);
-
-      const fileInput = document.getElementById(
-        "listener-file"
-      ) as HTMLInputElement | null;
-
-      if (fileInput) {
-        fileInput.value = "";
-      }
-    } catch (error) {
-      setStatus(
-        `Unexpected error: ${
-          error instanceof Error ? error.message : "Something went wrong"
-        }`
-      );
-      setUploading(false);
-    }
-  };
+Sent from Tha Core Radio website`
+  );
 
   return (
-    <main className="min-h-screen bg-black px-6 py-12 text-white">
-      <div className="mx-auto max-w-4xl">
-        <div className="flex flex-wrap items-center gap-3">
-          <a
-            href="/"
-            className="rounded-2xl border border-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/5"
-          >
-            Back Home
-          </a>
+    <main className="min-h-screen bg-black px-6 py-10 text-white">
+      <section className="mx-auto max-w-5xl">
+        <Link href="/" className="font-black text-red-400">
+          ← Back Home
+        </Link>
 
-          <a
-            href="/chat"
-            className="rounded-2xl border border-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/5"
-          >
-            Go To Chat
-          </a>
+        <div className="mt-6 rounded-[2rem] border-2 border-red-600 bg-gradient-to-br from-yellow-200 via-amber-300 to-yellow-500 p-8 text-black shadow-[0_0_60px_rgba(34,197,94,.7)]">
+          <h1 className="text-5xl font-black md:text-7xl">
+            Upload Entry
+          </h1>
 
-          <a
-            href="/admin/uploads"
-            className="rounded-2xl border border-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/5"
-          >
-            Admin Review
-          </a>
+          <p className="mt-4 text-lg font-bold">
+            Submit music, photos, contest entries, radio promos, ads, or shoutout material.
+          </p>
         </div>
 
-        <h1 className="mt-8 text-4xl font-black">Tha Core Uploads</h1>
-        <p className="mt-3 text-zinc-400">
-          Send songs, photos, and contest entries to Tha Core.
-        </p>
-
-        <p className="mt-4 text-sm text-red-400">{status}</p>
-
-        <form
-          onSubmit={handleSubmit}
-          className="mt-8 space-y-4 rounded-3xl border border-white/10 bg-zinc-900 p-6"
-        >
+        <div className="mt-8 rounded-3xl border border-red-700 bg-zinc-950 p-6 shadow-[0_0_45px_rgba(34,197,94,.55)]">
+          <label className="font-black text-red-400">Your Name</label>
           <input
-            type="text"
-            placeholder="Your name"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 outline-none"
+            placeholder="Enter your name"
+            className="mt-2 w-full rounded-xl bg-black p-4"
           />
 
+          <label className="mt-5 block font-black text-red-400">
+            WhatsApp Number
+          </label>
           <input
-            type="text"
-            placeholder="Title of song, photo, or entry"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 outline-none"
+            value={whatsapp}
+            onChange={(e) => setWhatsapp(e.target.value)}
+            placeholder="Enter WhatsApp number"
+            className="mt-2 w-full rounded-xl bg-black p-4"
           />
 
+          <label className="mt-5 block font-black text-red-400">
+            Entry Type
+          </label>
           <select
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 outline-none"
+            value={entryType}
+            onChange={(e) => setEntryType(e.target.value)}
+            className="mt-2 w-full rounded-xl bg-black p-4"
           >
-            <option value="song">Song</option>
-            <option value="photo">Photo</option>
-            <option value="contest">Contest</option>
+            <option>Music Submission</option>
+            <option>Photo Contest Entry</option>
+            <option>Song Request File</option>
+            <option>Radio Promo / Ad Material</option>
+            <option>Birthday Shoutout Material</option>
+            <option>Business Promo</option>
+            <option>Other Upload</option>
           </select>
 
-          <input
-            id="listener-file"
-            type="file"
-            onChange={(e) => setFile(e.target.files?.[0] || null)}
-            className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 outline-none file:mr-4 file:rounded-xl file:border-0 file:bg-red-600 file:px-4 file:py-2 file:font-semibold file:text-white"
+          <label className="mt-5 block font-black text-red-400">
+            Message / Details
+          </label>
+          <textarea
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            placeholder="Tell us what you are sending..."
+            className="mt-2 h-40 w-full rounded-xl bg-black p-4"
           />
 
-          <button
-            type="submit"
-            disabled={uploading}
-            className="rounded-2xl bg-red-600 px-6 py-3 font-semibold text-white transition hover:bg-red-500 disabled:opacity-60"
+          <a
+            href={`https://wa.me/${WHATSAPP_NUMBER}?text=${uploadText}`}
+            target="_blank"
+            className="mt-6 block rounded-xl bg-red-700 px-6 py-4 text-center font-black hover:bg-red-800"
           >
-            {uploading ? "Uploading..." : "Send Upload"}
-          </button>
-        </form>
-      </div>
+            Send Upload Details To WhatsApp
+          </a>
+
+          <div className="mt-6 rounded-2xl bg-black p-5">
+            <p className="font-black text-yellow-400">
+              After clicking WhatsApp, attach your file, photo, or music directly in the chat.
+            </p>
+          </div>
+        </div>
+      </section>
     </main>
   );
 }

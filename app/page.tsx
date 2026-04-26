@@ -1,470 +1,332 @@
-"use client";
+﻿"use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
+import PlayLiveButton from "@/components/play-live-button";
+import { useEffect, useMemo, useState } from "react";
+import { products } from "./store/products";
 
-type TimeResponse = {
-  timezone: string;
-  dateLabel: string;
-  timeLabel: string;
-  speechText: string;
-  iso: string;
-};
-
-type WeatherResponse = {
-  city: string;
-  tempC: number;
-  feelsLikeC: number;
-  humidity: number;
-  description: string;
-  speechText: string;
-  error?: string;
-};
-
-type ChatMessage = {
-  id: string;
-  name: string;
-  message: string;
-  created_at: string;
-};
+const WHATSAPP_LINK = "https://wa.me/18768842867";
 
 export default function HomePage() {
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [listeners, setListeners] = useState(127);
+  const [ticker, setTicker] = useState(0);
+  const [poll, setPoll] = useState("");
+  const [checkedIn, setCheckedIn] = useState(false);
+  const [requestName, setRequestName] = useState("");
+  const [requestMessage, setRequestMessage] = useState("");
 
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [playerError, setPlayerError] = useState("");
+  const featuredProducts = useMemo(() => products.slice(0, 8), []);
 
-  const [timeData, setTimeData] = useState<TimeResponse | null>(null);
-  const [weatherData, setWeatherData] = useState<WeatherResponse | null>(null);
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
-
-  const [timeStatus, setTimeStatus] = useState("Loading Jamaica time...");
-  const [weatherStatus, setWeatherStatus] = useState("Loading weather...");
-  const [chatStatus, setChatStatus] = useState("Loading chat...");
-
-  const streamUrl = process.env.NEXT_PUBLIC_STREAM_URL;
-
-  const chatFunctionUrl = useMemo(() => {
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    if (!url) return "";
-    return `${url}/functions/v1/chat-service`;
-  }, []);
-
-  const togglePlayer = async () => {
-    if (!audioRef.current) return;
-
-    if (!streamUrl) {
-      setPlayerError("Stream URL is missing.");
-      return;
-    }
-
-    try {
-      setPlayerError("");
-
-      if (audioRef.current.paused) {
-        await audioRef.current.play();
-        setIsPlaying(true);
-      } else {
-        audioRef.current.pause();
-        setIsPlaying(false);
-      }
-    } catch {
-      setPlayerError("The stream could not load.");
-      setIsPlaying(false);
-    }
-  };
-
-  const loadTime = async () => {
-    try {
-      const response = await fetch("/api/time", {
-        method: "GET",
-        cache: "no-store",
-      });
-
-      const result = (await response.json()) as TimeResponse;
-
-      if (!response.ok) {
-        setTimeStatus("Could not load time.");
-        return;
-      }
-
-      setTimeData(result);
-      setTimeStatus("Time ready.");
-    } catch {
-      setTimeStatus("Could not load time.");
-    }
-  };
-
-  const loadWeather = async () => {
-    try {
-      const response = await fetch("/api/weather", {
-        method: "GET",
-        cache: "no-store",
-      });
-
-      const result = (await response.json()) as WeatherResponse;
-
-      if (!response.ok) {
-        setWeatherStatus(result.error || "Could not load weather.");
-        return;
-      }
-
-      setWeatherData(result);
-      setWeatherStatus("Weather ready.");
-    } catch {
-      setWeatherStatus("Could not load weather.");
-    }
-  };
-
-  const loadChat = async () => {
-    if (!chatFunctionUrl) {
-      setChatStatus("Missing NEXT_PUBLIC_SUPABASE_URL.");
-      return;
-    }
-
-    try {
-      const response = await fetch(chatFunctionUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ action: "list" }),
-      });
-
-      const result = await response.json().catch(() => null);
-
-      if (!response.ok) {
-        setChatStatus(result?.error || `HTTP ${response.status}`);
-        return;
-      }
-
-      const rows = Array.isArray(result?.messages) ? result.messages : [];
-      setChatMessages(rows.slice(-3).reverse());
-      setChatStatus(`Loaded ${rows.length} messages.`);
-    } catch (error) {
-      setChatStatus(
-        `Load error: ${error instanceof Error ? error.message : "Failed to fetch"}`
-      );
-    }
-  };
-
-  const readText = (text: string) => {
-    if (!("speechSynthesis" in window)) return false;
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 1;
-    utterance.pitch = 1;
-    utterance.volume = 1;
-    window.speechSynthesis.speak(utterance);
-    return true;
-  };
-
-  const readTime = async () => {
-    try {
-      const response = await fetch("/api/time", {
-        method: "GET",
-        cache: "no-store",
-      });
-
-      const result = (await response.json()) as TimeResponse;
-
-      if (!response.ok) {
-        setTimeStatus("Could not read time.");
-        return;
-      }
-
-      setTimeData(result);
-      const ok = readText(result.speechText);
-      setTimeStatus(ok ? "Time announcement played." : "Voice reading not supported.");
-    } catch {
-      setTimeStatus("Could not read time.");
-    }
-  };
-
-  const readWeather = async () => {
-    try {
-      const response = await fetch("/api/weather", {
-        method: "GET",
-        cache: "no-store",
-      });
-
-      const result = (await response.json()) as WeatherResponse;
-
-      if (!response.ok) {
-        setWeatherStatus(result.error || "Could not read weather.");
-        return;
-      }
-
-      setWeatherData(result);
-      const ok = readText(result.speechText);
-      setWeatherStatus(
-        ok ? "Weather announcement played." : "Voice reading not supported."
-      );
-    } catch {
-      setWeatherStatus("Could not read weather.");
-    }
-  };
+  const tickerItems = [
+    "NOW PLAYING: Tha Core Live Mix",
+    "UPCOMING SHOW: Dancehall Drive starts soon",
+    "STORE SALE: Custom prints and radio promos available",
+    "BIRTHDAY SHOUTOUT: Send your birthday shoutout live",
+    "SPONSOR AD: Sponsor slots available now",
+  ];
 
   useEffect(() => {
-    loadTime();
-    loadWeather();
-    loadChat();
+    const tick = setInterval(() => {
+      setTicker((v) => (v + 1) % tickerItems.length);
+    }, 3500);
 
-    const timeTimer = window.setInterval(loadTime, 10000);
-    const weatherTimer = window.setInterval(loadWeather, 300000);
-    const chatTimer = window.setInterval(loadChat, 8000);
+    const stat = setInterval(() => {
+      setListeners((v) => Math.max(90, v + Math.floor(Math.random() * 5) - 2));
+    }, 6000);
 
     return () => {
-      window.clearInterval(timeTimer);
-      window.clearInterval(weatherTimer);
-      window.clearInterval(chatTimer);
+      clearInterval(tick);
+      clearInterval(stat);
     };
-  }, [chatFunctionUrl]);
+  }, []);
+
+  const requestText = encodeURIComponent(
+    `THA CORE RADIO VISITOR REQUEST
+
+Name:
+${requestName || "No name entered"}
+
+Request / Shoutout:
+${requestMessage || "No message entered"}
+
+Time Submitted:
+${new Date().toLocaleString()}
+
+Sent from Tha Core Radio website`
+  );
 
   return (
-    <main className="min-h-screen bg-black text-white">
-      <section className="mx-auto flex min-h-screen w-full max-w-6xl flex-col px-6 py-16">
-        <p className="mb-4 text-sm uppercase tracking-[0.3em] text-red-500">
-          Live From Tha Core
-        </p>
-
-        <h1 className="text-4xl font-black tracking-tight sm:text-6xl md:text-7xl">
-          Tha Core Radio
-        </h1>
-
-        <p className="mt-6 max-w-3xl text-lg text-zinc-300">
-          Live radio, real vibes, community energy, listener chat, uploads,
-          time reads, weather reads, and station tools — all in one place.
-        </p>
-
-        <div className="mt-10 flex flex-wrap gap-4">
-          <button
-            onClick={togglePlayer}
-            className="rounded-2xl bg-red-600 px-6 py-3 font-semibold text-white transition hover:bg-red-500"
-          >
-            {isPlaying ? "Pause Live" : "Play Live"}
-          </button>
-
-          <a
-            href="/chat"
-            className="rounded-2xl border border-white/15 px-6 py-3 font-semibold text-white transition hover:bg-white/5"
-          >
-            Join Community
-          </a>
-
-          <a
-            href="/upload"
-            className="rounded-2xl border border-white/15 px-6 py-3 font-semibold text-white transition hover:bg-white/5"
-          >
-            Uploads
-          </a>
-
-          <a
-            href="/time-reader"
-            className="rounded-2xl border border-white/15 px-6 py-3 font-semibold text-white transition hover:bg-white/5"
-          >
-            Time Reader
-          </a>
-
-          <a
-            href="/weather-reader"
-            className="rounded-2xl border border-white/15 px-6 py-3 font-semibold text-white transition hover:bg-white/5"
-          >
-            Weather Reader
-          </a>
+    <main className="min-h-screen bg-black px-4 py-6 pb-44 text-white sm:px-6">
+      <section className="mx-auto max-w-7xl">
+        <div className="mb-5 rounded-2xl border border-red-700 bg-zinc-950 px-5 py-3 text-lg font-black italic text-yellow-400 shadow-[0_0_55px_rgba(34,197,94,.8)]">
+          {tickerItems[ticker]}
         </div>
 
-        <div className="mt-16 grid gap-6 lg:grid-cols-3">
-          <div className="rounded-3xl border border-white/10 bg-zinc-900 p-6 lg:col-span-2">
-            <h2 className="text-2xl font-bold">Live Player</h2>
-            <p className="mt-3 text-zinc-400">
-              Press play to test your station stream.
-            </p>
+        <div className="mb-5 rounded-3xl border border-red-700 bg-gradient-to-br from-red-950 to-black p-5 shadow-[0_0_55px_rgba(34,197,94,.75)]">
+          <p className="text-xl font-black italic text-yellow-400">
+            Vote next song • Flash sale ends in 10 mins • Drop your shoutout live now
+          </p>
+        </div>
 
-            <audio
-              ref={audioRef}
-              src={streamUrl}
-              preload="none"
-              controls
-              className="mt-4 w-full"
-              onPause={() => setIsPlaying(false)}
-              onPlay={() => setIsPlaying(true)}
-              onError={() => setPlayerError("The stream could not load.")}
-            />
+        <div className="rounded-[2rem] border-2 border-red-600 bg-gradient-to-br from-yellow-200 via-amber-300 to-yellow-500 p-6 shadow-[0_0_75px_rgba(34,197,94,.85)]">
+          <div className="grid gap-8 lg:grid-cols-[1fr_330px]">
+            <div>
+              <p className="text-sm font-black tracking-[0.35em] text-black">
+                LIVE FROM THA CORE
+              </p>
 
-            <div className="mt-6 flex flex-wrap gap-4">
-              <button
-                onClick={togglePlayer}
-                className="rounded-2xl bg-red-600 px-6 py-3 font-semibold text-white transition hover:bg-red-500"
-              >
-                {isPlaying ? "Pause Live" : "Play Live"}
-              </button>
+              <h1 className="mt-4 text-5xl font-black text-black md:text-7xl">
+                Tha Core Radio
+              </h1>
 
-              <a
-                href="/chat"
-                className="rounded-2xl border border-white/10 px-6 py-3 font-semibold text-white transition hover:bg-white/5"
-              >
-                Open Chat
-              </a>
+              <p className="mt-4 max-w-3xl text-lg font-bold text-black">
+                Live radio, store, chat, uploads, shoutouts, world news, radio promos, and business moves.
+              </p>
 
-              {streamUrl ? (
-                <a
-                  href={streamUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="rounded-2xl border border-white/10 px-6 py-3 font-semibold text-white transition hover:bg-white/5"
-                >
-                  Open Stream Direct
+              <div className="mt-6 rounded-3xl border-2 border-red-500 bg-black/90 p-6 shadow-[0_0_75px_rgba(34,197,94,1)]">
+                <p className="text-lg font-black italic text-yellow-400">
+                  ON AIR NOW • NOW PLAYING
+                </p>
+
+                <div className="mt-3 flex gap-2">
+                  {[1,2,3,4,5,6,7,8,9,10].map((i) => (
+                    <span key={i} className="h-4 w-4 animate-pulse rounded-full bg-yellow-400 shadow-[0_0_28px_rgba(250,204,21,1)]" />
+                  ))}
+                </div>
+
+                <h2 className="mt-4 text-4xl font-black text-white">
+                  Tha Core Live Mix
+                </h2>
+
+                <p className="mt-2 text-gray-300">Live From Tha Core</p>
+
+                <p className="mt-4 text-2xl font-black text-red-400">
+                  {listeners} listeners online
+                </p>
+              </div>
+
+              <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-7">
+                <PlayLiveButton />
+
+                <a href={WHATSAPP_LINK} target="_blank" className="rounded-2xl bg-red-700 px-5 py-4 text-center font-black">
+                  Join WhatsApp
                 </a>
-              ) : null}
+
+                <Link href="/store" className="rounded-2xl bg-black px-5 py-4 text-center font-black text-white">
+                  Store
+                </Link>
+
+                <Link href="/upload" className="rounded-2xl bg-red-700 px-5 py-4 text-center font-black">
+                  Upload Entry
+                </Link>
+
+                <Link href="/news" className="rounded-2xl bg-red-700 px-5 py-4 text-center font-black">
+                  World News
+                </Link>
+
+                <Link
+                  href="/blog"
+                  className="rounded-2xl bg-black px-5 py-4 text-center font-black text-yellow-400"
+                >
+                  Blog / Stories
+                </Link>
+
+                <Link
+                  href="/lotto"
+                  className="rounded-2xl bg-red-700 px-5 py-4 text-center font-black"
+                >
+                  Cash Pot / Lotto
+                </Link>
+              </div>
             </div>
 
-            {playerError ? (
-              <p className="mt-4 text-sm text-red-400">{playerError}</p>
-            ) : null}
-          </div>
-
-          <div className="rounded-3xl border border-white/10 bg-zinc-900 p-6">
-            <p className="text-sm uppercase tracking-[0.3em] text-red-400">
-              Station Tools
-            </p>
-
-            <div className="mt-6 space-y-4">
-              <a
-                href="/admin/uploads"
-                className="block rounded-2xl border border-white/10 px-4 py-3 font-semibold text-white transition hover:bg-white/5"
-              >
-                Admin Upload Review
-              </a>
-
-              <a
-                href="/time-reader"
-                className="block rounded-2xl border border-white/10 px-4 py-3 font-semibold text-white transition hover:bg-white/5"
-              >
-                Open Time Reader
-              </a>
-
-              <a
-                href="/weather-reader"
-                className="block rounded-2xl border border-white/10 px-4 py-3 font-semibold text-white transition hover:bg-white/5"
-              >
-                Open Weather Reader
-              </a>
+            <div className="flex items-center justify-center lg:justify-end">
+              <img
+                src="/logo-site.png?v=777"
+                alt="Tha Core Logo"
+                className="h-80 w-80 rounded-full border-[6px] border-green-400 bg-transparent object-contain p-0 shadow-[0_0_120px_rgba(34,197,94,1)]"
+              />
             </div>
           </div>
         </div>
 
-        <div className="mt-6 grid gap-6 lg:grid-cols-3">
-          <div className="rounded-3xl border border-white/10 bg-zinc-900 p-6">
-            <p className="text-sm uppercase tracking-[0.3em] text-red-400">
-              Jamaica Time
-            </p>
+        <div className="mt-8 grid gap-6 md:grid-cols-4">
+          <Card title="Listeners Online" text={`${listeners} tuned in now`} />
+          <Card title="Joined Today" text="34 new listeners today" />
+          <Card title="Top Cities" text="Kingston • Montego Bay • London" />
+          <Card title="Live Energy" text="Music • Chat • Store • Giveaways" />
+        </div>
 
-            <h3 className="mt-4 text-4xl font-black">
-              {timeData ? timeData.timeLabel : "--:--:--"}
-            </h3>
-
-            <p className="mt-3 text-zinc-300">
-              {timeData ? timeData.dateLabel : "Loading time..."}
-            </p>
-
-            <p className="mt-2 text-sm text-zinc-500">{timeStatus}</p>
-
-            <div className="mt-6 flex flex-wrap gap-3">
-              <button
-                onClick={readTime}
-                className="rounded-2xl bg-red-600 px-5 py-3 font-semibold text-white transition hover:bg-red-500"
-              >
-                Read Time
-              </button>
-
-              <a
-                href="/time-reader"
-                className="rounded-2xl border border-white/10 px-5 py-3 font-semibold text-white transition hover:bg-white/5"
-              >
-                Full Page
-              </a>
-            </div>
-          </div>
-
-          <div className="rounded-3xl border border-white/10 bg-zinc-900 p-6">
-            <p className="text-sm uppercase tracking-[0.3em] text-red-400">
-              Jamaica Weather
-            </p>
-
-            <h3 className="mt-4 text-4xl font-black">
-              {weatherData ? `${Math.round(weatherData.tempC)}°C` : "--"}
-            </h3>
-
-            <p className="mt-3 text-zinc-300">
-              {weatherData
-                ? `${weatherData.city}, ${weatherData.description}`
-                : "Loading weather..."}
-            </p>
-
-            <p className="mt-2 text-sm text-zinc-500">
-              {weatherData
-                ? `Feels like ${Math.round(weatherData.feelsLikeC)}°C • Humidity ${weatherData.humidity}%`
-                : weatherStatus}
-            </p>
-
-            <div className="mt-6 flex flex-wrap gap-3">
-              <button
-                onClick={readWeather}
-                className="rounded-2xl bg-red-600 px-5 py-3 font-semibold text-white transition hover:bg-red-500"
-              >
-                Read Weather
-              </button>
-
-              <a
-                href="/weather-reader"
-                className="rounded-2xl border border-white/10 px-5 py-3 font-semibold text-white transition hover:bg-white/5"
-              >
-                Full Page
-              </a>
-            </div>
-          </div>
-
-          <div className="rounded-3xl border border-white/10 bg-zinc-900 p-6">
-            <p className="text-sm uppercase tracking-[0.3em] text-red-400">
-              Community Chat
-            </p>
-
-            <h3 className="mt-4 text-2xl font-black">
-              {chatMessages.length} recent messages
-            </h3>
-
-            <p className="mt-2 text-sm text-zinc-500">{chatStatus}</p>
-
-            <div className="mt-6 space-y-3">
-              {chatMessages.length === 0 ? (
-                <p className="text-zinc-500">No chat messages yet.</p>
-              ) : (
-                chatMessages.map((item) => (
-                  <div
-                    key={item.id}
-                    className="rounded-2xl border border-white/10 bg-black/20 p-4"
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="font-bold">{item.name}</p>
-                      <p className="text-xs text-zinc-500">
-                        {new Date(item.created_at).toLocaleTimeString()}
-                      </p>
-                    </div>
-                    <p className="mt-2 text-zinc-300">{item.message}</p>
-                  </div>
-                ))
-              )}
-            </div>
-
-            <a
-              href="/chat"
-              className="mt-6 inline-block rounded-2xl border border-white/10 px-5 py-3 font-semibold text-white transition hover:bg-white/5"
-            >
-              Open Full Chat
+        <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_.8fr]">
+          <Panel title="Request Song / Shoutout">
+            <input value={requestName} onChange={(e) => setRequestName(e.target.value)} placeholder="Your name" className="w-full rounded-xl bg-black p-4" />
+            <textarea value={requestMessage} onChange={(e) => setRequestMessage(e.target.value)} placeholder="Song request, birthday shoutout, or message..." className="mt-3 h-32 w-full rounded-xl bg-black p-4" />
+            <a href={`${WHATSAPP_LINK}?text=${requestText}`} target="_blank" className="mt-4 block rounded-xl bg-red-700 px-6 py-4 text-center font-black">
+              Send To WhatsApp
             </a>
+          </Panel>
+
+          <Panel title="Money Moves">
+            <div className="grid gap-3">
+              <Link href="/store" className="rounded-xl bg-red-700 p-4 font-black">Advertise With Us</Link>
+              <Link href="/store" className="rounded-xl bg-black p-4 font-black">Sponsor A Show</Link>
+              <Link href="/store" className="rounded-xl bg-black p-4 font-black">Radio Promo Package</Link>
+              <a href={WHATSAPP_LINK} target="_blank" className="rounded-xl bg-white p-4 text-center font-black text-black">Donate / Support</a>
+            </div>
+          </Panel>
+        </div>
+
+        <div className="mt-8 grid gap-6 md:grid-cols-3">
+          <Panel title="Poll Of The Day">
+            <p className="font-bold">Dancehall or Reggae tonight?</p>
+            <button onClick={() => setPoll("Dancehall")} className="mt-4 w-full rounded-xl bg-red-700 px-5 py-3 font-black">Dancehall</button>
+            <button onClick={() => setPoll("Reggae")} className="mt-3 w-full rounded-xl bg-white px-5 py-3 font-black text-black">Reggae</button>
+            <p className="mt-3 text-gray-300">Your vote: {poll || "Not voted yet"}</p>
+          </Panel>
+
+          <Panel title="Daily Reward / Check-In">
+            <p className="text-gray-300">You’ve visited 3 days in a row.</p>
+            <button onClick={() => setCheckedIn(true)} className="mt-5 rounded-xl bg-red-700 px-5 py-3 font-black">
+              {checkedIn ? "Badge Unlocked ✓" : "Daily Check-In"}
+            </button>
+          </Panel>
+
+          <Panel title="DJ Cam / Visualizer">
+            <div className="flex h-44 items-center justify-center rounded-2xl bg-black text-center text-gray-400">
+              Live studio cam / visualizer screen goes here
+            </div>
+          </Panel>
+        </div>
+
+        <div className="mt-8 rounded-3xl border border-red-700 bg-zinc-950 p-6 shadow-[0_0_55px_rgba(34,197,94,.75)]">
+          <h2 className="text-3xl font-black text-red-400">News Preview</h2>
+          <div className="mt-6 grid gap-5 md:grid-cols-3">
+            <NewsCard icon="🌍" title="World News" text="Breaking headlines and global updates." />
+            <NewsCard icon="🎤" title="Music & Culture" text="Reggae, dancehall, entertainment and artists." />
+            <NewsCard icon="💼" title="Money Moves" text="Business, ads, promos, and opportunities." />
           </div>
         </div>
+
+        <div className="mt-8 rounded-3xl border border-red-700 bg-zinc-950 p-6 shadow-[0_0_55px_rgba(34,197,94,.75)]">
+          <h2 className="text-3xl font-black text-red-400">Featured Store Items</h2>
+
+          <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            {featuredProducts.map((product: any) => (
+              <Link key={product.id} href="/store" className="rounded-3xl bg-black p-4 hover:bg-red-950">
+                <div
+                  className="h-72 rounded-2xl bg-gradient-to-br from-yellow-200 via-amber-300 to-yellow-500 bg-contain bg-center bg-no-repeat"
+                  style={{ backgroundImage: `url(${product.image})` }}
+                />
+                <h3 className="mt-4 text-xl font-black">{product.name}</h3>
+                <p className="text-red-400 font-black">
+                  JMD ${product.price.toLocaleString()}
+                </p>
+              </Link>
+            ))}
+          </div>
+        </div>
+
+        <div className="mt-8 rounded-3xl border border-red-700 bg-zinc-950 p-6 shadow-[0_0_55px_rgba(34,197,94,.75)]">
+          <p className="text-sm tracking-[0.35em] text-red-300">THA CORE RADIO</p>
+          <h2 className="mt-3 text-4xl font-black text-red-400">Weekly Radio Program Schedule</h2>
+
+          <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            {[
+              ["Sunday", "Gospel Morning • Family Vibes • Sunday Talk"],
+              ["Monday", "Money Moves • Business Promo • Fresh Start Mix"],
+              ["Tuesday", "Dancehall Drive • Listener Requests"],
+              ["Wednesday", "Midweek Motivation • Community Talk"],
+              ["Thursday", "Throwback Night • Old School Mix"],
+              ["Friday", "Weekend Warm Up • Party Mix"],
+              ["Saturday", "Live From Tha Core • DJ Special"],
+            ].map(([day, show]) => (
+              <div key={day} className="rounded-2xl bg-black p-5">
+                <h3 className="text-2xl font-black text-red-400">{day}</h3>
+                <p className="mt-3 text-gray-300">{show}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="mt-8 grid gap-6 md:grid-cols-2">
+          <Link href="/weather-reader" className="rounded-2xl border border-red-700 bg-zinc-900 p-6">
+            <h2 className="text-2xl font-black text-red-400">Weather Reader</h2>
+            <p className="mt-3 text-gray-300">Automated weather updates for listeners.</p>
+          </Link>
+
+          <Link href="/time-reader" className="rounded-2xl border border-red-700 bg-zinc-900 p-6">
+            <h2 className="text-2xl font-black text-red-400">Time Reader</h2>
+            <p className="mt-3 text-gray-300">Automatic station time announcements.</p>
+          </Link>
+        </div>
+
+        <footer className="mt-10 rounded-3xl border border-red-700 bg-gradient-to-br from-yellow-200 via-amber-300 to-yellow-500 p-6 text-center text-black">
+  <div className="grid gap-6 md:grid-cols-[150px_1fr] items-center">
+
+    <div className="flex justify-center md:justify-start">
+      <img
+        src="/logo-site.png?v=777"
+        alt="Tha Core Logo"
+        className="h-32 w-32 rounded-full border-4 border-green-400 bg-transparent object-contain p-0 shadow-[0_0_70px_rgba(34,197,94,1)]"
+      />
+    </div>
+
+    <div>
+      <p className="text-3xl font-black">Tha Core Radio</p>
+
+      <p className="mt-2 font-bold">
+        WhatsApp: 876-884-2867 • Email: dailydunney@gmail.com
+      </p>
+
+      <p className="mt-2 font-bold">
+        Live radio • Store • Promos • Community
+      </p>
+
+      <p className="mt-2 text-sm font-bold">
+        © 2026 Tha Core. All rights reserved.
+      </p>
+    </div>
+
+  </div>
+</footer>
       </section>
     </main>
   );
 }
+
+function Card({ title, text }: { title: string; text: string }) {
+  return (
+    <div className="rounded-3xl border border-red-700 bg-zinc-950 p-6 shadow-[0_0_30px_rgba(34,197,94,.45)]">
+      <h2 className="text-2xl font-black text-red-400">{title}</h2>
+      <p className="mt-3 text-gray-200">{text}</p>
+    </div>
+  );
+}
+
+function Panel({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="rounded-3xl border border-red-700 bg-zinc-950 p-6 shadow-[0_0_30px_rgba(34,197,94,.45)]">
+      <h2 className="mb-5 text-3xl font-black text-red-400">{title}</h2>
+      {children}
+    </div>
+  );
+}
+
+function NewsCard({ icon, title, text }: { icon: string; title: string; text: string }) {
+  return (
+    <div className="rounded-2xl bg-black p-5">
+      <div className="text-5xl">{icon}</div>
+      <h3 className="mt-4 text-2xl font-black text-red-400">{title}</h3>
+      <p className="mt-2 text-gray-300">{text}</p>
+    </div>
+  );
+}
+
+
+
+
+
+
+
+
+

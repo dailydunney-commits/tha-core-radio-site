@@ -1,0 +1,39 @@
+﻿<svg width="800" height="800" viewBox="0 0 800 800" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fff2b0"/>
+      <stop offset="45%" stop-color="#d4af37"/>
+      <stop offset="100%" stop-color="#7a4c00"/>
+    </linearGradient>
+    <linearGradient id="red" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#ff4b4b"/>
+      <stop offset="60%" stop-color="#b30018"/>
+      <stop offset="100%" stop-color="#3b0008"/>
+    </linearGradient>
+    <filter id="shadow">
+      <feDropShadow dx="0" dy="10" stdDeviation="10" flood-color="#000" flood-opacity=".75"/>
+    </filter>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="7" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <circle cx="400" cy="400" r="330" fill="#020202"/>
+  <circle cx="400" cy="400" r="318" fill="none" stroke="url(#red)" stroke-width="22" filter="url(#glow)"/>
+  <circle cx="400" cy="400" r="285" fill="none" stroke="url(#gold)" stroke-width="8"/>
+
+  <g filter="url(#shadow)">
+    <path d="M210 280 L285 150 L365 255 L400 115 L435 255 L515 150 L590 280 L552 330 H248 Z"
+      fill="url(#gold)" stroke="#fff7c5" stroke-width="8" stroke-linejoin="round"/>
+    <path d="M265 255 L310 205 L360 275 L400 185 L440 275 L490 205 L535 255"
+      fill="none" stroke="url(#red)" stroke-width="16" stroke-linecap="round"/>
+  </g>
+
+  <g filter="url(#shadow)">
+    <path d="M225 365 H575 V430 H460 V635 H345 V430 H225 Z"
+      fill="url(#gold)" stroke="#111" stroke-width="8"/>
+    <path d="M535 520 C535 605 470 665 380 665 C285 665 220 605 220 515 C220 425 285 365 380 365 C442 365 492 395 522 450 H440 C425 430 405 420 380 420 C325 420 285 460 285 515 C285 570 325 610 380 610 C425 610 455 590 475 550 Z"
+      fill="url(#red)" stroke="#fff2b0" stroke-width="9"/>
+  </g>
+</svg>

@@ -1,0 +1,58 @@
+﻿<svg width="800" height="800" viewBox="0 0 800 800" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="45%" r="70%">
+      <stop offset="0%" stop-color="#1a1a1a"/>
+      <stop offset="70%" stop-color="#050505"/>
+      <stop offset="100%" stop-color="#000000"/>
+    </radialGradient>
+
+    <linearGradient id="red" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ff5a5a"/>
+      <stop offset="45%" stop-color="#ef4444"/>
+      <stop offset="100%" stop-color="#7a0015"/>
+    </linearGradient>
+
+    <linearGradient id="metal" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="30%" stop-color="#d9d9d9"/>
+      <stop offset="65%" stop-color="#8a8a8a"/>
+      <stop offset="100%" stop-color="#ffffff"/>
+    </linearGradient>
+
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <circle cx="400" cy="400" r="320" fill="url(#bg)"/>
+  <circle cx="400" cy="400" r="320" fill="none" stroke="url(#red)" stroke-width="18" filter="url(#glow)"/>
+  <circle cx="400" cy="400" r="290" fill="none" stroke="url(#metal)" stroke-width="6"/>
+
+  <!-- sleek crown -->
+  <path d="M235 245 L300 155 L380 235 L400 130 L420 235 L500 155 L565 245 L540 285 H260 Z"
+        fill="url(#red)" stroke="url(#metal)" stroke-width="8" stroke-linejoin="round"/>
+  <circle cx="300" cy="155" r="14" fill="url(#metal)"/>
+  <circle cx="400" cy="130" r="18" fill="url(#metal)"/>
+  <circle cx="500" cy="155" r="14" fill="url(#metal)"/>
+
+  <!-- unique TC monogram -->
+  <path d="M235 340 H565 V405 H445 V610 H355 V405 H235 Z"
+        fill="url(#metal)" stroke="url(#red)" stroke-width="5"/>
+
+  <path d="M520 505
+           C520 585 462 640 382 640
+           C300 640 245 585 245 505
+           C245 425 300 370 382 370
+           C440 370 485 398 510 448
+           H440
+           C425 420 405 410 382 410
+           C332 410 295 448 295 505
+           C295 562 332 600 382 600
+           C425 600 455 580 470 545
+           Z"
+        fill="url(#red)" stroke="url(#metal)" stroke-width="6"/>
+</svg>
