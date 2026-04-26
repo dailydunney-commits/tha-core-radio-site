@@ -1,75 +1,78 @@
-﻿export const dynamic = "force-dynamic";
+export const dynamic = "force-dynamic";
 export const revalidate = 900;
+
+const SOURCE_URL = "https://www.jamaicaindex.com/lottery/jamaica-lotto-results-for-today";
 
 function clean(text: string) {
   return text
-    .replace(/<script[\s\S]*?<\/script>/gi, "")
-    .replace(/<style[\s\S]*?<\/style>/gi, "")
-    .replace(/<[^>]+>/g, " ")
+    .replace(/<[^>]*>/g, " ")
     .replace(/&amp;/g, "&")
-    .replace(/&nbsp;/g, " ")
-    .replace(/&#047;/g, "/")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
     .replace(/\s+/g, " ")
     .trim();
 }
 
-function grab(text: string, label: string) {
-  const rx = new RegExp(label + "\\s*Result\\s*#?\\s*(\\d+)?\\s*([\\s\\S]{0,160})", "i");
-  const match = text.match(rx);
-
-  if (!match) {
-    return {
-      label,
-      draw: "Updating",
-      result: "Result loading",
-    };
-  }
-
-  return {
-    label,
-    draw: match[1] || "Latest",
-    result: match[2]
-      .replace(/Pick 2|Pick 3|Pick 4|Cash Pot|Lotto|Super Lotto/gi, "")
-      .trim()
-      .slice(0, 90),
-  };
-}
-
 export async function GET() {
   try {
-    const res = await fetch("https://www.jamaicaindex.com/lottery/jamaica-lotto-results-for-today", {
+    const res = await fetch(SOURCE_URL, {
       next: { revalidate: 900 },
-      headers: { "User-Agent": "Mozilla/5.0 ThaCoreRadio" },
+      headers: {
+        "User-Agent": "Mozilla/5.0 ThaCoreRadioBot/1.0",
+      },
     });
 
     const html = await res.text();
     const text = clean(html);
 
+    const cashPotMatches = [...text.matchAll(/#(\d+)\s+([^#]{0,80}?)Cash Pot\s+([A-Z ]+)\s+(\d{1,2})\s+([A-Za-z ]+)?/g)];
+
+    const results = cashPotMatches.slice(0, 6).map((match) => {
+      const drawNumber = match[1];
+      const dateText = match[2].trim();
+      const drawName = match[3].trim();
+      const number = match[4].trim();
+      const meaning = (match[5] || "").trim();
+
+      return {
+        label: `Cash Pot ${drawName}`,
+        draw: `#${drawNumber} • ${dateText}`,
+        result: meaning ? `${number} - ${meaning}` : number,
+      };
+    });
+
+    if (results.length === 0) {
+      return Response.json({
+        source: "JamaicaIndex / Supreme Ventures",
+        sourceUrl: SOURCE_URL,
+        updatedAt: new Date().toISOString(),
+        results: [
+          {
+            label: "Cash Pot",
+            draw: "Live results loading",
+            result: "Check again shortly",
+          },
+        ],
+      });
+    }
+
     return Response.json({
+      source: "JamaicaIndex / Supreme Ventures",
+      sourceUrl: SOURCE_URL,
       updatedAt: new Date().toISOString(),
-      source: "JamaicaIndex Supreme Ventures Results",
-      results: [
-        grab(text, "Cash Pot"),
-        grab(text, "Pick 2"),
-        grab(text, "Pick 3"),
-        grab(text, "Pick 4"),
-        grab(text, "Lucky 5"),
-        grab(text, "Lotto"),
-        grab(text, "Super Lotto"),
-      ],
+      results,
     });
   } catch {
     return Response.json({
+      source: "JamaicaIndex / Supreme Ventures",
+      sourceUrl: SOURCE_URL,
       updatedAt: new Date().toISOString(),
-      source: "Tha Core Results",
       results: [
-        { label: "Cash Pot", draw: "Updating", result: "Result could not load right now." },
-        { label: "Pick 2", draw: "Updating", result: "Result could not load right now." },
-        { label: "Pick 3", draw: "Updating", result: "Result could not load right now." },
-        { label: "Pick 4", draw: "Updating", result: "Result could not load right now." },
-        { label: "Lucky 5", draw: "Updating", result: "Result could not load right now." },
-        { label: "Lotto", draw: "Updating", result: "Result could not load right now." },
-        { label: "Super Lotto", draw: "Updating", result: "Result could not load right now." },
+        {
+          label: "Cash Pot",
+          draw: "Unable to load live draw",
+          result: "Try refresh shortly",
+        },
       ],
     });
   }
