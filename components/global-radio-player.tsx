@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useRadio } from "@/components/radio-provider";
 
@@ -17,6 +17,22 @@ export default function GlobalRadioPlayer() {
 
       <p className="mt-1 text-sm text-gray-400">
         One-touch live radio control.
+        <div className="mt-3 overflow-hidden rounded-xl border border-red-700 bg-black p-2">
+          <div className="animate-[marquee_8s_linear_infinite] whitespace-nowrap text-sm font-black text-yellow-400">
+            🎵 {artist} — {song} •
+          </div>
+        </div>
+
+        <style jsx>{`
+          @keyframes marquee {
+            0% {
+              transform: translateX(100%);
+            }
+            100% {
+              transform: translateX(-100%);
+            }
+          }
+        `}</style>
       </p>
 
       <div className="mt-5 rounded-2xl bg-zinc-950 p-4">
