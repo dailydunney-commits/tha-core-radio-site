@@ -1,5 +1,5 @@
 export const dynamic = "force-dynamic";
-export const revalidate = 900;
+export const revalidate = 21600;
 
 const blogData: Record<string, { title: string; posts: { title: string; excerpt: string; author: string; date: string }[] }> = {
   "radio-stories": {
