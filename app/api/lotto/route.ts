@@ -1,76 +1,81 @@
 export const dynamic = "force-dynamic";
-export const revalidate = 900;
+export const revalidate = 300;
 
-const SOURCE_URL = "https://www.jamaicaindex.com/lottery/jamaica-lotto-results-for-today";
+const URL = "https://www.jamaicaindex.com/lottery/jamaica-lotto-results-for-today";
 
 function clean(text: string) {
   return text
-    .replace(/<[^>]*>/g, " ")
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
     .replace(/&amp;/g, "&")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
     .replace(/\s+/g, " ")
     .trim();
 }
 
 export async function GET() {
   try {
-    const res = await fetch(SOURCE_URL, {
-      next: { revalidate: 900 },
+    const res = await fetch(URL, {
+      cache: "no-store",
       headers: {
-        "User-Agent": "Mozilla/5.0 ThaCoreRadioBot/1.0",
+        "User-Agent": "Mozilla/5.0",
       },
     });
 
     const html = await res.text();
     const text = clean(html);
 
-    const cashPotMatches = [...text.matchAll(/#(\d+)\s+([^#]{0,80}?)Cash Pot\s+([A-Z ]+)\s+(\d{1,2})\s+([A-Za-z ]+)?/g)];
+    const results = [];
 
-    const results = cashPotMatches.slice(0, 6).map((match) => {
-      const drawNumber = match[1];
-      const dateText = match[2].trim();
-      const drawName = match[3].trim();
-      const number = match[4].trim();
-      const meaning = (match[5] || "").trim();
+    const cashPot = text.match(/Cash Pot\s+(Morning|Midday|Evening|Night)?\s*(\d{1,2})/i);
+    if (cashPot) {
+      results.push({
+        label: "Cash Pot",
+        draw: cashPot[1] || "Latest Draw",
+        result: cashPot[2],
+      });
+    }
 
-      return {
-        label: `Cash Pot ${drawName}`,
-        draw: `#${drawNumber} • ${dateText}`,
-        result: meaning ? `${number} - ${meaning}` : number,
-      };
-    });
+    const lotto = text.match(/Lotto\s+([0-9,\s]+)/i);
+    if (lotto) {
+      results.push({
+        label: "Lotto",
+        draw: "Latest Draw",
+        result: lotto[1].trim(),
+      });
+    }
+
+    const pick3 = text.match(/Pick\s?3\s+([0-9]{3})/i);
+    if (pick3) {
+      results.push({
+        label: "Pick 3",
+        draw: "Latest Draw",
+        result: pick3[1],
+      });
+    }
 
     if (results.length === 0) {
-      return Response.json({
-        source: "JamaicaIndex / Supreme Ventures",
-        sourceUrl: SOURCE_URL,
-        updatedAt: new Date().toISOString(),
-        results: [
-          {
-            label: "Cash Pot",
-            draw: "Live results loading",
-            result: "Check again shortly",
-          },
-        ],
+      results.push({
+        label: "Cash Pot",
+        draw: "Latest Draw",
+        result: "Live update pending",
       });
     }
 
     return Response.json({
       source: "JamaicaIndex / Supreme Ventures",
-      sourceUrl: SOURCE_URL,
       updatedAt: new Date().toISOString(),
       results,
     });
   } catch {
     return Response.json({
-      source: "JamaicaIndex / Supreme Ventures",
-      sourceUrl: SOURCE_URL,
+      source: "Tha Core Backup Feed",
       updatedAt: new Date().toISOString(),
       results: [
         {
           label: "Cash Pot",
-          draw: "Unable to load live draw",
+          draw: "Latest Draw",
           result: "Try refresh shortly",
         },
       ],
