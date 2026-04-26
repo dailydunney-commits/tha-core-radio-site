@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import PlayLiveButton from "@/components/play-live-button";
+import VisitorEngagementWidgets from "@/components/visitor-engagement-widgets";
 import { useEffect, useMemo, useState } from "react";
 import { products } from "./store/products";
 
@@ -20,7 +21,7 @@ export default function HomePage() {
   const featuredProducts = useMemo(() => products.slice(0, 8), []);
 
   const tickerItems = [
-    `NOW PLAYING: ${nowArtist} — ${nowSong}`,
+    `NOW PLAYING: ${nowArtist} â€” ${nowSong}`,
     "UPCOMING SHOW: Dancehall Drive starts soon",
     "STORE SALE: Custom prints and radio promos available",
     "BIRTHDAY SHOUTOUT: Send your birthday shoutout live",
@@ -89,7 +90,7 @@ Sent from Tha Core Radio website`
 
         <div className="mb-5 rounded-3xl border border-red-700 bg-gradient-to-br from-red-950 to-black p-5 shadow-[0_0_55px_rgba(34,197,94,.75)]">
           <p className="text-xl font-black italic text-yellow-400">
-            Vote next song • Flash sale ends in 10 mins • Drop your shoutout live now
+            Vote next song â€¢ Flash sale ends in 10 mins â€¢ Drop your shoutout live now
           </p>
         </div>
 
@@ -111,7 +112,7 @@ Sent from Tha Core Radio website`
               <div className="mt-6 rounded-3xl border-2 border-red-500 bg-black/90 p-5 shadow-[0_0_75px_rgba(34,197,94,1)]">
                 <div className="inline-flex rounded-full border border-yellow-400 bg-red-700 px-4 py-2 shadow-[0_0_25px_rgba(250,204,21,.8)]">
                   <p className="text-base font-black tracking-[0.15em] text-yellow-300">
-                    ON AIR NOW • NOW PLAYING
+                    ON AIR NOW â€¢ NOW PLAYING
                   </p>
                 </div>
 
@@ -129,7 +130,7 @@ Sent from Tha Core Radio website`
                     className="whitespace-nowrap text-base font-black text-white md:text-lg"
                     style={{ animation: "trackMarquee 12s linear infinite" }}
                   >
-                    🎵 {nowArtist} — {nowSong} •
+                    ðŸŽµ {nowArtist} â€” {nowSong} â€¢
                   </div>
                 </div>
 
@@ -187,8 +188,8 @@ Sent from Tha Core Radio website`
         <div className="mt-8 grid gap-6 md:grid-cols-4">
           <Card title="Listeners Online" text={`${listeners} tuned in now`} />
           <Card title="Joined Today" text="34 new listeners today" />
-          <Card title="Top Cities" text="Kingston • Montego Bay • London" />
-          <Card title="Live Energy" text="Music • Chat • Store • Giveaways" />
+          <Card title="Top Cities" text="Kingston â€¢ Montego Bay â€¢ London" />
+          <Card title="Live Energy" text="Music â€¢ Chat â€¢ Store â€¢ Giveaways" />
         </div>
 
         <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_.8fr]">
@@ -259,10 +260,10 @@ Sent from Tha Core Radio website`
           </Panel>
 
           <Panel title="Daily Reward / Check-In">
-            <p className="text-gray-300">You’ve visited 3 days in a row.</p>
+            <p className="text-gray-300">Youâ€™ve visited 3 days in a row.</p>
 
             <button onClick={() => setCheckedIn(true)} className="mt-5 rounded-xl bg-red-700 px-5 py-3 font-black">
-              {checkedIn ? "Badge Unlocked ✓" : "Daily Check-In"}
+              {checkedIn ? "Badge Unlocked âœ“" : "Daily Check-In"}
             </button>
           </Panel>
 
@@ -277,9 +278,9 @@ Sent from Tha Core Radio website`
           <h2 className="text-3xl font-black text-red-400">News Preview</h2>
 
           <div className="mt-6 grid gap-5 md:grid-cols-3">
-            <NewsCard href="/news/world" icon="🌍" title="World News" text="Breaking headlines and global updates." />
-            <NewsCard href="/news/music" icon="🎤" title="Music & Culture" text="Reggae, dancehall, entertainment and artists." />
-            <NewsCard href="/news/business" icon="💼" title="Money Moves" text="Business, ads, promos, and opportunities." />
+            <NewsCard href="/news/world" icon="ðŸŒ" title="World News" text="Breaking headlines and global updates." />
+            <NewsCard href="/news/music" icon="ðŸŽ¤" title="Music & Culture" text="Reggae, dancehall, entertainment and artists." />
+            <NewsCard href="/news/business" icon="ðŸ’¼" title="Money Moves" text="Business, ads, promos, and opportunities." />
           </div>
         </div>
 
@@ -309,6 +310,8 @@ Sent from Tha Core Radio website`
             />
           </div>
         </div>
+
+        <VisitorEngagementWidgets />
 
         <div className="mt-8 rounded-3xl border border-red-700 bg-zinc-950 p-6 shadow-[0_0_55px_rgba(34,197,94,.75)]">
           <h2 className="text-3xl font-black text-red-400">Featured Store Items</h2>
@@ -340,13 +343,13 @@ Sent from Tha Core Radio website`
 
           <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             {[
-              ["Sunday", "Gospel Morning • Family Vibes • Sunday Talk"],
-              ["Monday", "Money Moves • Business Promo • Fresh Start Mix"],
-              ["Tuesday", "Dancehall Drive • Listener Requests"],
-              ["Wednesday", "Midweek Motivation • Community Talk"],
-              ["Thursday", "Throwback Night • Old School Mix"],
-              ["Friday", "Weekend Warm Up • Party Mix"],
-              ["Saturday", "Live From Tha Core • DJ Special"],
+              ["Sunday", "Gospel Morning â€¢ Family Vibes â€¢ Sunday Talk"],
+              ["Monday", "Money Moves â€¢ Business Promo â€¢ Fresh Start Mix"],
+              ["Tuesday", "Dancehall Drive â€¢ Listener Requests"],
+              ["Wednesday", "Midweek Motivation â€¢ Community Talk"],
+              ["Thursday", "Throwback Night â€¢ Old School Mix"],
+              ["Friday", "Weekend Warm Up â€¢ Party Mix"],
+              ["Saturday", "Live From Tha Core â€¢ DJ Special"],
             ].map(([day, show]) => (
               <div key={day} className="rounded-2xl bg-black p-5">
                 <h3 className="text-2xl font-black text-red-400">{day}</h3>
@@ -382,15 +385,15 @@ Sent from Tha Core Radio website`
               <p className="text-3xl font-black">Tha Core Radio</p>
 
               <p className="mt-2 font-bold">
-                WhatsApp: 876-884-2867 • Email: dailydunney@gmail.com
+                WhatsApp: 876-884-2867 â€¢ Email: dailydunney@gmail.com
               </p>
 
               <p className="mt-2 font-bold">
-                Live radio • Store • Promos • Community
+                Live radio â€¢ Store â€¢ Promos â€¢ Community
               </p>
 
               <p className="mt-2 text-sm font-bold">
-                © 2026 Tha Core. All rights reserved.
+                Â© 2026 Tha Core. All rights reserved.
               </p>
             </div>
           </div>
@@ -434,7 +437,7 @@ function NewsCard({
       <div className="text-5xl">{icon}</div>
       <h3 className="mt-4 text-2xl font-black text-red-400">{title}</h3>
       <p className="mt-2 text-gray-300">{text}</p>
-      <p className="mt-4 font-black text-red-400">Open →</p>
+      <p className="mt-4 font-black text-red-400">Open â†’</p>
     </Link>
   );
 }
@@ -457,7 +460,7 @@ function BlogCard({
       </p>
       <h3 className="mt-3 text-2xl font-black text-white">{title}</h3>
       <p className="mt-3 text-gray-300">{text}</p>
-      <p className="mt-4 font-black text-red-400">Read Story →</p>
+      <p className="mt-4 font-black text-red-400">Read Story â†’</p>
     </Link>
   );
 }
