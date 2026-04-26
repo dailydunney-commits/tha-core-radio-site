@@ -89,8 +89,11 @@ Sent from Tha Core Radio website`
                 </p>
 
                 <div className="mt-3 flex gap-2">
-                  {[1,2,3,4,5,6,7,8,9,10].map((i) => (
-                    <span key={i} className="h-4 w-4 animate-pulse rounded-full bg-yellow-400 shadow-[0_0_28px_rgba(250,204,21,1)]" />
+                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((i) => (
+                    <span
+                      key={i}
+                      className="h-4 w-4 animate-pulse rounded-full bg-yellow-400 shadow-[0_0_28px_rgba(250,204,21,1)]"
+                    />
                   ))}
                 </div>
 
@@ -108,7 +111,12 @@ Sent from Tha Core Radio website`
               <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-7">
                 <PlayLiveButton />
 
-                <a href={WHATSAPP_LINK} target="_blank" className="rounded-2xl bg-red-700 px-5 py-4 text-center font-black">
+                <a
+                  href={WHATSAPP_LINK}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded-2xl bg-red-700 px-5 py-4 text-center font-black"
+                >
                   Join WhatsApp
                 </a>
 
@@ -116,7 +124,7 @@ Sent from Tha Core Radio website`
                   Store
                 </Link>
 
-                <Link href="/upload" className="rounded-2xl bg-red-700 px-5 py-4 text-center font-black">
+                <Link href="/uploads" className="rounded-2xl bg-red-700 px-5 py-4 text-center font-black">
                   Upload Entry
                 </Link>
 
@@ -124,17 +132,11 @@ Sent from Tha Core Radio website`
                   World News
                 </Link>
 
-                <Link
-                  href="/blog"
-                  className="rounded-2xl bg-black px-5 py-4 text-center font-black text-yellow-400"
-                >
+                <Link href="/blog" className="rounded-2xl bg-black px-5 py-4 text-center font-black text-yellow-400">
                   Blog / Stories
                 </Link>
 
-                <Link
-                  href="/lotto"
-                  className="rounded-2xl bg-red-700 px-5 py-4 text-center font-black"
-                >
+                <Link href="/lotto" className="rounded-2xl bg-red-700 px-5 py-4 text-center font-black">
                   Cash Pot / Lotto
                 </Link>
               </div>
@@ -159,19 +161,52 @@ Sent from Tha Core Radio website`
 
         <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_.8fr]">
           <Panel title="Request Song / Shoutout">
-            <input value={requestName} onChange={(e) => setRequestName(e.target.value)} placeholder="Your name" className="w-full rounded-xl bg-black p-4" />
-            <textarea value={requestMessage} onChange={(e) => setRequestMessage(e.target.value)} placeholder="Song request, birthday shoutout, or message..." className="mt-3 h-32 w-full rounded-xl bg-black p-4" />
-            <a href={`${WHATSAPP_LINK}?text=${requestText}`} target="_blank" className="mt-4 block rounded-xl bg-red-700 px-6 py-4 text-center font-black">
+            <input
+              value={requestName}
+              onChange={(e) => setRequestName(e.target.value)}
+              placeholder="Your name"
+              className="w-full rounded-xl bg-black p-4"
+            />
+
+            <textarea
+              value={requestMessage}
+              onChange={(e) => setRequestMessage(e.target.value)}
+              placeholder="Song request, birthday shoutout, or message..."
+              className="mt-3 h-32 w-full rounded-xl bg-black p-4"
+            />
+
+            <a
+              href={`${WHATSAPP_LINK}?text=${requestText}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-4 block rounded-xl bg-red-700 px-6 py-4 text-center font-black"
+            >
               Send To WhatsApp
             </a>
           </Panel>
 
           <Panel title="Money Moves">
             <div className="grid gap-3">
-              <Link href="/store" className="rounded-xl bg-red-700 p-4 font-black">Advertise With Us</Link>
-              <Link href="/store" className="rounded-xl bg-black p-4 font-black">Sponsor A Show</Link>
-              <Link href="/store" className="rounded-xl bg-black p-4 font-black">Radio Promo Package</Link>
-              <a href={WHATSAPP_LINK} target="_blank" className="rounded-xl bg-white p-4 text-center font-black text-black">Donate / Support</a>
+              <Link href="/store" className="rounded-xl bg-red-700 p-4 font-black">
+                Advertise With Us
+              </Link>
+
+              <Link href="/store" className="rounded-xl bg-black p-4 font-black">
+                Sponsor A Show
+              </Link>
+
+              <Link href="/store" className="rounded-xl bg-black p-4 font-black">
+                Radio Promo Package
+              </Link>
+
+              <a
+                href={WHATSAPP_LINK}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-xl bg-white p-4 text-center font-black text-black"
+              >
+                Donate / Support
+              </a>
             </div>
           </Panel>
         </div>
@@ -179,13 +214,21 @@ Sent from Tha Core Radio website`
         <div className="mt-8 grid gap-6 md:grid-cols-3">
           <Panel title="Poll Of The Day">
             <p className="font-bold">Dancehall or Reggae tonight?</p>
-            <button onClick={() => setPoll("Dancehall")} className="mt-4 w-full rounded-xl bg-red-700 px-5 py-3 font-black">Dancehall</button>
-            <button onClick={() => setPoll("Reggae")} className="mt-3 w-full rounded-xl bg-white px-5 py-3 font-black text-black">Reggae</button>
+
+            <button onClick={() => setPoll("Dancehall")} className="mt-4 w-full rounded-xl bg-red-700 px-5 py-3 font-black">
+              Dancehall
+            </button>
+
+            <button onClick={() => setPoll("Reggae")} className="mt-3 w-full rounded-xl bg-white px-5 py-3 font-black text-black">
+              Reggae
+            </button>
+
             <p className="mt-3 text-gray-300">Your vote: {poll || "Not voted yet"}</p>
           </Panel>
 
           <Panel title="Daily Reward / Check-In">
             <p className="text-gray-300">You’ve visited 3 days in a row.</p>
+
             <button onClick={() => setCheckedIn(true)} className="mt-5 rounded-xl bg-red-700 px-5 py-3 font-black">
               {checkedIn ? "Badge Unlocked ✓" : "Daily Check-In"}
             </button>
@@ -200,10 +243,11 @@ Sent from Tha Core Radio website`
 
         <div className="mt-8 rounded-3xl border border-red-700 bg-zinc-950 p-6 shadow-[0_0_55px_rgba(34,197,94,.75)]">
           <h2 className="text-3xl font-black text-red-400">News Preview</h2>
+
           <div className="mt-6 grid gap-5 md:grid-cols-3">
-            <NewsCard icon="🌍" title="World News" text="Breaking headlines and global updates." />
-            <NewsCard icon="🎤" title="Music & Culture" text="Reggae, dancehall, entertainment and artists." />
-            <NewsCard icon="💼" title="Money Moves" text="Business, ads, promos, and opportunities." />
+            <NewsCard href="/news/world" icon="🌍" title="World News" text="Breaking headlines and global updates." />
+            <NewsCard href="/news/music" icon="🎤" title="Music & Culture" text="Reggae, dancehall, entertainment and artists." />
+            <NewsCard href="/news/business" icon="💼" title="Money Moves" text="Business, ads, promos, and opportunities." />
           </div>
         </div>
 
@@ -217,8 +261,10 @@ Sent from Tha Core Radio website`
                   className="h-72 rounded-2xl bg-gradient-to-br from-yellow-200 via-amber-300 to-yellow-500 bg-contain bg-center bg-no-repeat"
                   style={{ backgroundImage: `url(${product.image})` }}
                 />
+
                 <h3 className="mt-4 text-xl font-black">{product.name}</h3>
-                <p className="text-red-400 font-black">
+
+                <p className="font-black text-red-400">
                   JMD ${product.price.toLocaleString()}
                 </p>
               </Link>
@@ -228,7 +274,10 @@ Sent from Tha Core Radio website`
 
         <div className="mt-8 rounded-3xl border border-red-700 bg-zinc-950 p-6 shadow-[0_0_55px_rgba(34,197,94,.75)]">
           <p className="text-sm tracking-[0.35em] text-red-300">THA CORE RADIO</p>
-          <h2 className="mt-3 text-4xl font-black text-red-400">Weekly Radio Program Schedule</h2>
+
+          <h2 className="mt-3 text-4xl font-black text-red-400">
+            Weekly Radio Program Schedule
+          </h2>
 
           <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             {[
@@ -249,46 +298,44 @@ Sent from Tha Core Radio website`
         </div>
 
         <div className="mt-8 grid gap-6 md:grid-cols-2">
-          <Link href="/weather-reader" className="rounded-2xl border border-red-700 bg-zinc-900 p-6">
+          <Link href="/weather-reader" className="rounded-2xl border border-red-700 bg-zinc-900 p-6 hover:bg-red-950/40">
             <h2 className="text-2xl font-black text-red-400">Weather Reader</h2>
             <p className="mt-3 text-gray-300">Automated weather updates for listeners.</p>
           </Link>
 
-          <Link href="/time-reader" className="rounded-2xl border border-red-700 bg-zinc-900 p-6">
+          <Link href="/time-reader" className="rounded-2xl border border-red-700 bg-zinc-900 p-6 hover:bg-red-950/40">
             <h2 className="text-2xl font-black text-red-400">Time Reader</h2>
             <p className="mt-3 text-gray-300">Automatic station time announcements.</p>
           </Link>
         </div>
 
         <footer className="mt-10 rounded-3xl border border-red-700 bg-gradient-to-br from-yellow-200 via-amber-300 to-yellow-500 p-6 text-center text-black">
-  <div className="grid gap-6 md:grid-cols-[150px_1fr] items-center">
+          <div className="grid items-center gap-6 md:grid-cols-[150px_1fr]">
+            <div className="flex justify-center md:justify-start">
+              <img
+                src="/logo-site.png?v=777"
+                alt="Tha Core Logo"
+                className="h-32 w-32 rounded-full border-4 border-green-400 bg-transparent object-contain p-0 shadow-[0_0_70px_rgba(34,197,94,1)]"
+              />
+            </div>
 
-    <div className="flex justify-center md:justify-start">
-      <img
-        src="/logo-site.png?v=777"
-        alt="Tha Core Logo"
-        className="h-32 w-32 rounded-full border-4 border-green-400 bg-transparent object-contain p-0 shadow-[0_0_70px_rgba(34,197,94,1)]"
-      />
-    </div>
+            <div>
+              <p className="text-3xl font-black">Tha Core Radio</p>
 
-    <div>
-      <p className="text-3xl font-black">Tha Core Radio</p>
+              <p className="mt-2 font-bold">
+                WhatsApp: 876-884-2867 • Email: dailydunney@gmail.com
+              </p>
 
-      <p className="mt-2 font-bold">
-        WhatsApp: 876-884-2867 • Email: dailydunney@gmail.com
-      </p>
+              <p className="mt-2 font-bold">
+                Live radio • Store • Promos • Community
+              </p>
 
-      <p className="mt-2 font-bold">
-        Live radio • Store • Promos • Community
-      </p>
-
-      <p className="mt-2 text-sm font-bold">
-        © 2026 Tha Core. All rights reserved.
-      </p>
-    </div>
-
-  </div>
-</footer>
+              <p className="mt-2 text-sm font-bold">
+                © 2026 Tha Core. All rights reserved.
+              </p>
+            </div>
+          </div>
+        </footer>
       </section>
     </main>
   );
@@ -312,21 +359,23 @@ function Panel({ title, children }: { title: string; children: React.ReactNode }
   );
 }
 
-function NewsCard({ icon, title, text }: { icon: string; title: string; text: string }) {
+function NewsCard({
+  href,
+  icon,
+  title,
+  text,
+}: {
+  href: string;
+  icon: string;
+  title: string;
+  text: string;
+}) {
   return (
-    <div className="rounded-2xl bg-black p-5">
+    <Link href={href} className="block rounded-2xl bg-black p-5 hover:bg-red-950/50">
       <div className="text-5xl">{icon}</div>
       <h3 className="mt-4 text-2xl font-black text-red-400">{title}</h3>
       <p className="mt-2 text-gray-300">{text}</p>
-    </div>
+      <p className="mt-4 font-black text-red-400">Open →</p>
+    </Link>
   );
 }
-
-
-
-
-
-
-
-
-
