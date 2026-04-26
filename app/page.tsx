@@ -252,6 +252,33 @@ Sent from Tha Core Radio website`
         </div>
 
         <div className="mt-8 rounded-3xl border border-red-700 bg-zinc-950 p-6 shadow-[0_0_55px_rgba(34,197,94,.75)]">
+          <h2 className="text-3xl font-black text-red-400">Featured Blog Stories</h2>
+
+          <div className="mt-6 grid gap-5 md:grid-cols-3">
+            <BlogCard
+              href="/blog/behind-the-core/from-idea-to-live-platform"
+              category="BEHIND THE CORE"
+              title="From Idea To Live Platform"
+              text="How Tha Core moved from idea stage into a real live radio, store, news, and blog platform."
+            />
+
+            <BlogCard
+              href="/blog/business-tips/how-small-businesses-can-sell-faster-with-simple-offers"
+              category="BUSINESS TIPS"
+              title="How Small Businesses Can Sell Faster"
+              text="Clear offers, strong visuals, WhatsApp ordering, and fast replies help drive sales."
+            />
+
+            <BlogCard
+              href="/blog/music-culture/dancehall-reggae-and-the-voice-of-the-people"
+              category="MUSIC & CULTURE"
+              title="Dancehall, Reggae & The Voice Of The People"
+              text="Why music remains identity, movement, culture, and connection."
+            />
+          </div>
+        </div>
+
+        <div className="mt-8 rounded-3xl border border-red-700 bg-zinc-950 p-6 shadow-[0_0_55px_rgba(34,197,94,.75)]">
           <h2 className="text-3xl font-black text-red-400">Featured Store Items</h2>
 
           <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
@@ -376,6 +403,29 @@ function NewsCard({
       <h3 className="mt-4 text-2xl font-black text-red-400">{title}</h3>
       <p className="mt-2 text-gray-300">{text}</p>
       <p className="mt-4 font-black text-red-400">Open →</p>
+    </Link>
+  );
+}
+
+function BlogCard({
+  href,
+  category,
+  title,
+  text,
+}: {
+  href: string;
+  category: string;
+  title: string;
+  text: string;
+}) {
+  return (
+    <Link href={href} className="block rounded-2xl bg-black p-5 hover:bg-red-950/50">
+      <p className="text-sm font-black tracking-[0.3em] text-red-400">
+        {category}
+      </p>
+      <h3 className="mt-3 text-2xl font-black text-white">{title}</h3>
+      <p className="mt-3 text-gray-300">{text}</p>
+      <p className="mt-4 font-black text-red-400">Read Story →</p>
     </Link>
   );
 }
