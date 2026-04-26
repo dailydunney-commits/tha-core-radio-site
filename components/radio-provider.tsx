@@ -7,9 +7,11 @@ const STREAM_URL =
 
 type RadioContextValue = {
   isPlaying: boolean;
+  volume: number;
   play: () => Promise<void>;
   pause: () => void;
   toggle: () => Promise<void>;
+  setVolume: (value: number) => void;
 };
 
 const RadioContext = createContext<RadioContextValue | null>(null);
@@ -17,12 +19,22 @@ const RadioContext = createContext<RadioContextValue | null>(null);
 export function RadioProvider({ children }: { children: React.ReactNode }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [volume, setVolumeState] = useState(0.9);
+
+  function setVolume(value: number) {
+    const safeVolume = Math.min(1, Math.max(0, value));
+    setVolumeState(safeVolume);
+
+    if (audioRef.current) {
+      audioRef.current.volume = safeVolume;
+    }
+  }
 
   async function play() {
     if (!audioRef.current) return;
 
     audioRef.current.src = STREAM_URL;
-    audioRef.current.volume = 0.9;
+    audioRef.current.volume = volume;
     audioRef.current.load();
 
     await audioRef.current.play();
@@ -46,7 +58,9 @@ export function RadioProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <RadioContext.Provider value={{ isPlaying, play, pause, toggle }}>
+    <RadioContext.Provider
+      value={{ isPlaying, volume, play, pause, toggle, setVolume }}
+    >
       {children}
 
       <audio
