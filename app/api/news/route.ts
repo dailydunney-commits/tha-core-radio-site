@@ -20,11 +20,15 @@ function clean(text: string) {
   return text
     .replace(/<!\[CDATA\[/g, "")
     .replace(/\]\]>/g, "")
+    .replace(/<li>/g, " ")
+    .replace(/<\/li>/g, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
     .replace(/&amp;/g, "&")
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
     .replace(/&apos;/g, "'")
-    .replace(/<[^>]+>/g, "")
+    .replace(/\s+/g, " ")
     .trim();
 }
 
@@ -38,7 +42,7 @@ export async function GET(request: Request) {
     const xml = await res.text();
 
     const items = (xml.match(/<item>[\s\S]*?<\/item>/g) || [])
-      .slice(0, 10)
+      .slice(0, 12)
       .map((item) => {
         const title = item.match(/<title>([\s\S]*?)<\/title>/)?.[1] || "";
         const link = item.match(/<link>([\s\S]*?)<\/link>/)?.[1] || "";
@@ -46,12 +50,16 @@ export async function GET(request: Request) {
         const source =
           item.match(/<source[^>]*>([\s\S]*?)<\/source>/)?.[1] ||
           "News Source";
+        const description =
+          item.match(/<description>([\s\S]*?)<\/description>/)?.[1] ||
+          "Full story summary is loading from the live news feed.";
 
         return {
           title: clean(title),
           link: clean(link),
           source: clean(source),
           pubDate: clean(pubDate),
+          description: clean(description),
         };
       });
 
@@ -70,6 +78,7 @@ export async function GET(request: Request) {
           link: "/news",
           source: "Tha Core Newsroom",
           pubDate: new Date().toUTCString(),
+          description: "Live news is temporarily loading. Please refresh shortly.",
         },
       ],
     });
