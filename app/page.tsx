@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import PlayLiveButton from "@/components/play-live-button";
@@ -115,11 +115,24 @@ Sent from Tha Core Radio website`
                   ))}
                 </div>
 
-                <h2 className="mt-4 text-4xl font-black text-white">
-                  {nowSong}
-                </h2>
+                <div className="mt-4 overflow-hidden rounded-2xl border border-red-700 bg-black p-4">
+                  <div className="animate-[marquee_14s_linear_infinite] whitespace-nowrap text-4xl font-black text-white">
+                    🎵 {nowArtist} — {nowSong} • Live on Tha Core Radio •
+                  </div>
+                </div>
 
                 <p className="mt-2 text-gray-300">{nowArtist}</p>
+
+                <style jsx>{`
+                  @keyframes marquee {
+                    0% {
+                      transform: translateX(100%);
+                    }
+                    100% {
+                      transform: translateX(-100%);
+                    }
+                  }
+                `}</style>
 
                 <p className="mt-4 text-2xl font-black text-red-400">
                   {listeners} listeners online
