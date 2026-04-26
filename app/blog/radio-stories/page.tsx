@@ -8,7 +8,15 @@ type BlogPost = {
   excerpt: string;
   author: string;
   date: string;
+  slug?: string;
 };
+
+function slugify(text: string) {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
+}
 
 export default function BlogCategoryPage() {
   const [posts, setPosts] = useState<BlogPost[]>([]);
@@ -49,24 +57,30 @@ export default function BlogCategoryPage() {
         </div>
 
         <div className="mt-8 grid gap-5">
-          {posts.map((post, index) => (
-            <article
-              key={post.title + index}
-              className="rounded-3xl border border-red-700 bg-zinc-950 p-6 shadow-[0_0_35px_rgba(34,197,94,.35)]"
-            >
-              <p className="text-sm font-black tracking-[0.3em] text-red-400">
-                BLOG POST {index + 1}
-              </p>
+          {posts.map((post, index) => {
+            const postSlug = post.slug || slugify(post.title);
 
-              <h2 className="mt-3 text-3xl font-black text-white">{post.title}</h2>
+            return (
+              <Link
+                key={post.title + index}
+                href={/blog/radio-stories/${postSlug}}
+                className="block rounded-3xl border border-red-700 bg-zinc-950 p-6 shadow-[0_0_35px_rgba(34,197,94,.35)] hover:bg-red-950/40"
+              >
+                <p className="text-sm font-black tracking-[0.3em] text-red-400">
+                  BLOG POST {index + 1}
+                </p>
 
-              <p className="mt-3 text-gray-300">{post.excerpt}</p>
+                <h2 className="mt-3 text-3xl font-black text-white">{post.title}</h2>
+                <p className="mt-3 text-gray-300">{post.excerpt}</p>
 
-              <p className="mt-4 text-sm font-bold text-gray-400">
-                {post.author} • {post.date}
-              </p>
-            </article>
-          ))}
+                <p className="mt-4 text-sm font-bold text-gray-400">
+                  {post.author} • {post.date}
+                </p>
+
+                <p className="mt-4 font-black text-red-400">Read Full Post →</p>
+              </Link>
+            );
+          })}
         </div>
       </section>
     </main>
