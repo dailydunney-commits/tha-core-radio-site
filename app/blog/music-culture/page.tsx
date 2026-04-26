@@ -63,7 +63,7 @@ export default function BlogCategoryPage() {
             return (
               <Link
                 key={post.title + index}
-                href={/blog/music-culture/${postSlug}}
+                href={"/blog/music-culture/" + postSlug}
                 className="block rounded-3xl border border-red-700 bg-zinc-950 p-6 shadow-[0_0_35px_rgba(34,197,94,.35)] hover:bg-red-950/40"
               >
                 <p className="text-sm font-black tracking-[0.3em] text-red-400">
