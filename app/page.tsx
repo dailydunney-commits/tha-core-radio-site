@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import PlayLiveButton from "@/components/play-live-button";
@@ -174,7 +174,7 @@ Sent from Tha Core Radio website`
               </div>
             </div>
 
-            <div className="flex items-start justify-center -mt-10 lg:justify-end">
+            <div className="flex items-start justify-center lg:justify-end">
               <img
                 src="/logo-site.png?v=777"
                 alt="Tha Core Logo"
