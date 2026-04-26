@@ -8,6 +8,7 @@ const STREAM_URL =
 type RadioContextValue = {
   isPlaying: boolean;
   volume: number;
+  streamUrl: string;
   play: () => Promise<void>;
   pause: () => void;
   toggle: () => Promise<void>;
@@ -59,7 +60,15 @@ export function RadioProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <RadioContext.Provider
-      value={{ isPlaying, volume, play, pause, toggle, setVolume }}
+      value={{
+        isPlaying,
+        volume,
+        streamUrl: STREAM_URL,
+        play,
+        pause,
+        toggle,
+        setVolume,
+      }}
     >
       {children}
 
