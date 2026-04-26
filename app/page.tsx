@@ -10,11 +10,11 @@ const WHATSAPP_LINK = "https://wa.me/18768842867";
 
 function cleanText(value: string) {
   return String(value || "")
-    .replace(/Ã[^ ]*/g, "")
-    .replace(/Â/g, "")
-    .replace(/â€¢/g, "-")
-    .replace(/â€™/g, "'")
-    .replace(/â€“/g, "-")
+    .replace(/Ãƒ[^ ]*/g, "")
+    .replace(/Ã‚/g, "")
+    .replace(/Ã¢â‚¬Â¢/g, "-")
+    .replace(/Ã¢â‚¬â„¢/g, "'")
+    .replace(/Ã¢â‚¬â€œ/g, "-")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -178,7 +178,7 @@ export default function HomePage() {
               </div>
             </div>
 
-            <div className="flex items-start justify-center lg:justify-end">
+            <div className="flex items-start justify-center -mt-6 lg:justify-end">
               <img
                 src="/logo-site.png?v=777"
                 alt="Tha Core Logo"
@@ -396,7 +396,7 @@ export default function HomePage() {
               </p>
 
               <p className="mt-2 text-sm font-bold">
-                © 2026 Tha Core. All rights reserved.
+                Â© 2026 Tha Core. All rights reserved.
               </p>
             </div>
           </div>
