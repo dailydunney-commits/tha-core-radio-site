@@ -1,8 +1,7 @@
 export const dynamic = "force-dynamic";
 export const revalidate = 300;
 
-const SOURCE_URL =
-  "https://www.jamaicaindex.com/lottery/jamaica-lotto-results-for-today";
+const SOURCE_URL = "https://supremeventurescashpotresults.com/cashpot-results/";
 
 function clean(text: string) {
   return text
@@ -11,27 +10,31 @@ function clean(text: string) {
     .replace(/<[^>]+>/g, " ")
     .replace(/&nbsp;/g, " ")
     .replace(/&amp;/g, "&")
+    .replace(/&#8211;/g, "-")
+    .replace(/&#8217;/g, "'")
     .replace(/\s+/g, " ")
     .trim();
 }
 
-function parseCashPot(text: string) {
+function parseResults(text: string) {
+  const drawNames = ["Early Bird", "Morning", "Midday", "Mid Afternoon", "Drive Time", "Evening"];
   const results: any[] = [];
 
-  const regex =
-    /(\d{1,2}\s+[A-Za-z]+\s+\d{4},\s+[A-Za-z]+)\s+Cash Pot\s+(EARLYBIRD|MORNING|MIDDAY|MIDAFTERNOON|DRIVETIME|EVENING|NIGHT)\s+(\d{1,2})\s+([A-Za-z ]+?)\s+(gold|white|red|blue|green|yellow|black)?\s*(gold|white|red|blue|green|yellow|black)?\s*-#(\d+)/gi;
+  for (const name of drawNames) {
+    const safeName = name.replace(" ", "\\s*");
+    const regex = new RegExp(`${safeName}[^0-9#]{0,80}(?:#\\s*Draw\\s*)?(\\d{4,6})?[^0-9]{0,80}(\\d{1,2})\\s*[-–]?\\s*([A-Za-z ]{2,30})`, "i");
+    const match = text.match(regex);
 
-  let match;
-
-  while ((match = regex.exec(text)) !== null) {
-    results.push({
-      label: `Cash Pot ${match[2]}`,
-      draw: `#${match[7]} • ${match[1]}`,
-      result: `${match[3]} - ${match[4].trim()}`,
-    });
+    if (match) {
+      results.push({
+        label: `Cash Pot ${name}`,
+        draw: match[1] ? `#${match[1]}` : "Latest Draw",
+        result: `${match[2]} - ${match[3].trim()}`
+      });
+    }
   }
 
-  return results.slice(0, 6);
+  return results;
 }
 
 export async function GET() {
@@ -45,10 +48,11 @@ export async function GET() {
 
     const html = await res.text();
     const text = clean(html);
-    const results = parseCashPot(text);
+    const results = parseResults(text);
 
     return Response.json({
-      source: "JamaicaIndex / Supreme Ventures",
+      source: "Supreme Ventures Cash Pot Results",
+      sourceUrl: SOURCE_URL,
       updatedAt: new Date().toISOString(),
       results:
         results.length > 0
