@@ -82,7 +82,7 @@ Sent from Tha Core Radio website`
 
         <div className="mb-5 rounded-3xl border border-red-700 bg-gradient-to-br from-red-950 to-black p-5 shadow-[0_0_55px_rgba(34,197,94,.75)]">
           <p className="text-xl font-black italic text-yellow-400">
-            Vote next song ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ Flash sale ends in 10 mins ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ Drop your shoutout live now
+            Vote next song ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ Flash sale ends in 10 mins ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ Drop your shoutout live now
           </p>
         </div>
 
@@ -103,7 +103,7 @@ Sent from Tha Core Radio website`
 
               <div className="mt-6 rounded-3xl border-2 border-red-500 bg-black/90 p-6 shadow-[0_0_75px_rgba(34,197,94,1)]">
                 <p className="text-lg font-black italic text-yellow-400">
-                  ON AIR NOW ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ NOW PLAYING
+                  ON AIR NOW ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ NOW PLAYING
                 </p>
 
                 <div className="mt-3 flex gap-2">
@@ -118,14 +118,23 @@ Sent from Tha Core Radio website`
                     CURRENT TRACK
                   </p>
 
-                  <h2 className="mt-3 text-2xl font-black text-white md:text-3xl">
-                    {nowSong}
-                  </h2>
-
-                  <p className="mt-2 text-lg font-bold text-yellow-400">
-                    {nowArtist}
-                  </p>
+                  <div className="mt-3 max-w-full overflow-hidden rounded-xl border border-red-800 bg-zinc-950 p-3">
+                    <div className="animate-[trackMarquee_12s_linear_infinite] whitespace-nowrap text-xl font-black text-white md:text-2xl">
+                      🎵 {nowArtist} — {nowSong} •
+                    </div>
+                  </div>
                 </div>
+
+                <style jsx>{`
+                  @keyframes trackMarquee {
+                    0% {
+                      transform: translateX(40%);
+                    }
+                    100% {
+                      transform: translateX(-100%);
+                    }
+                  }
+                `}</style>
 
                 <p className="mt-4 text-2xl font-black text-red-400">
                   {listeners} listeners online
@@ -179,8 +188,8 @@ Sent from Tha Core Radio website`
         <div className="mt-8 grid gap-6 md:grid-cols-4">
           <Card title="Listeners Online" text={`${listeners} tuned in now`} />
           <Card title="Joined Today" text="34 new listeners today" />
-          <Card title="Top Cities" text="Kingston ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ Montego Bay ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ London" />
-          <Card title="Live Energy" text="Music ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ Chat ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ Store ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ Giveaways" />
+          <Card title="Top Cities" text="Kingston ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ Montego Bay ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ London" />
+          <Card title="Live Energy" text="Music ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ Chat ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ Store ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ Giveaways" />
         </div>
 
         <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_.8fr]">
@@ -251,10 +260,10 @@ Sent from Tha Core Radio website`
           </Panel>
 
           <Panel title="Daily Reward / Check-In">
-            <p className="text-gray-300">YouÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ve visited 3 days in a row.</p>
+            <p className="text-gray-300">YouÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ve visited 3 days in a row.</p>
 
             <button onClick={() => setCheckedIn(true)} className="mt-5 rounded-xl bg-red-700 px-5 py-3 font-black">
-              {checkedIn ? "Badge Unlocked ÃƒÂ¢Ã…â€œÃ¢â‚¬Å“" : "Daily Check-In"}
+              {checkedIn ? "Badge Unlocked ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ" : "Daily Check-In"}
             </button>
           </Panel>
 
@@ -269,9 +278,9 @@ Sent from Tha Core Radio website`
           <h2 className="text-3xl font-black text-red-400">News Preview</h2>
 
           <div className="mt-6 grid gap-5 md:grid-cols-3">
-            <NewsCard href="/news/world" icon="ÃƒÂ°Ã…Â¸Ã…â€™Ã‚Â" title="World News" text="Breaking headlines and global updates." />
-            <NewsCard href="/news/music" icon="ÃƒÂ°Ã…Â¸Ã…Â½Ã‚Â¤" title="Music & Culture" text="Reggae, dancehall, entertainment and artists." />
-            <NewsCard href="/news/business" icon="ÃƒÂ°Ã…Â¸Ã¢â‚¬â„¢Ã‚Â¼" title="Money Moves" text="Business, ads, promos, and opportunities." />
+            <NewsCard href="/news/world" icon="ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã¢â‚¬â„¢Ãƒâ€šÃ‚Â" title="World News" text="Breaking headlines and global updates." />
+            <NewsCard href="/news/music" icon="ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â½Ãƒâ€šÃ‚Â¤" title="Music & Culture" text="Reggae, dancehall, entertainment and artists." />
+            <NewsCard href="/news/business" icon="ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢Ãƒâ€šÃ‚Â¼" title="Money Moves" text="Business, ads, promos, and opportunities." />
           </div>
         </div>
 
@@ -332,13 +341,13 @@ Sent from Tha Core Radio website`
 
           <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             {[
-              ["Sunday", "Gospel Morning ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ Family Vibes ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ Sunday Talk"],
-              ["Monday", "Money Moves ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ Business Promo ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ Fresh Start Mix"],
-              ["Tuesday", "Dancehall Drive ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ Listener Requests"],
-              ["Wednesday", "Midweek Motivation ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ Community Talk"],
-              ["Thursday", "Throwback Night ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ Old School Mix"],
-              ["Friday", "Weekend Warm Up ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ Party Mix"],
-              ["Saturday", "Live From Tha Core ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ DJ Special"],
+              ["Sunday", "Gospel Morning ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ Family Vibes ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ Sunday Talk"],
+              ["Monday", "Money Moves ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ Business Promo ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ Fresh Start Mix"],
+              ["Tuesday", "Dancehall Drive ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ Listener Requests"],
+              ["Wednesday", "Midweek Motivation ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ Community Talk"],
+              ["Thursday", "Throwback Night ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ Old School Mix"],
+              ["Friday", "Weekend Warm Up ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ Party Mix"],
+              ["Saturday", "Live From Tha Core ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ DJ Special"],
             ].map(([day, show]) => (
               <div key={day} className="rounded-2xl bg-black p-5">
                 <h3 className="text-2xl font-black text-red-400">{day}</h3>
@@ -374,15 +383,15 @@ Sent from Tha Core Radio website`
               <p className="text-3xl font-black">Tha Core Radio</p>
 
               <p className="mt-2 font-bold">
-                WhatsApp: 876-884-2867 ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ Email: dailydunney@gmail.com
+                WhatsApp: 876-884-2867 ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ Email: dailydunney@gmail.com
               </p>
 
               <p className="mt-2 font-bold">
-                Live radio ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ Store ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ Promos ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ Community
+                Live radio ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ Store ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ Promos ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ Community
               </p>
 
               <p className="mt-2 text-sm font-bold">
-                Ãƒâ€šÃ‚Â© 2026 Tha Core. All rights reserved.
+                ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â© 2026 Tha Core. All rights reserved.
               </p>
             </div>
           </div>
@@ -426,7 +435,7 @@ function NewsCard({
       <div className="text-5xl">{icon}</div>
       <h3 className="mt-4 text-2xl font-black text-red-400">{title}</h3>
       <p className="mt-2 text-gray-300">{text}</p>
-      <p className="mt-4 font-black text-red-400">Open ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢</p>
+      <p className="mt-4 font-black text-red-400">Open ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢</p>
     </Link>
   );
 }
@@ -449,7 +458,7 @@ function BlogCard({
       </p>
       <h3 className="mt-3 text-2xl font-black text-white">{title}</h3>
       <p className="mt-3 text-gray-300">{text}</p>
-      <p className="mt-4 font-black text-red-400">Read Story ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢</p>
+      <p className="mt-4 font-black text-red-400">Read Story ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢</p>
     </Link>
   );
 }
