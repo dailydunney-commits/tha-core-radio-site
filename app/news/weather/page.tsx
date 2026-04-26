@@ -39,9 +39,21 @@ export default function NewsCategoryPage() {
     return () => clearInterval(timer);
   }, []);
 
+  const tickerText =
+    items.length > 0
+      ? items.map((item) => item.title).join("  •  ")
+      : "Loading live Weather headlines...";
+
   return (
     <main className="min-h-screen bg-black px-6 py-10 text-white">
       <section className="mx-auto max-w-6xl">
+        <style>{
+          @keyframes categoryNewsTicker {
+            0% { transform: translateX(100%); }
+            100% { transform: translateX(-100%); }
+          }
+        }</style>
+
         <div className="flex flex-wrap gap-3">
           <Link href="/news" className="rounded-2xl bg-red-600 px-5 py-3 font-black hover:bg-red-700">
             ← Back To News
@@ -65,6 +77,21 @@ export default function NewsCategoryPage() {
           <h1 className="mt-3 text-5xl font-black md:text-7xl">Weather</h1>
           <p className="mt-4 max-w-3xl text-lg font-bold">Live Jamaica weather-related headlines.</p>
           <p className="mt-3 text-sm font-black">Auto-refreshes every 15 minutes.</p>
+        </div>
+
+        <div className="mt-6 rounded-3xl border border-red-700 bg-zinc-950 p-5 shadow-[0_0_45px_rgba(34,197,94,.45)]">
+          <p className="text-sm font-black tracking-[0.35em] text-red-400">
+            LIVE Weather TICKER
+          </p>
+
+          <div className="mt-3 overflow-hidden rounded-2xl border border-red-700 bg-black p-3">
+            <div
+              className="whitespace-nowrap text-lg font-black text-yellow-400"
+              style={{ animation: "categoryNewsTicker 35s linear infinite" }}
+            >
+              {tickerText}
+            </div>
+          </div>
         </div>
 
         <button
