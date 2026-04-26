@@ -8,17 +8,19 @@ import { products } from "./store/products";
 const WHATSAPP_LINK = "https://wa.me/18768842867";
 
 export default function HomePage() {
-  const [listeners, setListeners] = useState(127);
+  const [listeners, setListeners] = useState(0);
   const [ticker, setTicker] = useState(0);
   const [poll, setPoll] = useState("");
   const [checkedIn, setCheckedIn] = useState(false);
   const [requestName, setRequestName] = useState("");
   const [requestMessage, setRequestMessage] = useState("");
+  const [nowSong, setNowSong] = useState("Tha Core Live Mix");
+  const [nowArtist, setNowArtist] = useState("Live From Tha Core");
 
   const featuredProducts = useMemo(() => products.slice(0, 8), []);
 
   const tickerItems = [
-    "NOW PLAYING: Tha Core Live Mix",
+    `NOW PLAYING: ${nowSong}`,
     "UPCOMING SHOW: Dancehall Drive starts soon",
     "STORE SALE: Custom prints and radio promos available",
     "BIRTHDAY SHOUTOUT: Send your birthday shoutout live",
@@ -26,17 +28,33 @@ export default function HomePage() {
   ];
 
   useEffect(() => {
+    async function loadNowPlaying() {
+      try {
+        const res = await fetch("/api/now-playing", { cache: "no-store" });
+        const data = await res.json();
+
+        setNowSong(data.song || "Tha Core Live Mix");
+        setNowArtist(data.artist || "Live From Tha Core");
+
+        if (typeof data.listeners === "number") {
+          setListeners(data.listeners);
+        }
+      } catch {
+        setNowSong("Tha Core Live Mix");
+        setNowArtist("Live From Tha Core");
+      }
+    }
+
+    loadNowPlaying();
+
+    const nowPlayingTimer = setInterval(loadNowPlaying, 15000);
     const tick = setInterval(() => {
-      setTicker((v) => (v + 1) % tickerItems.length);
+      setTicker((v) => (v + 1) % 5);
     }, 3500);
 
-    const stat = setInterval(() => {
-      setListeners((v) => Math.max(90, v + Math.floor(Math.random() * 5) - 2));
-    }, 6000);
-
     return () => {
+      clearInterval(nowPlayingTimer);
       clearInterval(tick);
-      clearInterval(stat);
     };
   }, []);
 
@@ -98,10 +116,10 @@ Sent from Tha Core Radio website`
                 </div>
 
                 <h2 className="mt-4 text-4xl font-black text-white">
-                  Tha Core Live Mix
+                  {nowSong}
                 </h2>
 
-                <p className="mt-2 text-gray-300">Live From Tha Core</p>
+                <p className="mt-2 text-gray-300">{nowArtist}</p>
 
                 <p className="mt-4 text-2xl font-black text-red-400">
                   {listeners} listeners online
