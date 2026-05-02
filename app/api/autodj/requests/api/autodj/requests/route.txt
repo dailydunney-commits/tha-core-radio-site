@@ -1,0 +1,20 @@
+import{ NextResponse } from "next/server";
+
+const AZURACAST_API_KEY = "3dba543a4cbda0c6:cfac30cf13c8b524fb0407457f148ae4";
+
+const BASE = "http://18.222.11.16";
+const STATION_ID = 1;
+
+export async function GET() {
+  const res = await fetch(`${BASE}/api/station/${STATION_ID}/requests`, {
+    headers: {
+      "X-API-Key": AZURACAST_API_KEY,
+      Accept: "application/json",
+    },
+    cache: "no-store",
+  });
+
+  const data = await res.json();
+
+  return NextResponse.json(data);
+}                                                                                                            

@@ -1,18 +1,58 @@
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-html,
+:root {
+  --background: #000000;
+  --foreground: #ffffff;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
 body {
   margin: 0;
-  padding: 0;
-  background: #000000;
-  color: #ffffff;
-  min-height: 100%;
+  background: var(--background);
+  color: var(--foreground);
 }
 
 * {
   box-sizing: border-box;
 }
 
-a {
-  text-decoration: none;
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+input,
+textarea,
+select,
+button {
+  font: inherit;
+}
+
+/* Tha Core moving ticker */
+@keyframes marquee {
+  0% {
+    transform: translateX(100%);
+  }
+
+  100% {
+    transform: translateX(-100%);
+  }
+}
+
+.animate-marquee {
+  display: inline-block;
+  animation: marquee 22s linear infinite;
+}
+
+/* Optional smoother glow */
+.tha-core-glow {
+  box-shadow: 0 0 35px rgba(239, 68, 68, 0.45);
 }

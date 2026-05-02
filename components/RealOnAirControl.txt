@@ -1,0 +1,154 @@
+"use client";
+
+import { useEffect, useState } from "react";
+
+type Status = {
+  isOnline: boolean;
+  isLive: boolean;
+  streamer: string | null;
+  nowPlaying: {
+    artist: string;
+    title: string;
+  };
+  listeners: number;
+};
+
+export default function RealOnAirControl() {
+  const [status, setStatus] = useState<Status | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  async function loadStatus() {
+    try {
+      const res = await fetch("/api/azuracast/control", { cache: "no-store" });
+      const data = await res.json();
+      setStatus(data);
+    } catch {
+      setStatus(null);
+    }
+  }
+
+  async function control(action: string) {
+    setLoading(true);
+
+    try {
+      await fetch("/api/azuracast/control", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ action }),
+      });
+
+      await loadStatus();
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadStatus();
+    const timer = setInterval(loadStatus, 7000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const onAir = status?.isOnline;
+
+  return (
+    <section className="rounded-[2rem] border border-red-500/40 bg-black/80 p-5 shadow-[0_0_35px_rgba(239,68,68,0.35)]">
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <div>
+          <p className="text-xs uppercase tracking-[0.3em] text-red-300">
+            Tha Core Real Broadcast Control
+          </p>
+
+          <h2 className="text-2xl font-black text-white">
+            {onAir ? "ON AIR LIVE" : "OFF AIR"}
+          </h2>
+        </div>
+
+        <div
+          className={`h-7 w-7 rounded-full ${
+            onAir
+              ? "animate-pulse bg-red-500 shadow-[0_0_25px_red]"
+              : "bg-zinc-700"
+          }`}
+        />
+      </div>
+
+      <div className="mb-4 rounded-2xl bg-zinc-950 p-4 text-white">
+        <p className="text-sm text-zinc-400">Now Playing</p>
+
+        <p className="text-lg font-bold">
+          {status?.nowPlaying?.artist || "Tha Core"} —{" "}
+          {status?.nowPlaying?.title || "Live Radio"}
+        </p>
+
+        <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
+          <div className="rounded-xl bg-zinc-900 p-3">
+            <p className="text-zinc-400">Listeners</p>
+            <p className="text-xl font-black text-green-400">
+              {status?.listeners ?? 0}
+            </p>
+          </div>
+
+          <div className="rounded-xl bg-zinc-900 p-3">
+            <p className="text-zinc-400">Live DJ</p>
+            <p className="text-xl font-black text-yellow-300">
+              {status?.isLive ? status.streamer || "Connected" : "None"}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <button
+          disabled={loading}
+          onClick={() => control("go_on_air")}
+          className="rounded-2xl bg-red-600 px-4 py-4 font-black text-white hover:bg-red-500 disabled:opacity-50"
+        >
+          GO ON AIR
+        </button>
+
+        <button
+          disabled={loading}
+          onClick={() => control("go_off_air")}
+          className="rounded-2xl bg-zinc-800 px-4 py-4 font-black text-white hover:bg-zinc-700 disabled:opacity-50"
+        >
+          GO OFF AIR
+        </button>
+
+        <button
+          disabled={loading}
+          onClick={() => control("start_autodj")}
+          className="rounded-2xl bg-green-600 px-4 py-4 font-black text-white hover:bg-green-500 disabled:opacity-50"
+        >
+          START AUTODJ
+        </button>
+
+        <button
+          disabled={loading}
+          onClick={() => control("stop_autodj")}
+          className="rounded-2xl bg-orange-600 px-4 py-4 font-black text-white hover:bg-orange-500 disabled:opacity-50"
+        >
+          STOP AUTODJ
+        </button>
+
+        <button
+          disabled={loading}
+          onClick={() => control("restart_autodj")}
+          className="rounded-2xl bg-blue-600 px-4 py-4 font-black text-white hover:bg-blue-500 disabled:opacity-50"
+        >
+          RESTART AUTODJ
+        </button>
+
+        <button
+          disabled={loading}
+          onClick={() => control("disconnect_live_dj")}
+          className="rounded-2xl bg-purple-600 px-4 py-4 font-black text-white hover:bg-purple-500 disabled:opacity-50"
+        >
+          KICK LIVE DJ
+        </button>
+      </div>
+    </section>
+  );
+}

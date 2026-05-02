@@ -1,0 +1,90 @@
+"use client";
+
+import { useState } from "react";
+
+export default function SmartAutoDJRevenuePanel() {
+  const [message, setMessage] = useState("");
+
+  async function sendAction(action: string) {
+    setMessage("Sending command...");
+
+    try {
+      const res = await fetch("/api/azuracast/control", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
+
+      setMessage(res.ok ? "Command sent successfully." : "Command failed.");
+    } catch {
+      setMessage("Command failed.");
+    }
+  }
+
+  return (
+    <section className="grid gap-5 lg:grid-cols-2">
+      <div className="rounded-[2rem] border border-green-500/30 bg-zinc-950 p-5">
+        <p className="text-xs font-black uppercase tracking-[0.3em] text-green-400">
+          Smart AutoDJ Brain
+        </p>
+
+        <h2 className="mt-2 text-3xl font-black text-white">
+          Automation Control
+        </h2>
+
+        <div className="mt-5 grid grid-cols-2 gap-3">
+          <button onClick={() => sendAction("start_autodj")} className="rounded-2xl bg-green-600 p-4 font-black text-white">
+            START AUTODJ
+          </button>
+
+          <button onClick={() => sendAction("stop_autodj")} className="rounded-2xl bg-orange-600 p-4 font-black text-white">
+            STOP AUTODJ
+          </button>
+
+          <button onClick={() => sendAction("restart_autodj")} className="rounded-2xl bg-blue-600 p-4 font-black text-white">
+            RESTART AUTODJ
+          </button>
+
+          <button onClick={() => sendAction("disconnect_live_dj")} className="rounded-2xl bg-purple-600 p-4 font-black text-white">
+            KICK LIVE DJ
+          </button>
+        </div>
+
+        {message && (
+          <p className="mt-4 rounded-xl bg-black p-3 text-sm font-bold text-yellow-300">
+            {message}
+          </p>
+        )}
+      </div>
+
+      <div className="rounded-[2rem] border border-yellow-500/30 bg-zinc-950 p-5">
+        <p className="text-xs font-black uppercase tracking-[0.3em] text-yellow-400">
+          Money Control
+        </p>
+
+        <h2 className="mt-2 text-3xl font-black text-white">
+          Revenue System
+        </h2>
+
+        <div className="mt-5 grid grid-cols-2 gap-3">
+          {[
+            "Run Ad Now",
+            "Promote Song",
+            "Paid Shoutout",
+            "Store Flash Sale",
+            "Sponsor Mention",
+            "WhatsApp Order Blast",
+          ].map((item) => (
+            <button
+              key={item}
+              onClick={() => setMessage(`${item} prepared.`)}
+              className="rounded-2xl bg-yellow-500 p-4 font-black text-black"
+            >
+              {item}
+            </button>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}

@@ -1,0 +1,94 @@
+"use client";
+
+import { useEffect, useState } from "react";
+
+type Status = {
+  isOnline: boolean;
+  isLive: boolean;
+  streamer: string | null;
+  nowPlaying: {
+    artist: string;
+    title: string;
+  };
+  listeners: number;
+};
+
+export default function ListenerLiveStatus() {
+  const [status, setStatus] = useState<Status | null>(null);
+
+  async function loadStatus() {
+    try {
+      const res = await fetch("/api/azuracast/control", {
+        cache: "no-store",
+      });
+      const data = await res.json();
+      setStatus(data);
+    } catch {
+      setStatus(null);
+    }
+  }
+
+  useEffect(() => {
+    loadStatus();
+    const timer = setInterval(loadStatus, 7000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const online = status?.isOnline;
+
+  return (
+    <section className="rounded-[2rem] border border-red-500/40 bg-black/80 p-5 text-white shadow-[0_0_35px_rgba(239,68,68,0.35)]">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div>
+          <div className="flex items-center gap-3">
+            <span
+              className={`h-5 w-5 rounded-full ${
+                online
+                  ? "animate-pulse bg-red-500 shadow-[0_0_20px_red]"
+                  : "bg-zinc-600"
+              }`}
+            />
+
+            <p className="text-xs font-black uppercase tracking-[0.35em] text-red-300">
+              {online ? "Live From Tha Core" : "Station Standby"}
+            </p>
+          </div>
+
+          <h2 className="mt-2 text-3xl font-black">
+            {online ? "ON AIR NOW" : "OFF AIR"}
+          </h2>
+
+          <p className="mt-2 text-sm text-zinc-400">
+            {status?.nowPlaying?.artist || "Tha Core"} —{" "}
+            {status?.nowPlaying?.title || "Online Radio"}
+          </p>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div className="rounded-2xl bg-zinc-950 p-4 text-center">
+            <p className="text-xs text-zinc-400">Listeners</p>
+            <p className="text-3xl font-black text-green-400">
+              {status?.listeners ?? 0}
+            </p>
+          </div>
+
+          <div className="rounded-2xl bg-zinc-950 p-4 text-center">
+            <p className="text-xs text-zinc-400">Live DJ</p>
+            <p className="text-lg font-black text-yellow-300">
+              {status?.isLive ? status.streamer || "Connected" : "AutoDJ"}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-5 overflow-hidden rounded-2xl bg-red-600 py-3">
+        <div className="animate-marquee whitespace-nowrap text-sm font-black uppercase tracking-[0.25em]">
+          🔴 Tha Core Online Radio • Now Playing:{" "}
+          {status?.nowPlaying?.artist || "Tha Core"} -{" "}
+          {status?.nowPlaying?.title || "Live Radio"} • Send your shoutouts •
+          Promote your song • Shop Tha Core Store •
+        </div>
+      </div>
+    </section>
+  );
+}
