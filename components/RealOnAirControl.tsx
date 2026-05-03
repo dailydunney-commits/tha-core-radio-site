@@ -1,5 +1,6 @@
-"use client";
+﻿"use client";
 
+import type { CSSProperties } from "react";
 import { useEffect, useState } from "react";
 
 type RadioStatus = {
@@ -144,6 +145,7 @@ function StatusBox({
           boxShadow: `0 0 16px ${color}`,
         }}
       />
+
       <div>
         <p style={styles.statusLabel}>{label}</p>
         <p style={{ ...styles.statusValue, color }}>{value}</p>
@@ -152,7 +154,7 @@ function StatusBox({
   );
 }
 
-const styles: Record<string, React.CSSProperties> = {
+const styles: Record<string, CSSProperties> = {
   card: {
     width: "100%",
     borderRadius: "28px",

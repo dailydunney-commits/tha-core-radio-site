@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 export default function SmartAutoDJRevenuePanel() {
   return (
@@ -20,9 +20,8 @@ export default function SmartAutoDJRevenuePanel() {
       </div>
 
       <p style={styles.note}>
-        Restored missing component file so the owner page can build. This does
-        not shut down radio, does not change stream control, and does not edit
-        your existing owner page.
+        Smart AutoDJ revenue panel restored. This file only fixes the missing
+        import so the owner page can build.
       </p>
     </section>
   );
