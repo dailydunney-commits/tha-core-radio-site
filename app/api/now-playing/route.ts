@@ -1,35 +1,58 @@
+import { NextResponse } from "next/server";
+
 export const dynamic = "force-dynamic";
 
-const URL =
-  "http://18.222.11.16/api/nowplaying/tha-core-online";
+const NOW_PLAYING_URL =
+  process.env.NEXT_PUBLIC_AZURACAST_NOW_PLAYING_URL ||
+  "https://thacoreonlinerad.com/api/nowplaying/1";
 
 export async function GET() {
   try {
-    const res = await fetch(URL, { cache: "no-store" });
+    const res = await fetch(NOW_PLAYING_URL, {
+      cache: "no-store",
+    });
+
+    if (!res.ok) {
+      return NextResponse.json(
+        {
+          ok: false,
+          listeners: {
+            current: 0,
+          },
+          now_playing: {
+            song: {
+              text: "Tha Core Live Mix",
+            },
+          },
+          error: `Azura now-playing failed with status ${res.status}`,
+        },
+        { status: 200 }
+      );
+    }
+
     const data = await res.json();
 
-    const song = data?.now_playing?.song?.title || "Tha Core Live";
-    const artist = data?.now_playing?.song?.artist || "Tha Core Radio";
-
-    const listeners =
-      data?.listeners?.current ||
-      data?.listeners?.total ||
-      0;
-
-    return Response.json({
-      ok: true,
-      song,
-      artist,
-      listeners,
-      online: data?.is_online || false,
+    return NextResponse.json(data, {
+      status: 200,
+      headers: {
+        "Cache-Control": "no-store",
+      },
     });
-  } catch (e) {
-    return Response.json({
-      ok: false,
-      song: "Tha Core Live Mix",
-      artist: "Tha Core Radio",
-      listeners: 0,
-      online: false,
-    });
+  } catch {
+    return NextResponse.json(
+      {
+        ok: false,
+        listeners: {
+          current: 0,
+        },
+        now_playing: {
+          song: {
+            text: "Tha Core Live Mix",
+          },
+        },
+        error: "Could not reach Azura now-playing API",
+      },
+      { status: 200 }
+    );
   }
 }

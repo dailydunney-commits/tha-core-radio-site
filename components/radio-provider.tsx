@@ -4,8 +4,11 @@ import {
   createContext,
   useContext,
   useEffect,
+  useMemo,
   useRef,
   useState,
+  type ReactNode,
+  type RefObject,
 } from "react";
 
 type RadioContextValue = {
@@ -16,124 +19,151 @@ type RadioContextValue = {
   pause: () => void;
   toggle: () => Promise<void>;
   setVolume: (value: number) => void;
-  audioRef: React.RefObject<HTMLAudioElement | null>;
+  audioRef: RefObject<HTMLAudioElement | null>;
 };
 
 const RadioContext = createContext<RadioContextValue | null>(null);
 
 const STREAM_URL =
-  process.env.NEXT_PUBLIC_STREAM_URL ||
-  "http://thacoreonlinerad.com/listen/tha-core-online/radio.mp3";
+  "https://thacoreonlinerad.com/listen/tha-core-online/radio.mp3";
 
 const VOLUME_KEY = "tha-core-radio-volume";
 
-async function sendAzuraAction(action: string) {
-  try {
-    await fetch("/api/azuracast/control", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ action }),
-    });
-  } catch {
-    // Do not block player if control API fails
-  }
-}
-
-export function RadioProvider({ children }: { children: React.ReactNode }) {
+export function RadioProvider({ children }: { children: ReactNode }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
+
   const [isPlaying, setIsPlaying] = useState(false);
   const [volume, setVolumeState] = useState(0.85);
 
   useEffect(() => {
-    const saved = window.localStorage.getItem(VOLUME_KEY);
-    if (saved) {
-      const parsed = Number(saved);
-      if (!Number.isNaN(parsed)) {
-        setVolumeState(parsed);
-      }
+    const savedVolume = window.localStorage.getItem(VOLUME_KEY);
+    const parsed = savedVolume ? Number(savedVolume) : 0.85;
+
+    if (!Number.isNaN(parsed) && parsed > 0.05) {
+      setVolumeState(Math.max(0, Math.min(1, parsed)));
+    } else {
+      setVolumeState(0.85);
+      window.localStorage.setItem(VOLUME_KEY, "0.85");
     }
   }, []);
 
   useEffect(() => {
-    if (!audioRef.current) return;
-    audioRef.current.volume = volume;
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    audio.volume = volume;
+    audio.muted = false;
     window.localStorage.setItem(VOLUME_KEY, String(volume));
   }, [volume]);
 
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    const handlePlay = () => setIsPlaying(true);
+    const handlePause = () => setIsPlaying(false);
+    const handleEnded = () => setIsPlaying(false);
+    const handleError = () => {
+      setIsPlaying(false);
+      console.error("Tha Core radio stream error:", audio.error);
+    };
+
+    audio.addEventListener("play", handlePlay);
+    audio.addEventListener("pause", handlePause);
+    audio.addEventListener("ended", handleEnded);
+    audio.addEventListener("error", handleError);
+
+    return () => {
+      audio.removeEventListener("play", handlePlay);
+      audio.removeEventListener("pause", handlePause);
+      audio.removeEventListener("ended", handleEnded);
+      audio.removeEventListener("error", handleError);
+
+      // Do NOT pause here.
+      // Do NOT call Azura here.
+      // Page navigation must not stop visitor audio.
+    };
+  }, []);
+
   async function play() {
-    if (!audioRef.current) return;
-
-    await sendAzuraAction("go_on_air");
-
-    audioRef.current.src = STREAM_URL;
-    audioRef.current.load();
+    const audio = audioRef.current;
+    if (!audio) return;
 
     try {
-      await audioRef.current.play();
+      audio.muted = false;
+      audio.volume = volume > 0.05 ? volume : 0.85;
+
+      if (audio.src !== STREAM_URL) {
+        audio.src = STREAM_URL;
+        audio.load();
+      }
+
+      await audio.play();
       setIsPlaying(true);
     } catch (error) {
-      console.error("Radio play failed:", error);
       setIsPlaying(false);
+      console.error("Could not play Tha Core radio stream:", error);
     }
   }
 
   function pause() {
-    if (!audioRef.current) return;
+    const audio = audioRef.current;
+    if (!audio) return;
 
-    audioRef.current.pause();
+    audio.pause();
     setIsPlaying(false);
-
-    // This only stops listener playback.
-    // It does NOT stop AzuraCast broadcast.
   }
 
   async function toggle() {
     if (isPlaying) {
       pause();
-    } else {
-      await play();
+      return;
     }
+
+    await play();
   }
 
   function setVolume(value: number) {
-    const clean = Math.min(1, Math.max(0, value));
-    setVolumeState(clean);
+    const safeValue = Math.max(0, Math.min(1, value));
+
+    setVolumeState(safeValue);
+
+    if (audioRef.current) {
+      audioRef.current.volume = safeValue;
+      audioRef.current.muted = false;
+    }
+
+    window.localStorage.setItem(VOLUME_KEY, String(safeValue));
   }
 
-  return (
-    <RadioContext.Provider
-      value={{
-        isPlaying,
-        volume,
-        streamUrl: STREAM_URL,
-        play,
-        pause,
-        toggle,
-        setVolume,
-        audioRef,
-      }}
-    >
-      {children}
+  const value = useMemo<RadioContextValue>(
+    () => ({
+      isPlaying,
+      volume,
+      streamUrl: STREAM_URL,
+      play,
+      pause,
+      toggle,
+      setVolume,
+      audioRef,
+    }),
+    [isPlaying, volume]
+  );
 
-      <audio
-        ref={audioRef}
-        preload="none"
-        onPlay={() => setIsPlaying(true)}
-        onPause={() => setIsPlaying(false)}
-        onEnded={() => setIsPlaying(false)}
-      />
+  return (
+    <RadioContext.Provider value={value}>
+      <audio ref={audioRef} src={STREAM_URL} preload="none" playsInline />
+      {children}
     </RadioContext.Provider>
   );
 }
 
 export function useRadio() {
-  const ctx = useContext(RadioContext);
+  const context = useContext(RadioContext);
 
-  if (!ctx) {
+  if (!context) {
     throw new Error("useRadio must be used inside RadioProvider");
   }
 
-  return ctx;
+  return context;
 }

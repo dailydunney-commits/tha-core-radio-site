@@ -1,11 +1,12 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
-import GlobalRadioPlayer from "@/components/global-radio-player";
 import { RadioProvider } from "@/components/radio-provider";
+import GlobalRadioPlayer from "@/components/global-radio-player";
 
 export const metadata: Metadata = {
-  title: "Tha Core Radio",
-  description: "Tha Core Online Radio Platform",
+  title: "Tha Core Online Radio",
+  description:
+    "Tha Core Online Radio - live music, chat, store, news, and community.",
   manifest: "/manifest.json",
   icons: {
     icon: "/icon-192.png",
@@ -23,10 +24,20 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body className="bg-black text-white">
+    <html lang="en" suppressHydrationWarning>
+      <body
+        style={{
+          margin: 0,
+          background: "#000",
+          color: "#fff",
+          minHeight: "100vh",
+        }}
+      >
         <RadioProvider>
-          <div className="pb-32">{children}</div>
+          <div style={{ minHeight: "100vh", paddingBottom: 130 }}>
+            {children}
+          </div>
+
           <GlobalRadioPlayer />
         </RadioProvider>
       </body>

@@ -1,241 +1,284 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
-import { products } from "@/app/store/products";
 
-const WHATSAPP_LINK = "https://wa.me/18768842867";
+const WHATSAPP_NUMBER = "18768842867";
 
-const cities = [
-  "Kingston",
-  "Montego Bay",
-  "Spanish Town",
-  "Portmore",
-  "Mandeville",
-  "Ocho Rios",
-  "London",
-  "New York",
-  "Toronto",
-];
+const requestText =
+  "THA CORE RADIO VISITOR REQUEST%0A%0AName:%0ASong/Shoutout:%0ACity:%0A";
 
-const stories = [
+const whatsappRequestUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${requestText}`;
+
+const stats = [
   {
-    title: "From Idea To Live Platform",
-    href: "/blog/behind-the-core/from-idea-to-live-platform",
-    text: "How Tha Core moved from idea stage into a real live platform.",
+    title: "Listeners Online",
+    value: "2 tuned in now",
   },
   {
-    title: "Why Online Radio Still Matters",
-    href: "/blog/radio-stories/why-online-radio-still-matters",
-    text: "Why independent voices still need their own station.",
+    title: "Joined Today",
+    value: "34 new listeners today",
   },
   {
-    title: "How Small Businesses Can Sell Faster",
-    href: "/blog/business-tips/how-small-businesses-can-sell-faster-with-simple-offers",
-    text: "Clear offers, strong visuals, and fast replies help drive sales.",
+    title: "Top Cities",
+    value: "Kingston - Montego Bay - London",
+  },
+  {
+    title: "Live Energy",
+    value: "Music - Chat - Store - Giveaways",
   },
 ];
 
-const prizes = [
-  "Free Radio Shoutout",
-  "10% Off Store Order",
-  "Free Blog Feature Review",
-  "Free Promo Mention",
-  "Free Design Consultation",
-  "Try Again Tomorrow",
+const moneyMoves = [
+  "Promote your song on Tha Core Radio",
+  "Book radio ads and sponsor drops",
+  "Order graphics, printing, and promo material",
+  "Shop Tha Core store while the radio keeps playing",
+];
+
+const quickLinks = [
+  {
+    label: "Store",
+    href: "/store",
+  },
+  {
+    label: "Chat",
+    href: "/chat",
+  },
+  {
+    label: "Upload Entry",
+    href: "/upload",
+  },
+  {
+    label: "World News",
+    href: "/news",
+  },
+  {
+    label: "Blog / Stories",
+    href: "/blog",
+  },
+  {
+    label: "Cash Pot / Lotto",
+    href: "/cashpot-lotto",
+  },
 ];
 
 export default function VisitorEngagementWidgets() {
-  const [requestName, setRequestName] = useState("");
-  const [requestSong, setRequestSong] = useState("");
-  const [spinning, setSpinning] = useState(false);
-  const [prize, setPrize] = useState("");
-
-  const productOfDay = useMemo(() => {
-    const day = new Date().getDate();
-    return products[day % products.length];
-  }, []);
-
-  const storyOfDay = useMemo(() => {
-    const day = new Date().getDate();
-    return stories[day % stories.length];
-  }, []);
-
-  const topCities = useMemo(() => {
-    return cities.slice(0, 5).map((city, index) => ({
-      city,
-      listeners: Math.max(12, 84 - index * 9 + Math.floor(Math.random() * 8)),
-    }));
-  }, []);
-
-  const requestText = encodeURIComponent(
-    "THA CORE SONG REQUEST\n\nName:\n" +
-      (requestName || "No name entered") +
-      "\n\nSong / Artist Request:\n" +
-      (requestSong || "No song entered") +
-      "\n\nSent from Tha Core Radio website"
-  );
-
-  function spinWheel() {
-    if (spinning) return;
-
-    setSpinning(true);
-    setPrize("");
-
-    setTimeout(() => {
-      const picked = prizes[Math.floor(Math.random() * prizes.length)];
-      setPrize(picked);
-      setSpinning(false);
-    }, 1200);
-  }
-
   return (
-    <div className="mt-8 grid gap-6 xl:grid-cols-2">
-      <div className="rounded-3xl border border-red-700 bg-zinc-950 p-6 shadow-[0_0_55px_rgba(34,197,94,.55)]">
-        <h2 className="text-3xl font-black text-red-400">
-          Song Request Widget
-        </h2>
-
-        <p className="mt-3 text-gray-300">
-          Request a song or send a shoutout straight to Tha Core.
-        </p>
-
-        <input
-          value={requestName}
-          onChange={(e) => setRequestName(e.target.value)}
-          placeholder="Your name"
-          className="mt-5 w-full rounded-xl bg-black p-4 text-white"
-        />
-
-        <textarea
-          value={requestSong}
-          onChange={(e) => setRequestSong(e.target.value)}
-          placeholder="Song name, artist, or shoutout..."
-          className="mt-3 h-28 w-full rounded-xl bg-black p-4 text-white"
-        />
-
-        <a
-          href={WHATSAPP_LINK + "?text=" + requestText}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mt-4 block rounded-xl bg-red-700 px-6 py-4 text-center font-black hover:bg-red-800"
-        >
-          Send Request To WhatsApp
-        </a>
+    <section style={styles.wrap}>
+      <div style={styles.statsGrid}>
+        {stats.map((item) => (
+          <article key={item.title} style={styles.statCard}>
+            <h2 style={styles.cardTitle}>{item.title}</h2>
+            <p style={styles.cardText}>{item.value}</p>
+          </article>
+        ))}
       </div>
 
-      <div className="rounded-3xl border border-red-700 bg-zinc-950 p-6 shadow-[0_0_55px_rgba(34,197,94,.55)]">
-        <h2 className="text-3xl font-black text-red-400">
-          Featured Product Of The Day
-        </h2>
+      <div style={styles.mainGrid}>
+        <article style={styles.bigCard}>
+          <h2 style={styles.sectionTitle}>Request Song / Shoutout</h2>
 
-        {productOfDay && (
-          <Link href="/store" className="mt-5 block rounded-2xl bg-black p-4 hover:bg-red-950/50">
-            <div
-              className="h-56 rounded-2xl bg-gradient-to-br from-yellow-200 via-amber-300 to-yellow-500 bg-contain bg-center bg-no-repeat"
-              style={{ backgroundImage: "url(" + productOfDay.image + ")" }}
-            />
-
-            <h3 className="mt-4 text-2xl font-black text-white">
-              {productOfDay.name}
-            </h3>
-
-            <p className="mt-2 font-black text-red-400">
-              JMD ${productOfDay.price.toLocaleString()}
-            </p>
-
-            <p className="mt-4 font-black text-red-400">Shop Now →</p>
-          </Link>
-        )}
-      </div>
-
-      <div className="rounded-3xl border border-red-700 bg-zinc-950 p-6 shadow-[0_0_55px_rgba(34,197,94,.55)]">
-        <h2 className="text-3xl font-black text-red-400">Story Of The Day</h2>
-
-        <Link href={storyOfDay.href} className="mt-5 block rounded-2xl bg-black p-5 hover:bg-red-950/50">
-          <p className="text-sm font-black tracking-[0.3em] text-yellow-400">
-            FEATURED STORY
+          <p style={styles.cardText}>
+            Send your song request, birthday shoutout, city check-in, or promo message
+            straight to Tha Core.
           </p>
 
-          <h3 className="mt-3 text-2xl font-black text-white">
-            {storyOfDay.title}
-          </h3>
+          <div style={styles.formBox}>
+            <label style={styles.label}>Name</label>
+            <input style={styles.input} placeholder="Your name" />
 
-          <p className="mt-3 text-gray-300">{storyOfDay.text}</p>
+            <label style={styles.label}>Song / Shoutout</label>
+            <textarea
+              style={styles.textarea}
+              placeholder="Type your request or shoutout here"
+            />
 
-          <p className="mt-4 font-black text-red-400">Read Story →</p>
-        </Link>
-      </div>
-
-      <div className="rounded-3xl border border-red-700 bg-zinc-950 p-6 shadow-[0_0_55px_rgba(34,197,94,.55)]">
-        <h2 className="text-3xl font-black text-red-400">
-          Top Listener Cities Live
-        </h2>
-
-        <div className="mt-5 grid gap-3">
-          {topCities.map((item, index) => (
-            <div key={item.city} className="rounded-2xl bg-black p-4">
-              <div className="flex items-center justify-between gap-4">
-                <p className="font-black text-white">
-                  #{index + 1} {item.city}
-                </p>
-
-                <p className="font-black text-yellow-400">
-                  {item.listeners} listening
-                </p>
-              </div>
-
-              <div className="mt-3 h-2 rounded-full bg-zinc-800">
-                <div
-                  className="h-2 rounded-full bg-red-600"
-                  style={{ width: Math.min(100, item.listeners) + "%" }}
-                />
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="rounded-3xl border border-red-700 bg-zinc-950 p-6 shadow-[0_0_55px_rgba(34,197,94,.55)] xl:col-span-2">
-        <h2 className="text-3xl font-black text-red-400">
-          Weekly Spin Wheel Giveaway
-        </h2>
-
-        <p className="mt-3 text-gray-300">
-          Visitors can spin once and send their prize screenshot to WhatsApp.
-        </p>
-
-        <div className="mt-6 grid items-center gap-6 md:grid-cols-[260px_1fr]">
-          <button
-            type="button"
-            onClick={spinWheel}
-            className={"flex h-60 w-60 items-center justify-center rounded-full border-8 border-yellow-400 bg-gradient-to-br from-red-700 via-black to-green-700 text-center text-2xl font-black shadow-[0_0_60px_rgba(250,204,21,.7)] " + (spinning ? "animate-spin" : "")}
-          >
-            SPIN
-          </button>
-
-          <div className="rounded-3xl bg-black p-6">
-            <p className="text-sm font-black tracking-[0.3em] text-yellow-400">
-              GIVEAWAY RESULT
-            </p>
-
-            <h3 className="mt-4 text-4xl font-black text-white">
-              {spinning ? "Spinning..." : prize || "Tap spin to try your luck"}
-            </h3>
-
-            {prize && (
-              <a
-                href={WHATSAPP_LINK + "?text=" + encodeURIComponent("Tha Core Giveaway Prize: " + prize)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-6 block rounded-xl bg-red-700 px-6 py-4 text-center font-black hover:bg-red-800"
-              >
-                Claim On WhatsApp
-              </a>
-            )}
+            <a
+              href={whatsappRequestUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={styles.redButton}
+            >
+              Send On WhatsApp
+            </a>
           </div>
-        </div>
+        </article>
+
+        <article style={styles.bigCard}>
+          <h2 style={styles.sectionTitle}>Money Moves</h2>
+
+          <div style={styles.moneyList}>
+            {moneyMoves.map((item) => (
+              <div key={item} style={styles.moneyItem}>
+                <span style={styles.dot}></span>
+                <span>{item}</span>
+              </div>
+            ))}
+          </div>
+
+          <div style={styles.quickGrid}>
+            {quickLinks.map((item) => (
+              <Link key={item.href} href={item.href} style={styles.quickLink}>
+                {item.label}
+              </Link>
+            ))}
+          </div>
+        </article>
       </div>
-    </div>
+    </section>
   );
 }
+
+export { VisitorEngagementWidgets };
+
+const styles: Record<string, React.CSSProperties> = {
+  wrap: {
+    width: "100%",
+    marginTop: 22,
+    display: "grid",
+    gap: 22,
+  },
+
+  statsGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+    gap: 18,
+  },
+
+  statCard: {
+    border: "1px solid #d50000",
+    borderRadius: 18,
+    background: "linear-gradient(180deg,#08080b,#020202)",
+    boxShadow: "0 0 24px rgba(0,255,100,.16)",
+    padding: 24,
+    minHeight: 105,
+  },
+
+  cardTitle: {
+    margin: "0 0 14px",
+    color: "#ff5c6c",
+    fontSize: 25,
+    fontWeight: 1000,
+  },
+
+  cardText: {
+    margin: 0,
+    color: "#ffffff",
+    fontSize: 16,
+    lineHeight: 1.5,
+  },
+
+  mainGrid: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: 22,
+  },
+
+  bigCard: {
+    border: "1px solid #d50000",
+    borderRadius: 18,
+    background: "linear-gradient(180deg,#08080b,#020202)",
+    boxShadow: "0 0 24px rgba(255,0,40,.16)",
+    padding: 24,
+    minHeight: 330,
+  },
+
+  sectionTitle: {
+    margin: "0 0 16px",
+    color: "#ff5c6c",
+    fontSize: 31,
+    fontWeight: 1000,
+  },
+
+  formBox: {
+    marginTop: 18,
+    display: "grid",
+    gap: 10,
+  },
+
+  label: {
+    color: "#ffffff",
+    fontSize: 13,
+    fontWeight: 900,
+    letterSpacing: 1,
+  },
+
+  input: {
+    width: "100%",
+    boxSizing: "border-box",
+    border: "1px solid #d50000",
+    borderRadius: 12,
+    background: "#000",
+    color: "#fff",
+    padding: "13px 14px",
+    outline: "none",
+  },
+
+  textarea: {
+    width: "100%",
+    minHeight: 100,
+    boxSizing: "border-box",
+    border: "1px solid #d50000",
+    borderRadius: 12,
+    background: "#000",
+    color: "#fff",
+    padding: "13px 14px",
+    outline: "none",
+    resize: "vertical",
+  },
+
+  redButton: {
+    textDecoration: "none",
+    display: "inline-flex",
+    justifyContent: "center",
+    alignItems: "center",
+    border: "1px solid #ff1744",
+    borderRadius: 14,
+    background: "linear-gradient(180deg,#d50000,#760000)",
+    color: "#fff",
+    padding: "14px 18px",
+    fontWeight: 1000,
+    boxShadow: "0 0 18px rgba(255,0,40,.3)",
+  },
+
+  moneyList: {
+    display: "grid",
+    gap: 12,
+    marginTop: 16,
+  },
+
+  moneyItem: {
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
+    color: "#fff",
+    fontWeight: 800,
+  },
+
+  dot: {
+    width: 12,
+    height: 12,
+    borderRadius: "50%",
+    background: "#ff1744",
+    boxShadow: "0 0 14px #ff1744",
+    flex: "0 0 auto",
+  },
+
+  quickGrid: {
+    marginTop: 24,
+    display: "grid",
+    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+    gap: 12,
+  },
+
+  quickLink: {
+    textDecoration: "none",
+    textAlign: "center",
+    border: "1px solid #d50000",
+    borderRadius: 14,
+    background: "#000",
+    color: "#fff",
+    padding: "14px 12px",
+    fontWeight: 1000,
+  },
+};
