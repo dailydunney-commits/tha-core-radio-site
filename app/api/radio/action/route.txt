@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAzuraActionUrl, requireAzuraConfig, type RadioAction } from "@/lib/azuracast";
+import { getAuthHeaders, getAzuraBaseUrl, getAzuraStationId, type RadioAction } from "@/lib/azuracast";
 
 export const dynamic = "force-dynamic";
 
@@ -21,26 +21,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { apiKey } = requireAzuraConfig();
-    const url = getAzuraActionUrl(action);
+    const baseUrl = getAzuraBaseUrl();
+    const stationId = getAzuraStationId();
 
-    const response = await fetch(url, {
+    const response = await fetch(`${baseUrl}/api/station/${stationId}/backend/${action}`, {
       method: "POST",
       cache: "no-store",
-      headers: {
-        Accept: "application/json",
-        Authorization: `Bearer ${apiKey}`,
-        "X-API-Key": apiKey,
-      },
+      headers: getAuthHeaders(),
     });
 
     const text = await response.text();
 
-    let data: unknown = null;
+    let details: unknown = null;
+
     try {
-      data = text ? JSON.parse(text) : null;
+      details = text ? JSON.parse(text) : null;
     } catch {
-      data = text;
+      details = text;
     }
 
     if (!response.ok) {
@@ -50,7 +47,7 @@ export async function POST(request: NextRequest) {
           action,
           status: response.status,
           error: "AzuraCast action failed.",
-          details: data,
+          details,
         },
         { status: response.status }
       );
@@ -60,7 +57,7 @@ export async function POST(request: NextRequest) {
       ok: true,
       action,
       message: `Radio action completed: ${action}`,
-      details: data,
+      details,
     });
   } catch (error) {
     return NextResponse.json(

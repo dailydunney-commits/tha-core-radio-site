@@ -1,3 +1,5 @@
+﻿"use client";
+
 // app/chat/page.tsx
 import OwnerToolPage from "@/components/owner-tool-page";
 

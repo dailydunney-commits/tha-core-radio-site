@@ -1,44 +1,7 @@
-@'
-export function getAzuraBaseUrl() {
-  return (process.env.AZURACAST_BASE_URL || "http://thacoreonlinerad.com").replace(/\/$/, "");
-}
-
-export function getAzuraStationShortcode() {
-  return process.env.AZURACAST_STATION_SHORTCODE || "tha-core-online";
-}
-
-export function getAzuraStationId() {
-  return process.env.AZURACAST_STATION_ID || "1";
-}
-
-export function getAzuraApiKey() {
-  return process.env.AZURACAST_API_KEY || "";
-}
-
-export function getPadRequestMap(): Record<string, string> {
-  const raw = process.env.AZURACAST_PAD_REQUESTS || "{}";
-
-  try {
-    const parsed = JSON.parse(raw);
-
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-      return {};
-    }
-
-    return parsed as Record<string, string>;
-  } catch {
-    return {};
-  }
-}
-'@ | Set-Content -Path lib\azuracast.ts -Encoding UTF8
-
-@'
-import { NextRequest, NextResponse } from "next/server";
-import { getAzuraApiKey, getAzuraBaseUrl, getAzuraStationId } from "@/lib/azuracast";
+﻿import { NextRequest, NextResponse } from "next/server";
+import { getAuthHeaders, getAzuraBaseUrl, getAzuraStationId, type RadioAction } from "@/lib/azuracast";
 
 export const dynamic = "force-dynamic";
-
-type RadioAction = "skip" | "restart" | "start" | "stop";
 
 const allowedActions: RadioAction[] = ["skip", "restart", "start", "stop"];
 
@@ -58,29 +21,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const apiKey = getAzuraApiKey();
-
-    if (!apiKey) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "Missing AZURACAST_API_KEY in .env.local or Vercel Environment Variables.",
-        },
-        { status: 500 }
-      );
-    }
-
     const baseUrl = getAzuraBaseUrl();
     const stationId = getAzuraStationId();
 
     const response = await fetch(`${baseUrl}/api/station/${stationId}/backend/${action}`, {
       method: "POST",
       cache: "no-store",
-      headers: {
-        Accept: "application/json",
-        Authorization: `Bearer ${apiKey}`,
-        "X-API-Key": apiKey,
-      },
+      headers: getAuthHeaders(),
     });
 
     const text = await response.text();
@@ -122,4 +69,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-'@ | Set-Content -Path app\api\radio\action\route.ts -Encoding UTF8

@@ -1,4 +1,6 @@
-﻿// app/store/page.tsx
+﻿"use client";
+
+// app/store/page.tsx
 import OwnerToolPage from "@/components/owner-tool-page";
 
 export default function StorePage() {

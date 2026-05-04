@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { getAzuraBaseUrl, getAzuraStationShortcode } from "@/lib/azuracast";
 
 export const dynamic = "force-dynamic";
@@ -8,15 +8,12 @@ export async function GET() {
     const baseUrl = getAzuraBaseUrl();
     const shortcode = getAzuraStationShortcode();
 
-    const response = await fetch(
-      `${baseUrl}/api/nowplaying_static/${shortcode}.json`,
-      {
-        cache: "no-store",
-        headers: {
-          Accept: "application/json",
-        },
-      }
-    );
+    const response = await fetch(`${baseUrl}/api/nowplaying_static/${shortcode}.json`, {
+      cache: "no-store",
+      headers: {
+        Accept: "application/json",
+      },
+    });
 
     const text = await response.text();
 

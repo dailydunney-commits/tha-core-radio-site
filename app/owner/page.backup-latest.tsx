@@ -31,7 +31,15 @@ const STREAM_URL =
   process.env.NEXT_PUBLIC_STREAM_URL ||
   "http://thacoreonlinerad.com/listen/tha-core-online/radio.mp3";
 
-const padModes: PadMode[] = ["JINGLES", "DROPS", "COM", "ADS", "SMARTDJ", "AUTODJ", "LIVEDJ"];
+const padModes: PadMode[] = [
+  "JINGLES",
+  "DROPS",
+  "COM",
+  "ADS",
+  "SMARTDJ",
+  "AUTODJ",
+  "LIVEDJ",
+];
 
 const pads: Pad[] = [
   { label: "Station ID", mode: "JINGLES", message: "Tha Core official station ID fired.", color: "yellow" },
@@ -131,7 +139,7 @@ export default function OwnerControlPanelPage() {
     {
       id: 1,
       time: "Now",
-      message: "Latest studio panel loaded with now-playing status above hero.",
+      message: "Latest studio panel loaded with broadcast pad bridge.",
     },
   ]);
 
@@ -162,6 +170,14 @@ export default function OwnerControlPanelPage() {
       { id: Date.now(), time: stamp(), message },
       ...current.slice(0, 5),
     ]);
+  }
+
+  function getPadSlug(label: string) {
+    return label
+      .toLowerCase()
+      .replace(/&/g, "and")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
   }
 
   function setMainVolume(value: number) {
@@ -231,6 +247,41 @@ export default function OwnerControlPanelPage() {
       setScreenTitle(`${action.toUpperCase()} ERROR`);
       setScreenText("Could not reach the radio action API route.");
       addLog(`${action.toUpperCase()} API error.`);
+    }
+  }
+
+  async function sendPadToBroadcast(pad: Pad) {
+    const slug = getPadSlug(pad.label);
+
+    setScreenTitle(`${pad.mode} SENDING`);
+    setScreenText(`Sending ${pad.label} to AzuraCast broadcast queue...`);
+    addLog(`Sending ${pad.label} to broadcast.`);
+
+    try {
+      const response = await fetch("/api/radio/pad", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ slug }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data?.ok) {
+        setScreenTitle(`${pad.mode} NOT LIVE YET`);
+        setScreenText(data?.error || `${pad.label} is not mapped to AzuraCast yet.`);
+        addLog(`${pad.label} needs AzuraCast request mapping.`);
+        return;
+      }
+
+      setScreenTitle(`${pad.mode} LIVE SENT`);
+      setScreenText(data?.message || `${pad.label} sent to AzuraCast.`);
+      addLog(`${pad.label} sent to AzuraCast broadcast.`);
+    } catch {
+      setScreenTitle(`${pad.mode} ERROR`);
+      setScreenText("Could not reach the pad broadcast API route.");
+      addLog(`${pad.label} broadcast API error.`);
     }
   }
 
@@ -374,6 +425,8 @@ export default function OwnerControlPanelPage() {
     if (pad.mode === "AUTODJ") setDjMode("AUTODJ");
     if (pad.mode === "LIVEDJ") setDjMode("LIVEDJ");
 
+    sendPadToBroadcast(pad);
+
     addLog(`${pad.mode}: ${pad.label}`);
   }
 
@@ -402,7 +455,7 @@ export default function OwnerControlPanelPage() {
             <p className="subtitle">
               Jet black and blood red studio layout with live now-playing status above hero,
               all-in-one AutoDJ / SmartDJ / LiveDJ switch, bigger cam, hero smart buttons,
-              deck wheel sliders, skip API call, and broadcast Play / Pause monitor.
+              deck wheel sliders, broadcast pad bridge, skip API call, and broadcast monitor.
             </p>
           </div>
 
@@ -686,7 +739,6 @@ export default function OwnerControlPanelPage() {
 
       <style jsx global>{`
         * { box-sizing: border-box; }
-
         body { margin: 0; }
 
         .control-page {

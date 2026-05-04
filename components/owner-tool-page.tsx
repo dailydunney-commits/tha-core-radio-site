@@ -1,19 +1,23 @@
+﻿"use client";
+
 type OwnerToolPageProps = {
-  title: string;
-  subtitle: string;
-  badge: string;
-  cards: {
+  title?: string;
+  subtitle?: string;
+  badge?: string;
+  cards?: {
     title: string;
     text: string;
   }[];
 };
 
 export default function OwnerToolPage({
-  title,
-  subtitle,
-  badge,
-  cards,
+  title = "Tha Core Control Page",
+  subtitle = "Control page connected to the main owner panel.",
+  badge = "Tha Core",
+  cards = [],
 }: OwnerToolPageProps) {
+  const safeCards = Array.isArray(cards) ? cards : [];
+
   return (
     <main className="tool-page">
       <section className="tool-shell">
@@ -28,7 +32,7 @@ export default function OwnerToolPage({
         </div>
 
         <div className="card-grid">
-          {cards.map((card) => (
+          {safeCards.map((card) => (
             <div key={card.title} className="card">
               <h2>{card.title}</h2>
               <p>{card.text}</p>
@@ -45,13 +49,7 @@ export default function OwnerToolPage({
           background:
             radial-gradient(circle at top left, rgba(155, 0, 0, 0.35), transparent 30%),
             linear-gradient(135deg, #000 0%, #090000 45%, #1a0000 100%);
-          font-family:
-            Inter,
-            system-ui,
-            -apple-system,
-            BlinkMacSystemFont,
-            "Segoe UI",
-            sans-serif;
+          font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
         }
 
         .tool-shell {

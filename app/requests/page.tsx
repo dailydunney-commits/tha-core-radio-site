@@ -1,3 +1,5 @@
+﻿"use client";
+
 // app/requests/page.tsx
 import OwnerToolPage from "@/components/owner-tool-page";
 

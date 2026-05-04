@@ -1,4 +1,6 @@
-﻿// app/upload/page.tsx
+﻿"use client";
+
+// app/upload/page.tsx
 import OwnerToolPage from "@/components/owner-tool-page";
 
 export default function UploadPage() {
