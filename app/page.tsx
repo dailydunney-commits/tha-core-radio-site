@@ -23,13 +23,12 @@ type NowPlayingData = {
       artist?: string;
       title?: string;
       text?: string;
-      art?: string;
+      art?: string | null;
     };
   };
 };
 
 const STREAM_URL =
-  process.env.NEXT_PUBLIC_STREAM_URL ||
   "https://thacoreonlinerad.com/listen/tha-core-online/radio.mp3";
 
 const NOW_PLAYING_URL =
@@ -83,6 +82,11 @@ const storeHighlights = [
   "Flyers",
 ];
 
+function shortenText(text: string, maxLength = 72) {
+  if (text.length <= maxLength) return text;
+  return `${text.slice(0, maxLength).trim()}...`;
+}
+
 export default function HomePage() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -93,9 +97,7 @@ export default function HomePage() {
   const [statusText, setStatusText] = useState("Connecting to Tha Core...");
   const [showShoutout, setShowShoutout] = useState(false);
 
-  const streamUrl = nowPlaying?.station?.listen_url || STREAM_URL;
-
-  const songText = useMemo(() => {
+  const rawSongText = useMemo(() => {
     const song = nowPlaying?.now_playing?.song;
 
     if (song?.text) {
@@ -109,6 +111,7 @@ export default function HomePage() {
     return "Live From Tha Core - Tha Core Live Mix";
   }, [nowPlaying]);
 
+  const songText = shortenText(rawSongText, 72);
   const listeners = nowPlaying?.listeners?.current ?? 0;
   const isLive = Boolean(nowPlaying?.live?.is_live);
   const stationOnline = nowPlaying?.station?.is_online !== false;
@@ -120,15 +123,20 @@ export default function HomePage() {
       });
 
       if (!response.ok) {
-        setStatusText("Live radio connected");
+        setStatusText("Tha Core live stream ready.");
         return;
       }
 
       const data = (await response.json()) as NowPlayingData;
       setNowPlaying(data);
-      setStatusText(data?.station?.is_online === false ? "Station offline" : "Live radio connected");
+
+      if (data?.station?.is_online === false) {
+        setStatusText("Station status says offline.");
+      } else {
+        setStatusText("Tha Core live stream ready.");
+      }
     } catch {
-      setStatusText("Live radio connected");
+      setStatusText("Tha Core live stream ready.");
     }
   }
 
@@ -139,31 +147,84 @@ export default function HomePage() {
       loadNowPlaying();
     }, 10000);
 
-    return () => window.clearInterval(timer);
+    return () => {
+      window.clearInterval(timer);
+    };
   }, []);
 
   useEffect(() => {
-    if (!audioRef.current) return;
-    audioRef.current.volume = volume;
+    const audio = audioRef.current;
+
+    if (!audio) return;
+
+    audio.volume = volume;
   }, [volume]);
 
+  useEffect(() => {
+    const audio = audioRef.current;
+
+    if (!audio) return;
+
+    function handlePlay() {
+      setIsPlaying(true);
+      setStatusText("Tha Core live stream playing.");
+    }
+
+    function handlePause() {
+      setIsPlaying(false);
+    }
+
+    function handleError() {
+      setIsPlaying(false);
+      setStatusText("Stream error. Check AzuraCast stream, then press Play Live.");
+    }
+
+    audio.addEventListener("play", handlePlay);
+    audio.addEventListener("pause", handlePause);
+    audio.addEventListener("error", handleError);
+
+    return () => {
+      audio.removeEventListener("play", handlePlay);
+      audio.removeEventListener("pause", handlePause);
+      audio.removeEventListener("error", handleError);
+    };
+  }, []);
+
   async function toggleRadio() {
-    if (!audioRef.current) return;
+    const audio = audioRef.current;
+
+    if (!audio) {
+      setStatusText("Radio player is not ready yet.");
+      return;
+    }
 
     try {
       if (isPlaying) {
-        audioRef.current.pause();
+        audio.pause();
         setIsPlaying(false);
+        setStatusText("Radio paused.");
         return;
       }
 
-      audioRef.current.src = streamUrl;
-      audioRef.current.volume = volume;
-      await audioRef.current.play();
+      setStatusText("Starting Tha Core live stream...");
+
+      if (!audio.src || !audio.src.includes(STREAM_URL)) {
+        audio.src = STREAM_URL;
+        audio.load();
+      }
+
+      audio.volume = volume;
+
+      await audio.play();
+
       setIsPlaying(true);
-    } catch {
-      setStatusText("Tap Play Live again to start the radio.");
+      setStatusText("Tha Core live stream playing.");
+    } catch (error) {
+      console.error("Radio play failed:", error);
       setIsPlaying(false);
+      setStatusText(
+        "Stream did not start. Check AzuraCast stream, then press Play Live."
+      );
     }
   }
 
@@ -178,7 +239,7 @@ export default function HomePage() {
             <span>Vote next song</span>
             <span>Drop your shoutout live now</span>
             <span>Promote your business on Tha Core Radio</span>
-            <span>Dancehall • Reggae • Hip-Hop • R&B</span>
+            <span>Dancehall • Reggae • Hip-Hop • R&amp;B</span>
           </div>
         </section>
 
@@ -447,6 +508,8 @@ export default function HomePage() {
             onChange={(event) => setVolume(Number(event.target.value))}
           />
         </label>
+
+        <p style={styles.floatStatus}>{statusText}</p>
       </aside>
 
       <style jsx global>{`
@@ -487,12 +550,6 @@ export default function HomePage() {
         a,
         button {
           -webkit-tap-highlight-color: transparent;
-        }
-
-        @media (max-width: 980px) {
-          .hide-mobile {
-            display: none;
-          }
         }
       `}</style>
     </main>
@@ -720,9 +777,11 @@ const styles: Record<string, CSSProperties> = {
 
   nowTitle: {
     margin: 0,
-    fontSize: "32px",
-    lineHeight: 1.1,
+    fontSize: "clamp(24px, 2.4vw, 32px)",
+    lineHeight: 1.15,
     fontWeight: 1000,
+    maxWidth: "980px",
+    overflowWrap: "break-word",
   },
 
   equalizer: {
@@ -863,7 +922,8 @@ const styles: Record<string, CSSProperties> = {
     textDecoration: "none",
     minHeight: "78px",
     borderRadius: "20px",
-    background: "linear-gradient(135deg, rgba(255,0,0,0.24), rgba(0,0,0,0.78))",
+    background:
+      "linear-gradient(135deg, rgba(255,0,0,0.24), rgba(0,0,0,0.78))",
     border: "1px solid rgba(255,255,255,0.13)",
     color: "#fff",
     display: "grid",
@@ -989,7 +1049,8 @@ const styles: Record<string, CSSProperties> = {
 
   fomoCard: {
     borderRadius: "22px",
-    background: "linear-gradient(135deg, rgba(255,223,46,0.13), rgba(255,0,0,0.13))",
+    background:
+      "linear-gradient(135deg, rgba(255,223,46,0.13), rgba(255,0,0,0.13))",
     border: "1px solid rgba(255,255,255,0.11)",
     padding: "20px",
   },
@@ -1012,7 +1073,7 @@ const styles: Record<string, CSSProperties> = {
     position: "fixed",
     right: "24px",
     bottom: "24px",
-    width: "280px",
+    width: "300px",
     zIndex: 100,
     borderRadius: "24px",
     background: "rgba(8,8,8,0.94)",
@@ -1057,5 +1118,13 @@ const styles: Record<string, CSSProperties> = {
     color: "rgba(255,255,255,0.72)",
     fontSize: "13px",
     fontWeight: 900,
+  },
+
+  floatStatus: {
+    margin: "10px 0 0",
+    color: "rgba(255,255,255,0.62)",
+    fontSize: "12px",
+    lineHeight: 1.35,
+    fontWeight: 700,
   },
 };
