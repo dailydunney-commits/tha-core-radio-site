@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import type { CSSProperties } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -239,7 +239,7 @@ export default function HomePage() {
             <span>Vote next song</span>
             <span>Drop your shoutout live now</span>
             <span>Promote your business on Tha Core Radio</span>
-            <span>Dancehall • Reggae • Hip-Hop • R&amp;B</span>
+            <span>Dancehall â€¢ Reggae â€¢ Hip-Hop â€¢ R&amp;B</span>
           </div>
         </section>
 
@@ -267,7 +267,7 @@ export default function HomePage() {
                 }}
               />
               <strong>{statusText}</strong>
-              <span style={styles.statusDivider}>•</span>
+              <span style={styles.statusDivider}>â€¢</span>
               <span>{isLive ? "Live DJ on air" : "AutoDJ live mix"}</span>
             </div>
 
