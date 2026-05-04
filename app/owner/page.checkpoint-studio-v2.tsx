@@ -4,6 +4,7 @@ import { useMemo, useRef, useState } from "react";
 
 type BroadcastState = "off" | "cue" | "live" | "paused";
 type PadMode = "JINGLES" | "DROPS" | "COM" | "ADS" | "SMARTDJ" | "AUTODJ" | "LIVEDJ";
+type DjMode = "AUTODJ" | "SMARTDJ" | "LIVEDJ";
 type PadColor = "yellow" | "red" | "green" | "blue" | "purple" | "orange";
 
 type Pad = {
@@ -21,6 +22,7 @@ type LogItem = {
 
 type FooterTool = {
   label: string;
+  href: string;
   note: string;
   color: PadColor;
 };
@@ -29,15 +31,7 @@ const STREAM_URL =
   process.env.NEXT_PUBLIC_STREAM_URL ||
   "http://thacoreonlinerad.com/listen/tha-core-online/radio.mp3";
 
-const padModes: PadMode[] = [
-  "JINGLES",
-  "DROPS",
-  "COM",
-  "ADS",
-  "SMARTDJ",
-  "AUTODJ",
-  "LIVEDJ",
-];
+const padModes: PadMode[] = ["JINGLES", "DROPS", "COM", "ADS", "SMARTDJ", "AUTODJ", "LIVEDJ"];
 
 const pads: Pad[] = [
   { label: "Station ID", mode: "JINGLES", message: "Tha Core official station ID fired.", color: "yellow" },
@@ -87,16 +81,16 @@ const pads: Pad[] = [
 ];
 
 const footerTools: FooterTool[] = [
-  { label: "Blog", note: "Blog page shortcut ready", color: "yellow" },
-  { label: "News", note: "News desk shortcut ready", color: "red" },
-  { label: "Weather", note: "Weather reader shortcut ready", color: "blue" },
-  { label: "Store", note: "Store shortcut ready", color: "green" },
-  { label: "Community", note: "Community page shortcut ready", color: "purple" },
-  { label: "Chat", note: "Community chat shortcut ready", color: "orange" },
-  { label: "Upload", note: "Upload center shortcut ready", color: "yellow" },
-  { label: "Requests", note: "Song request shortcut ready", color: "green" },
-  { label: "Schedule", note: "Show schedule shortcut ready", color: "blue" },
-  { label: "Promos", note: "Promo tools shortcut ready", color: "red" },
+  { label: "Blog", href: "/blog", note: "Blog page shortcut ready", color: "yellow" },
+  { label: "News", href: "/news", note: "News desk shortcut ready", color: "red" },
+  { label: "Weather", href: "/weather", note: "Weather reader shortcut ready", color: "blue" },
+  { label: "Store", href: "/store", note: "Store shortcut ready", color: "green" },
+  { label: "Community", href: "/community", note: "Community page shortcut ready", color: "purple" },
+  { label: "Chat", href: "/chat", note: "Community chat shortcut ready", color: "orange" },
+  { label: "Upload", href: "/upload", note: "Upload center shortcut ready", color: "yellow" },
+  { label: "Requests", href: "/requests", note: "Song request shortcut ready", color: "green" },
+  { label: "Schedule", href: "/schedule", note: "Show schedule shortcut ready", color: "blue" },
+  { label: "Promos", href: "/promos", note: "Promo tools shortcut ready", color: "red" },
 ];
 
 export default function OwnerControlPanelPage() {
@@ -113,8 +107,12 @@ export default function OwnerControlPanelPage() {
 
   const [screenTitle, setScreenTitle] = useState("STUDIO READY");
   const [screenText, setScreenText] = useState(
-    "Control panel ready. Main Play / Pause controls the full broadcast monitor. All smart one-click buttons are now in the hero display."
+    "Control panel ready. Use the all-in-one smart switch above the hero buttons to choose AutoDJ, SmartDJ, or LiveDJ."
   );
+
+  const [nowPlayingText, setNowPlayingText] = useState("Click refresh to load current song.");
+  const [listenerText, setListenerText] = useState("Listeners waiting...");
+  const [stationText, setStationText] = useState("Tha Core Online Radio");
 
   const [volume, setVolume] = useState(72);
   const [monitorVol, setMonitorVol] = useState(65);
@@ -133,13 +131,14 @@ export default function OwnerControlPanelPage() {
     {
       id: 1,
       time: "Now",
-      message: "Jet black / blood red studio version loaded.",
+      message: "Latest studio panel loaded with now-playing status above hero.",
     },
   ]);
 
   const isLive = broadcast === "live";
   const isCue = broadcast === "cue";
   const visiblePads = pads.filter((pad) => pad.mode === selectedMode);
+  const currentDjMode: DjMode = smartDj ? "SMARTDJ" : liveDj ? "LIVEDJ" : "AUTODJ";
 
   const broadcastLabel = useMemo(() => {
     if (broadcast === "live" && liveDj) return "LIVE DJ ON AIR";
@@ -167,18 +166,127 @@ export default function OwnerControlPanelPage() {
 
   function setMainVolume(value: number) {
     setVolume(value);
-    if (audioRef.current) audioRef.current.volume = value / 100;
+
+    if (audioRef.current) {
+      audioRef.current.volume = value / 100;
+    }
+  }
+
+  function setDjMode(mode: DjMode) {
+    const nextAutoDj = mode === "AUTODJ";
+    const nextSmartDj = mode === "SMARTDJ";
+    const nextLiveDj = mode === "LIVEDJ";
+
+    setAutoDj(nextAutoDj);
+    setSmartDj(nextSmartDj);
+    setLiveDj(nextLiveDj);
+    setMicLive(nextLiveDj);
+    setSelectedMode(mode);
+
+    setScreenTitle(`${mode} ACTIVE`);
+
+    if (mode === "AUTODJ") {
+      setScreenText("AutoDJ is active. Playlist flow and automatic rotation are selected.");
+      addLog("All-in-one smart switch changed to AutoDJ.");
+    }
+
+    if (mode === "SMARTDJ") {
+      setScreenText("SmartDJ is active. Smart jingles, drops, ads, and talk timing are selected.");
+      addLog("All-in-one smart switch changed to SmartDJ.");
+    }
+
+    if (mode === "LIVEDJ") {
+      setScreenText("LiveDJ is active. Manual DJ control and mic channel are armed.");
+      addLog("All-in-one smart switch changed to LiveDJ.");
+    }
+  }
+
+  async function callRadioAction(action: "skip" | "restart" | "start" | "stop") {
+    setScreenTitle(`${action.toUpperCase()} SENT`);
+    setScreenText(`Sending ${action} command to radio backend...`);
+    addLog(`${action.toUpperCase()} command sending.`);
+
+    try {
+      const response = await fetch("/api/radio/action", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ action }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data?.ok) {
+        setScreenTitle(`${action.toUpperCase()} FAILED`);
+        setScreenText(data?.error || `Could not complete ${action}. Check AzuraCast settings.`);
+        addLog(`${action.toUpperCase()} failed.`);
+        return;
+      }
+
+      setScreenTitle(`${action.toUpperCase()} COMPLETE`);
+      setScreenText(data?.message || `${action} command completed.`);
+      addLog(`${action.toUpperCase()} completed.`);
+    } catch {
+      setScreenTitle(`${action.toUpperCase()} ERROR`);
+      setScreenText("Could not reach the radio action API route.");
+      addLog(`${action.toUpperCase()} API error.`);
+    }
+  }
+
+  async function refreshNowPlaying() {
+    try {
+      setScreenTitle("NOW PLAYING");
+      setScreenText("Loading current song from radio backend...");
+      addLog("Now-playing refresh started.");
+
+      const response = await fetch("/api/radio/now-playing", {
+        cache: "no-store",
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data?.ok) {
+        setScreenTitle("NOW PLAYING ERROR");
+        setScreenText(data?.error || "Could not load now-playing data.");
+        setNowPlayingText("Now-playing failed to load.");
+        setListenerText("Check API route.");
+        addLog("Now-playing refresh failed.");
+        return;
+      }
+
+      const text = data?.nowPlaying?.text || "Unknown song";
+      const listeners = data?.listeners?.current ?? 0;
+      const station = data?.station?.name || "Tha Core Online Radio";
+
+      setNowPlayingText(text);
+      setListenerText(`${listeners} listeners online`);
+      setStationText(station);
+
+      setScreenTitle("NOW PLAYING");
+      setScreenText(`${text} • ${listeners} listeners`);
+      addLog(`Now playing loaded: ${text}`);
+    } catch {
+      setScreenTitle("NOW PLAYING ERROR");
+      setScreenText("Could not reach now-playing API route.");
+      setNowPlayingText("Could not reach now-playing API.");
+      setListenerText("API error.");
+      addLog("Now-playing API error.");
+    }
   }
 
   function cueBroadcast() {
     setBroadcast("cue");
     setScreenTitle("BROADCAST CUED");
-    setScreenText("Broadcast is cued. Turntables slow spin. Hit main Play / Pause to start the full broadcast monitor.");
+    setScreenText(
+      "Broadcast is cued. Turntables slow spin. Hit main Play / Pause to start the full broadcast monitor."
+    );
     addLog("Broadcast cued.");
   }
 
   async function playPauseBroadcast() {
     const audio = audioRef.current;
+
     if (!audio) return;
 
     if (broadcast === "live") {
@@ -193,6 +301,7 @@ export default function OwnerControlPanelPage() {
     try {
       audio.volume = volume / 100;
       audio.muted = !monitorOn;
+
       await audio.play();
 
       setBroadcast("live");
@@ -211,6 +320,7 @@ export default function OwnerControlPanelPage() {
 
     if (audio) {
       audio.pause();
+
       try {
         audio.currentTime = 0;
       } catch {
@@ -226,9 +336,7 @@ export default function OwnerControlPanelPage() {
   }
 
   function skipNext() {
-    setScreenTitle("SKIP NEXT");
-    setScreenText("Skip Next pressed. Ready to wire into AzuraCast skip API.");
-    addLog("Skip Next pressed.");
+    callRadioAction("skip");
   }
 
   function studioSkip() {
@@ -240,7 +348,10 @@ export default function OwnerControlPanelPage() {
   function toggleMonitor() {
     setMonitorOn((current) => {
       const next = !current;
-      if (audioRef.current) audioRef.current.muted = !next;
+
+      if (audioRef.current) {
+        audioRef.current.muted = !next;
+      }
 
       setScreenTitle(next ? "MONITOR ON" : "MONITOR MUTED");
       setScreenText(
@@ -259,24 +370,9 @@ export default function OwnerControlPanelPage() {
     setScreenTitle(`${pad.mode} FIRED`);
     setScreenText(pad.message);
 
-    if (pad.mode === "SMARTDJ") {
-      setSmartDj(true);
-      setAutoDj(false);
-      setLiveDj(false);
-    }
-
-    if (pad.mode === "AUTODJ") {
-      setAutoDj(true);
-      setSmartDj(false);
-      setLiveDj(false);
-    }
-
-    if (pad.mode === "LIVEDJ") {
-      setLiveDj(true);
-      setAutoDj(false);
-      setSmartDj(false);
-      setMicLive(true);
-    }
+    if (pad.mode === "SMARTDJ") setDjMode("SMARTDJ");
+    if (pad.mode === "AUTODJ") setDjMode("AUTODJ");
+    if (pad.mode === "LIVEDJ") setDjMode("LIVEDJ");
 
     addLog(`${pad.mode}: ${pad.label}`);
   }
@@ -304,9 +400,9 @@ export default function OwnerControlPanelPage() {
             <p className="eyebrow">THA CORE ONLINE RADIO</p>
             <h1>Studio Control Panel</h1>
             <p className="subtitle">
-              Jet black and blood red studio layout with bigger cam, all smart one-click
-              buttons in the hero display, extra sliders under each turntable wheel, jingle
-              display, commercial display, and full broadcast Play / Pause.
+              Jet black and blood red studio layout with live now-playing status above hero,
+              all-in-one AutoDJ / SmartDJ / LiveDJ switch, bigger cam, hero smart buttons,
+              deck wheel sliders, skip API call, and broadcast Play / Pause monitor.
             </p>
           </div>
 
@@ -328,6 +424,7 @@ export default function OwnerControlPanelPage() {
 
         <section className="central-log">
           <PanelHeading left="Central Control Log" right="Above Studio" />
+
           <div className="log-row">
             {logs.slice(0, 4).map((log) => (
               <div key={log.id} className="log-card">
@@ -336,6 +433,27 @@ export default function OwnerControlPanelPage() {
               </div>
             ))}
           </div>
+        </section>
+
+        <section className="now-playing-bar">
+          <div>
+            <span>Now Playing</span>
+            <strong>{nowPlayingText}</strong>
+          </div>
+
+          <div>
+            <span>Live Status</span>
+            <strong>{listenerText}</strong>
+          </div>
+
+          <div>
+            <span>Station</span>
+            <strong>{stationText}</strong>
+          </div>
+
+          <button type="button" onClick={refreshNowPlaying}>
+            Refresh Now Playing
+          </button>
         </section>
 
         <section className="main-studio">
@@ -356,12 +474,42 @@ export default function OwnerControlPanelPage() {
             </div>
 
             <div className="hero-smart-area">
-              <PanelHeading left="Hero Smart One Click Buttons" right={selectedMode} />
+              <PanelHeading left="All-In-One Smart Switch" right={currentDjMode} />
+
+              <div className="smart-mode-switch">
+                <button
+                  type="button"
+                  onClick={() => setDjMode("AUTODJ")}
+                  className={currentDjMode === "AUTODJ" ? "active auto" : "auto"}
+                >
+                  <span>AutoDJ</span>
+                  <b>Playlist</b>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setDjMode("SMARTDJ")}
+                  className={currentDjMode === "SMARTDJ" ? "active smart" : "smart"}
+                >
+                  <span>SmartDJ</span>
+                  <b>Smart Flow</b>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setDjMode("LIVEDJ")}
+                  className={currentDjMode === "LIVEDJ" ? "active live" : "live"}
+                >
+                  <span>LiveDJ</span>
+                  <b>Mic / Manual</b>
+                </button>
+              </div>
 
               <div className="display-switches">
                 <button type="button" onClick={() => selectDisplay("JINGLES", "Jingles")} className="display-btn blood">
                   Jingles Display
                 </button>
+
                 <button type="button" onClick={() => selectDisplay("COM", "Commercial")} className="display-btn dark">
                   Commercial Display
                 </button>
@@ -402,6 +550,7 @@ export default function OwnerControlPanelPage() {
             <section className="broadcast-center">
               <div className="cam-box">
                 <PanelHeading left="Studio Cam" right={micLive ? "MIC LIVE" : "READY"} />
+
                 <div className="cam-view">
                   <div className={isLive ? "cam-bars active" : "cam-bars"}>
                     <i />
@@ -412,15 +561,12 @@ export default function OwnerControlPanelPage() {
                     <i />
                     <i />
                   </div>
+
                   <p>Camera / video call / live studio window</p>
                 </div>
               </div>
 
-              <button
-                type="button"
-                onClick={playPauseBroadcast}
-                className={isLive ? "main-play active" : "main-play"}
-              >
+              <button type="button" onClick={playPauseBroadcast} className={isLive ? "main-play active" : "main-play"}>
                 <span>MAIN BROADCAST</span>
                 <b>{isLive ? "PAUSE ALL" : "PLAY ALL"}</b>
               </button>
@@ -448,43 +594,11 @@ export default function OwnerControlPanelPage() {
                 <button type="button" onClick={() => selectDisplay("DROPS", "Drops")}>Drops</button>
                 <button type="button" onClick={() => selectDisplay("COM", "Commercial")}>Com</button>
                 <button type="button" onClick={() => selectDisplay("ADS", "Ads")}>Ads</button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSmartDj(true);
-                    setAutoDj(false);
-                    setLiveDj(false);
-                    selectDisplay("SMARTDJ", "SmartDJ");
-                  }}
-                >
-                  SmartDJ
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setAutoDj(true);
-                    setSmartDj(false);
-                    setLiveDj(false);
-                    selectDisplay("AUTODJ", "AutoDJ");
-                  }}
-                >
-                  AutoDJ
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setLiveDj(true);
-                    setAutoDj(false);
-                    setSmartDj(false);
-                    setMicLive(true);
-                    selectDisplay("LIVEDJ", "LiveDJ");
-                  }}
-                >
-                  LiveDJ
-                </button>
-                <button type="button" onClick={() => firePad(visiblePads[0] || pads[0])}>
-                  Smart Fire
-                </button>
+                <button type="button" onClick={() => setDjMode("SMARTDJ")}>SmartDJ</button>
+                <button type="button" onClick={() => setDjMode("AUTODJ")}>AutoDJ</button>
+                <button type="button" onClick={() => setDjMode("LIVEDJ")}>LiveDJ</button>
+                <button type="button" onClick={() => firePad(visiblePads[0] || pads[0])}>Smart Fire</button>
+                <button type="button" onClick={refreshNowPlaying}>Now Playing</button>
               </div>
 
               <div className="crossfader">
@@ -521,8 +635,9 @@ export default function OwnerControlPanelPage() {
             <PanelHeading left="Studio Meter / Mode Display" right={selectedMode} />
 
             <div className="mode-display">
-              <h3>{selectedMode}</h3>
-              <p>All smart one-click buttons are now loaded in the hero page display.</p>
+              <h3>{currentDjMode}</h3>
+              <p>All-in-one smart switch controls AutoDJ, SmartDJ, and LiveDJ from the hero page.</p>
+
               <button type="button" onClick={() => firePad(visiblePads[0] || pads[0])}>
                 Fire First {selectedMode}
               </button>
@@ -530,6 +645,7 @@ export default function OwnerControlPanelPage() {
 
             <div className="meter">
               <PanelHeading left="Studio Meter" right={isLive ? "Moving" : "Idle"} />
+
               <div className={isLive ? "meter-bars active" : "meter-bars"}>
                 <i />
                 <i />
@@ -547,31 +663,31 @@ export default function OwnerControlPanelPage() {
         </section>
 
         <footer className="footer-dock panel">
-          <PanelHeading left="Footer Control Dock" right="Blog • News • Weather • Store • Community • Chat • Upload" />
+          <PanelHeading
+            left="Footer Control Dock"
+            right="Blog • News • Weather • Store • Community • Chat • Upload"
+          />
+
           <div className="footer-grid">
             {footerTools.map((tool) => (
-              <button
+              <a
                 key={tool.label}
-                type="button"
+                href={tool.href}
                 onClick={() => selectTool(tool)}
                 className={`footer-tool ${tool.color}`}
               >
                 <strong>{tool.label}</strong>
                 <span>{tool.note}</span>
-              </button>
+              </a>
             ))}
           </div>
         </footer>
       </section>
 
       <style jsx global>{`
-        * {
-          box-sizing: border-box;
-        }
+        * { box-sizing: border-box; }
 
-        body {
-          margin: 0;
-        }
+        body { margin: 0; }
 
         .control-page {
           min-height: 100vh;
@@ -625,9 +741,7 @@ export default function OwnerControlPanelPage() {
           font-size: clamp(34px, 5vw, 78px);
           line-height: 0.9;
           text-transform: uppercase;
-          text-shadow:
-            0 0 16px rgba(255, 0, 0, 0.95),
-            0 0 40px rgba(120, 0, 0, 0.65);
+          text-shadow: 0 0 16px rgba(255, 0, 0, 0.95), 0 0 40px rgba(120, 0, 0, 0.65);
         }
 
         .subtitle {
@@ -645,32 +759,14 @@ export default function OwnerControlPanelPage() {
           place-items: center;
           text-align: center;
           border-radius: 24px;
-          background:
-            radial-gradient(circle, rgba(190, 0, 0, 0.34), transparent 58%),
-            #000;
+          background: radial-gradient(circle, rgba(190, 0, 0, 0.34), transparent 58%), #000;
           border: 1px solid rgba(255, 0, 0, 0.6);
           box-shadow: 0 0 34px rgba(160, 0, 0, 0.4);
         }
 
-        .brand-badge .crown {
-          color: #ff2b2b;
-          font-size: 26px;
-          line-height: 1;
-        }
-
-        .brand-badge strong {
-          color: #ff1f1f;
-          font-size: 40px;
-          line-height: 1;
-          text-shadow: 0 0 15px rgba(255, 0, 0, 0.9);
-        }
-
-        .brand-badge small {
-          color: #ffd7d7;
-          font-size: 11px;
-          font-weight: 950;
-          letter-spacing: 0.12em;
-        }
+        .brand-badge .crown { color: #ff2b2b; font-size: 26px; line-height: 1; }
+        .brand-badge strong { color: #ff1f1f; font-size: 40px; line-height: 1; text-shadow: 0 0 15px rgba(255, 0, 0, 0.9); }
+        .brand-badge small { color: #ffd7d7; font-size: 11px; font-weight: 950; letter-spacing: 0.12em; }
 
         .status-row {
           display: grid;
@@ -684,9 +780,7 @@ export default function OwnerControlPanelPage() {
           min-height: 88px;
           padding: 15px;
           border-radius: 21px;
-          background:
-            linear-gradient(145deg, rgba(170, 0, 0, 0.15), rgba(255, 255, 255, 0.018)),
-            #030000;
+          background: linear-gradient(145deg, rgba(170, 0, 0, 0.15), rgba(255, 255, 255, 0.018)), #030000;
           border: 1px solid rgba(180, 0, 0, 0.48);
           overflow: hidden;
         }
@@ -728,9 +822,7 @@ export default function OwnerControlPanelPage() {
         .panel,
         .central-log {
           border-radius: 26px;
-          background:
-            linear-gradient(145deg, rgba(140, 0, 0, 0.18), rgba(0, 0, 0, 0.8)),
-            #030000;
+          background: linear-gradient(145deg, rgba(140, 0, 0, 0.18), rgba(0, 0, 0, 0.8)), #030000;
           border: 1px solid rgba(180, 0, 0, 0.48);
           box-shadow: inset 0 0 30px rgba(255, 0, 0, 0.06);
           overflow: hidden;
@@ -760,9 +852,7 @@ export default function OwnerControlPanelPage() {
           text-align: right;
         }
 
-        .central-log {
-          margin-bottom: 16px;
-        }
+        .central-log { margin-bottom: 16px; }
 
         .log-row {
           display: grid;
@@ -783,17 +873,57 @@ export default function OwnerControlPanelPage() {
           border: 1px solid rgba(180, 0, 0, 0.26);
         }
 
-        .log-card span {
-          color: #ff3b3b;
-          font-size: 11px;
-          font-weight: 950;
+        .log-card span { color: #ff3b3b; font-size: 11px; font-weight: 950; }
+        .log-card p { margin: 0; color: #ffd7d7; font-size: 12px; line-height: 1.3; }
+
+        .now-playing-bar {
+          display: grid;
+          grid-template-columns: 1.3fr 0.7fr 0.9fr 220px;
+          gap: 12px;
+          align-items: center;
+          margin-bottom: 16px;
+          padding: 14px;
+          border-radius: 24px;
+          background: linear-gradient(90deg, rgba(180, 0, 0, 0.42), rgba(0, 0, 0, 0.92)), #030000;
+          border: 1px solid rgba(190, 0, 0, 0.6);
+          box-shadow: 0 0 38px rgba(160, 0, 0, 0.22);
         }
 
-        .log-card p {
-          margin: 0;
-          color: #ffd7d7;
-          font-size: 12px;
-          line-height: 1.3;
+        .now-playing-bar div {
+          min-height: 58px;
+          display: grid;
+          align-content: center;
+          padding: 10px 14px;
+          border-radius: 18px;
+          background: rgba(0, 0, 0, 0.46);
+          border: 1px solid rgba(180, 0, 0, 0.28);
+        }
+
+        .now-playing-bar span {
+          color: #ff4b4b;
+          font-size: 10px;
+          font-weight: 950;
+          letter-spacing: 0.18em;
+          text-transform: uppercase;
+        }
+
+        .now-playing-bar strong {
+          margin-top: 4px;
+          color: #fff;
+          font-size: 15px;
+          text-transform: uppercase;
+        }
+
+        .now-playing-bar button {
+          min-height: 58px;
+          border: 0;
+          border-radius: 18px;
+          color: #fff;
+          background: linear-gradient(180deg, #d90000, #580000);
+          font-weight: 950;
+          text-transform: uppercase;
+          cursor: pointer;
+          box-shadow: 0 6px 0 #050000;
         }
 
         .main-studio {
@@ -806,14 +936,7 @@ export default function OwnerControlPanelPage() {
         .screen {
           min-height: 245px;
           padding: 24px 18px;
-          background:
-            repeating-linear-gradient(
-              0deg,
-              rgba(255, 0, 0, 0.04),
-              rgba(255, 0, 0, 0.04) 1px,
-              transparent 1px,
-              transparent 8px
-            );
+          background: repeating-linear-gradient(0deg, rgba(255, 0, 0, 0.04), rgba(255, 0, 0, 0.04) 1px, transparent 1px, transparent 8px);
         }
 
         .screen-kicker {
@@ -832,11 +955,7 @@ export default function OwnerControlPanelPage() {
           text-transform: uppercase;
         }
 
-        .screen p {
-          color: #ffd7d7;
-          font-size: 15px;
-          line-height: 1.5;
-        }
+        .screen p { color: #ffd7d7; font-size: 15px; line-height: 1.5; }
 
         .lamp-grid {
           display: grid;
@@ -862,8 +981,47 @@ export default function OwnerControlPanelPage() {
         .lamp.on.red { background: #a40000; color: #fff; box-shadow: 0 0 15px rgba(255, 0, 0, 0.55); }
         .lamp.on.yellow { background: #ff1b1b; color: #fff; box-shadow: 0 0 15px rgba(255, 27, 27, 0.55); }
 
-        .hero-smart-area {
-          border-top: 1px solid rgba(180, 0, 0, 0.4);
+        .hero-smart-area { border-top: 1px solid rgba(180, 0, 0, 0.4); }
+
+        .smart-mode-switch {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 8px;
+          padding: 12px 12px 0;
+        }
+
+        .smart-mode-switch button {
+          min-height: 62px;
+          border: 0;
+          border-radius: 16px;
+          background: linear-gradient(180deg, #111, #000);
+          color: #ff7a7a;
+          border: 1px solid rgba(180, 0, 0, 0.4);
+          cursor: pointer;
+          text-transform: uppercase;
+          font-weight: 950;
+          box-shadow: 0 5px 0 rgba(0, 0, 0, 0.45);
+        }
+
+        .smart-mode-switch button span { display: block; font-size: 13px; }
+        .smart-mode-switch button b { display: block; margin-top: 4px; font-size: 10px; color: #ffd7d7; }
+
+        .smart-mode-switch button.active.auto {
+          background: linear-gradient(180deg, #ff4f00, #5b1700);
+          color: #fff;
+          box-shadow: 0 0 22px rgba(255, 79, 0, 0.35), 0 5px 0 #050000;
+        }
+
+        .smart-mode-switch button.active.smart {
+          background: linear-gradient(180deg, #ff1b1b, #5b0000);
+          color: #fff;
+          box-shadow: 0 0 22px rgba(255, 0, 0, 0.42), 0 5px 0 #050000;
+        }
+
+        .smart-mode-switch button.active.live {
+          background: linear-gradient(180deg, #00ff76, #004b23);
+          color: #00170b;
+          box-shadow: 0 0 22px rgba(0, 255, 118, 0.32), 0 5px 0 #050000;
         }
 
         .display-switches {
@@ -883,16 +1041,8 @@ export default function OwnerControlPanelPage() {
           box-shadow: 0 5px 0 rgba(0, 0, 0, 0.45);
         }
 
-        .display-btn.blood {
-          background: linear-gradient(180deg, #d90000, #580000);
-          color: #fff;
-        }
-
-        .display-btn.dark {
-          background: linear-gradient(180deg, #151515, #000);
-          color: #ff3b3b;
-          border: 1px solid rgba(190, 0, 0, 0.55);
-        }
+        .display-btn.blood { background: linear-gradient(180deg, #d90000, #580000); color: #fff; }
+        .display-btn.dark { background: linear-gradient(180deg, #151515, #000); color: #ff3b3b; border: 1px solid rgba(190, 0, 0, 0.55); }
 
         .hero-tabs {
           display: grid;
@@ -935,9 +1085,7 @@ export default function OwnerControlPanelPage() {
           align-items: stretch;
           padding: 18px;
           border-radius: 34px;
-          background:
-            radial-gradient(circle at center, rgba(150, 0, 0, 0.28), transparent 55%),
-            linear-gradient(160deg, #100000, #000 52%, #120000);
+          background: radial-gradient(circle at center, rgba(150, 0, 0, 0.28), transparent 55%), linear-gradient(160deg, #100000, #000 52%, #120000);
           border: 1px solid rgba(190, 0, 0, 0.58);
         }
 
@@ -947,34 +1095,14 @@ export default function OwnerControlPanelPage() {
           padding: 18px;
           overflow: hidden;
           border-radius: 32px;
-          background:
-            radial-gradient(circle at 50% 42%, rgba(160, 0, 0, 0.24), transparent 55%),
-            linear-gradient(145deg, #090909, #000);
+          background: radial-gradient(circle at 50% 42%, rgba(160, 0, 0, 0.24), transparent 55%), linear-gradient(145deg, #090909, #000);
           border: 1px solid rgba(180, 0, 0, 0.48);
-          box-shadow:
-            inset 0 0 30px rgba(255, 0, 0, 0.045),
-            0 18px 30px rgba(0, 0, 0, 0.45);
+          box-shadow: inset 0 0 30px rgba(255, 0, 0, 0.045), 0 18px 30px rgba(0, 0, 0, 0.45);
         }
 
-        .deck-head {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 18px;
-        }
-
-        .deck-head strong {
-          color: #ff3b3b;
-          font-size: 22px;
-        }
-
-        .deck-head span {
-          padding: 7px 11px;
-          border-radius: 999px;
-          color: #fff;
-          font-size: 11px;
-          border: 1px solid rgba(180, 0, 0, 0.55);
-        }
+        .deck-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
+        .deck-head strong { color: #ff3b3b; font-size: 22px; }
+        .deck-head span { padding: 7px 11px; border-radius: 999px; color: #fff; font-size: 11px; border: 1px solid rgba(180, 0, 0, 0.55); }
 
         .platter-wrap {
           position: relative;
@@ -994,10 +1122,7 @@ export default function OwnerControlPanelPage() {
             repeating-radial-gradient(circle, rgba(255, 255, 255, 0.08) 0 1px, transparent 1px 7px),
             conic-gradient(from 40deg, rgba(255, 0, 0, 0.85), transparent, rgba(120, 0, 0, 0.75), transparent, rgba(255, 0, 0, 0.85));
           border: 14px solid #111;
-          box-shadow:
-            0 0 0 4px rgba(180, 0, 0, 0.2),
-            0 18px 35px rgba(0, 0, 0, 0.65),
-            inset 0 0 45px rgba(0, 0, 0, 0.9);
+          box-shadow: 0 0 0 4px rgba(180, 0, 0, 0.2), 0 18px 35px rgba(0, 0, 0, 0.65), inset 0 0 45px rgba(0, 0, 0, 0.9);
         }
 
         .record-label {
@@ -1014,14 +1139,10 @@ export default function OwnerControlPanelPage() {
         }
 
         .deck.live .platter,
-        .deck.live .record-label {
-          animation: spin 0.9s linear infinite;
-        }
+        .deck.live .record-label { animation: spin 0.9s linear infinite; }
 
         .deck.cue .platter,
-        .deck.cue .record-label {
-          animation: spin 2.6s linear infinite;
-        }
+        .deck.cue .record-label { animation: spin 2.6s linear infinite; }
 
         .needle {
           position: absolute;
@@ -1048,25 +1169,9 @@ export default function OwnerControlPanelPage() {
           box-shadow: 0 0 18px rgba(255, 0, 0, 0.55);
         }
 
-        .deck-label {
-          text-align: center;
-        }
-
-        .deck-label b {
-          display: block;
-          color: #fff;
-          font-size: 19px;
-        }
-
-        .deck-label span {
-          display: block;
-          margin-top: 7px;
-          color: #ff8f8f;
-          font-size: 11px;
-          font-weight: 950;
-          letter-spacing: 0.15em;
-          text-transform: uppercase;
-        }
+        .deck-label { text-align: center; }
+        .deck-label b { display: block; color: #fff; font-size: 19px; }
+        .deck-label span { display: block; margin-top: 7px; color: #ff8f8f; font-size: 11px; font-weight: 950; letter-spacing: 0.15em; text-transform: uppercase; }
 
         .deck-wheel-sliders {
           display: grid;
@@ -1085,24 +1190,9 @@ export default function OwnerControlPanelPage() {
           align-items: center;
         }
 
-        .deck-wheel-slider label {
-          color: #ff6868;
-          font-size: 10px;
-          font-weight: 950;
-          text-transform: uppercase;
-        }
-
-        .deck-wheel-slider input {
-          width: 100%;
-          accent-color: #ff1b1b;
-        }
-
-        .deck-wheel-slider span {
-          color: #fff;
-          font-size: 10px;
-          font-weight: 950;
-          text-align: right;
-        }
+        .deck-wheel-slider label { color: #ff6868; font-size: 10px; font-weight: 950; text-transform: uppercase; }
+        .deck-wheel-slider input { width: 100%; accent-color: #ff1b1b; }
+        .deck-wheel-slider span { color: #fff; font-size: 10px; font-weight: 950; text-align: right; }
 
         .deck-buttons {
           display: grid;
@@ -1111,9 +1201,7 @@ export default function OwnerControlPanelPage() {
           margin-top: 16px;
         }
 
-        button {
-          font-family: inherit;
-        }
+        button { font-family: inherit; }
 
         .deck-buttons button,
         .btn,
@@ -1145,9 +1233,7 @@ export default function OwnerControlPanelPage() {
           gap: 10px;
           padding: 13px;
           border-radius: 28px;
-          background:
-            linear-gradient(180deg, rgba(120, 0, 0, 0.18), transparent),
-            #020202;
+          background: linear-gradient(180deg, rgba(120, 0, 0, 0.18), transparent), #020202;
           border: 1px solid rgba(180, 0, 0, 0.52);
         }
 
@@ -1164,16 +1250,10 @@ export default function OwnerControlPanelPage() {
           place-items: center;
           text-align: center;
           padding: 14px;
-          background:
-            radial-gradient(circle, rgba(180, 0, 0, 0.32), transparent 60%),
-            linear-gradient(135deg, #151515, #000);
+          background: radial-gradient(circle, rgba(180, 0, 0, 0.32), transparent 60%), linear-gradient(135deg, #151515, #000);
         }
 
-        .cam-view p {
-          margin: 6px 0 0;
-          color: #ffd7d7;
-          font-size: 13px;
-        }
+        .cam-view p { margin: 6px 0 0; color: #ffd7d7; font-size: 13px; }
 
         .cam-bars,
         .meter-bars {
@@ -1182,9 +1262,7 @@ export default function OwnerControlPanelPage() {
           gap: 6px;
         }
 
-        .cam-bars {
-          height: 76px;
-        }
+        .cam-bars { height: 76px; }
 
         .cam-bars i {
           width: 11px;
@@ -1194,9 +1272,7 @@ export default function OwnerControlPanelPage() {
         }
 
         .cam-bars.active i,
-        .meter-bars.active i {
-          animation: meter 0.7s infinite ease-in-out;
-        }
+        .meter-bars.active i { animation: meter 0.7s infinite ease-in-out; }
 
         .main-play {
           min-height: 72px;
@@ -1212,17 +1288,8 @@ export default function OwnerControlPanelPage() {
           box-shadow: 0 7px 0 #050000, 0 0 35px rgba(255, 0, 0, 0.45);
         }
 
-        .main-play span {
-          display: block;
-          font-size: 11px;
-          letter-spacing: 0.16em;
-        }
-
-        .main-play b {
-          display: block;
-          margin-top: 3px;
-          font-size: 25px;
-        }
+        .main-play span { display: block; font-size: 11px; letter-spacing: 0.16em; }
+        .main-play b { display: block; margin-top: 3px; font-size: 25px; }
 
         .broadcast-buttons,
         .mode-buttons {
@@ -1239,10 +1306,7 @@ export default function OwnerControlPanelPage() {
           box-shadow: 0 5px 0 rgba(0, 0, 0, 0.4);
         }
 
-        .btn.blood {
-          background: #9b0000;
-          color: #fff;
-        }
+        .btn.blood { background: #9b0000; color: #fff; }
 
         .mode-buttons button {
           min-height: 36px;
@@ -1272,10 +1336,7 @@ export default function OwnerControlPanelPage() {
           text-align: center;
         }
 
-        .crossfader input {
-          width: 100%;
-          accent-color: #ff1b1b;
-        }
+        .crossfader input { width: 100%; accent-color: #ff1b1b; }
 
         .slider-bank {
           display: grid;
@@ -1315,10 +1376,7 @@ export default function OwnerControlPanelPage() {
           accent-color: #ff1b1b;
         }
 
-        .control-slider strong {
-          color: #fff;
-          font-size: 9px;
-        }
+        .control-slider strong { color: #fff; font-size: 9px; }
 
         .pad {
           min-height: 56px;
@@ -1327,17 +1385,8 @@ export default function OwnerControlPanelPage() {
           box-shadow: 0 5px 0 rgba(0, 0, 0, 0.42);
         }
 
-        .pad small {
-          display: block;
-          font-size: 8px;
-          letter-spacing: 0.14em;
-        }
-
-        .pad strong {
-          display: block;
-          margin-top: 4px;
-          font-size: 12px;
-        }
+        .pad small { display: block; font-size: 8px; letter-spacing: 0.14em; }
+        .pad strong { display: block; margin-top: 4px; font-size: 12px; }
 
         .yellow { background: #ff4b4b; color: #fff; }
         .red { background: #9b0000; color: #fff; }
@@ -1346,21 +1395,9 @@ export default function OwnerControlPanelPage() {
         .purple { background: #7d1fff; color: #fff; }
         .orange { background: #ff4f00; color: #fff; }
 
-        .mode-display {
-          padding: 18px;
-        }
-
-        .mode-display h3 {
-          margin: 0;
-          color: #ff3b3b;
-          font-size: 34px;
-          line-height: 1;
-        }
-
-        .mode-display p {
-          color: #ffd7d7;
-          line-height: 1.45;
-        }
+        .mode-display { padding: 18px; }
+        .mode-display h3 { margin: 0; color: #ff3b3b; font-size: 34px; line-height: 1; }
+        .mode-display p { color: #ffd7d7; line-height: 1.45; }
 
         .mode-display button {
           width: 100%;
@@ -1374,14 +1411,8 @@ export default function OwnerControlPanelPage() {
           cursor: pointer;
         }
 
-        .meter {
-          border-top: 1px solid rgba(180, 0, 0, 0.35);
-        }
-
-        .meter-bars {
-          height: 120px;
-          padding: 14px;
-        }
+        .meter { border-top: 1px solid rgba(180, 0, 0, 0.35); }
+        .meter-bars { height: 120px; padding: 14px; }
 
         .meter-bars i {
           flex: 1;
@@ -1392,13 +1423,9 @@ export default function OwnerControlPanelPage() {
           opacity: 0.35;
         }
 
-        .meter-bars.active i {
-          opacity: 1;
-        }
+        .meter-bars.active i { opacity: 1; }
 
-        .footer-dock {
-          margin-top: 16px;
-        }
+        .footer-dock { margin-top: 16px; }
 
         .footer-grid {
           display: grid;
@@ -1414,93 +1441,51 @@ export default function OwnerControlPanelPage() {
           display: grid;
           place-items: center;
           text-align: center;
+          text-decoration: none;
           box-shadow: 0 5px 0 rgba(0, 0, 0, 0.45);
         }
 
-        .footer-tool strong {
-          display: block;
-          font-size: 12px;
-        }
+        .footer-tool strong { display: block; font-size: 12px; }
+        .footer-tool span { display: block; margin-top: 3px; font-size: 9px; line-height: 1.2; text-transform: none; opacity: 0.86; }
 
-        .footer-tool span {
-          display: block;
-          margin-top: 3px;
-          font-size: 9px;
-          line-height: 1.2;
-          text-transform: none;
-          opacity: 0.86;
-        }
-
-        button:hover {
+        button:hover,
+        .footer-tool:hover {
           transform: translateY(-2px);
           filter: brightness(1.08);
         }
 
         @keyframes spin {
-          to {
-            transform: rotate(360deg);
-          }
+          to { transform: rotate(360deg); }
         }
 
         @keyframes meter {
-          0%, 100% {
-            height: 24%;
-          }
-          50% {
-            height: 96%;
-          }
+          0%, 100% { height: 24%; }
+          50% { height: 96%; }
         }
 
         @media (max-width: 1500px) {
-          .status-row {
-            grid-template-columns: repeat(3, 1fr);
-          }
-
-          .main-studio {
-            grid-template-columns: 1fr;
-          }
-
-          .turntable-stage {
-            grid-template-columns: 1fr;
-          }
-
+          .status-row { grid-template-columns: repeat(3, 1fr); }
+          .now-playing-bar { grid-template-columns: 1fr 1fr; }
+          .main-studio { grid-template-columns: 1fr; }
+          .turntable-stage { grid-template-columns: 1fr; }
           .deck,
-          .broadcast-center {
-            min-height: auto;
-          }
-
-          .log-row {
-            grid-template-columns: repeat(2, 1fr);
-          }
-
-          .footer-grid {
-            grid-template-columns: repeat(5, 1fr);
-          }
+          .broadcast-center { min-height: auto; }
+          .log-row { grid-template-columns: repeat(2, 1fr); }
+          .footer-grid { grid-template-columns: repeat(5, 1fr); }
         }
 
         @media (max-width: 760px) {
-          .control-page {
-            padding: 12px;
-          }
-
-          .shell {
-            padding: 12px;
-            border-radius: 24px;
-          }
-
-          .topbar {
-            flex-direction: column;
-            align-items: stretch;
-          }
-
-          .brand-badge {
-            width: 100%;
-          }
+          .control-page { padding: 12px; }
+          .shell { padding: 12px; border-radius: 24px; }
+          .topbar { flex-direction: column; align-items: stretch; }
+          .brand-badge { width: 100%; }
 
           .status-row,
           .log-row,
+          .now-playing-bar,
           .lamp-grid,
-          .hero-pad-grid {
+          .hero-pad-grid,
+          .smart-mode-switch {
             grid-template-columns: 1fr;
           }
 

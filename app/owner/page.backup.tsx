@@ -2,80 +2,153 @@
 
 import { useMemo, useRef, useState } from "react";
 
-type DeckMode = "idle" | "cue" | "live";
+type BroadcastState = "off" | "cue" | "live" | "paused";
+type PadMode = "JINGLES" | "DROPS" | "COM" | "ADS" | "SMARTDJ" | "AUTODJ" | "LIVEDJ";
+type DjMode = "AUTODJ" | "SMARTDJ" | "LIVEDJ";
+type PadColor = "yellow" | "red" | "green" | "blue" | "purple" | "orange";
+
+type Pad = {
+  label: string;
+  mode: PadMode;
+  message: string;
+  color: PadColor;
+};
+
 type LogItem = {
   id: number;
   time: string;
   message: string;
 };
 
+type FooterTool = {
+  label: string;
+  href: string;
+  note: string;
+  color: PadColor;
+};
+
 const STREAM_URL =
   process.env.NEXT_PUBLIC_STREAM_URL ||
   "http://thacoreonlinerad.com/listen/tha-core-online/radio.mp3";
 
-const jingles = [
-  { label: "Station ID", type: "Jingle", tone: "Tha Core Online Radio" },
-  { label: "DJ Drop", type: "Drop", tone: "DJ Daily Bread in the building" },
-  { label: "Promo Shot", type: "Promo", tone: "Promote your music on Tha Core" },
-  { label: "Breaking", type: "Alert", tone: "Breaking news drop ready" },
-  { label: "Ad Break", type: "Commercial", tone: "Commercial break loaded" },
-  { label: "Request Line", type: "Listener", tone: "Song request line open" },
-  { label: "Weather", type: "Reader", tone: "Weather reader ready" },
-  { label: "Time Check", type: "Reader", tone: "Time announcement ready" },
+const padModes: PadMode[] = ["JINGLES", "DROPS", "COM", "ADS", "SMARTDJ", "AUTODJ", "LIVEDJ"];
+
+const pads: Pad[] = [
+  { label: "Station ID", mode: "JINGLES", message: "Tha Core official station ID fired.", color: "yellow" },
+  { label: "Big Intro", mode: "JINGLES", message: "Big intro jingle fired.", color: "orange" },
+  { label: "You Locked In", mode: "JINGLES", message: "You are locked in to Tha Core Online Radio.", color: "green" },
+  { label: "Morning Vibe", mode: "JINGLES", message: "Morning vibe jingle fired.", color: "yellow" },
+  { label: "Late Night", mode: "JINGLES", message: "Late night jingle fired.", color: "purple" },
+  { label: "Dancehall Core", mode: "JINGLES", message: "Dancehall Core jingle fired.", color: "red" },
+  { label: "Reggae Core", mode: "JINGLES", message: "Reggae Core jingle fired.", color: "green" },
+  { label: "Weekend Mix", mode: "JINGLES", message: "Weekend mix jingle fired.", color: "blue" },
+  { label: "Fresh Music", mode: "JINGLES", message: "Fresh music jingle fired.", color: "orange" },
+  { label: "Back To Back", mode: "JINGLES", message: "Back-to-back music jingle fired.", color: "yellow" },
+
+  { label: "DJ Drop", mode: "DROPS", message: "DJ Daily Bread drop fired.", color: "purple" },
+  { label: "Pull Up", mode: "DROPS", message: "Pull up selector drop fired.", color: "red" },
+  { label: "Crowd Hype", mode: "DROPS", message: "Crowd hype drop fired.", color: "orange" },
+  { label: "Dancehall Drop", mode: "DROPS", message: "Dancehall drop fired.", color: "green" },
+  { label: "Hip Hop Drop", mode: "DROPS", message: "Hip hop drop fired.", color: "blue" },
+  { label: "Reggae Drop", mode: "DROPS", message: "Reggae drop fired.", color: "yellow" },
+
+  { label: "Com Break", mode: "COM", message: "Commercial break selected.", color: "blue" },
+  { label: "Back Soon", mode: "COM", message: "Back soon commercial bridge selected.", color: "yellow" },
+  { label: "Sponsor Block", mode: "COM", message: "Sponsor block selected.", color: "green" },
+  { label: "Voice Promo", mode: "COM", message: "Voice promo selected.", color: "purple" },
+  { label: "Street Promo", mode: "COM", message: "Street promo commercial selected.", color: "orange" },
+  { label: "Radio Promo", mode: "COM", message: "Radio promo commercial selected.", color: "red" },
+
+  { label: "Store Ad", mode: "ADS", message: "Tha Core store ad fired.", color: "green" },
+  { label: "Print Ad", mode: "ADS", message: "Graphics and printing ad fired.", color: "blue" },
+  { label: "Music Promo", mode: "ADS", message: "Music promotion ad fired.", color: "orange" },
+  { label: "Sponsor Ad", mode: "ADS", message: "Sponsor ad fired.", color: "yellow" },
+
+  { label: "Smart Mix", mode: "SMARTDJ", message: "SmartDJ mix selected.", color: "purple" },
+  { label: "Smart Jingle", mode: "SMARTDJ", message: "SmartDJ jingle timing selected.", color: "yellow" },
+  { label: "Smart Ads", mode: "SMARTDJ", message: "SmartDJ ad timing selected.", color: "green" },
+  { label: "Smart Talk", mode: "SMARTDJ", message: "SmartDJ talk break selected.", color: "blue" },
+
+  { label: "AutoDJ Flow", mode: "AUTODJ", message: "AutoDJ flow selected.", color: "orange" },
+  { label: "Auto Next", mode: "AUTODJ", message: "AutoDJ next command selected.", color: "green" },
+  { label: "Auto Break", mode: "AUTODJ", message: "AutoDJ break selected.", color: "blue" },
+  { label: "Auto Rotate", mode: "AUTODJ", message: "AutoDJ rotation selected.", color: "yellow" },
+
+  { label: "Live Mic", mode: "LIVEDJ", message: "Live DJ mic armed.", color: "red" },
+  { label: "Talk Break", mode: "LIVEDJ", message: "Live DJ talk break selected.", color: "yellow" },
+  { label: "Shout Out", mode: "LIVEDJ", message: "Live shout out selected.", color: "orange" },
+  { label: "Request Line", mode: "LIVEDJ", message: "Request line opened.", color: "green" },
 ];
 
-const quickActions = [
-  "Upload Music",
-  "Build Playlist",
-  "Schedule Show",
-  "Song Request",
-  "Mic Check",
-  "Record Drop",
-  "News Reader",
-  "Weather Reader",
-  "Time Reader",
-  "Commercials",
-  "Live Chat",
-  "Emergency Stop",
+const footerTools: FooterTool[] = [
+  { label: "Blog", href: "/blog", note: "Blog page shortcut ready", color: "yellow" },
+  { label: "News", href: "/news", note: "News desk shortcut ready", color: "red" },
+  { label: "Weather", href: "/weather", note: "Weather reader shortcut ready", color: "blue" },
+  { label: "Store", href: "/store", note: "Store shortcut ready", color: "green" },
+  { label: "Community", href: "/community", note: "Community page shortcut ready", color: "purple" },
+  { label: "Chat", href: "/chat", note: "Community chat shortcut ready", color: "orange" },
+  { label: "Upload", href: "/upload", note: "Upload center shortcut ready", color: "yellow" },
+  { label: "Requests", href: "/requests", note: "Song request shortcut ready", color: "green" },
+  { label: "Schedule", href: "/schedule", note: "Show schedule shortcut ready", color: "blue" },
+  { label: "Promos", href: "/promos", note: "Promo tools shortcut ready", color: "red" },
 ];
 
 export default function OwnerControlPanelPage() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [onAir, setOnAir] = useState(false);
-  const [autoDj, setAutoDj] = useState(true);
-  const [micLive, setMicLive] = useState(false);
-  const [monitor, setMonitor] = useState(true);
+  const [broadcast, setBroadcast] = useState<BroadcastState>("off");
+  const [selectedMode, setSelectedMode] = useState<PadMode>("JINGLES");
 
-  const [deckA, setDeckA] = useState<DeckMode>("cue");
-  const [deckB, setDeckB] = useState<DeckMode>("idle");
+  const [autoDj, setAutoDj] = useState(true);
+  const [smartDj, setSmartDj] = useState(false);
+  const [liveDj, setLiveDj] = useState(false);
+  const [micLive, setMicLive] = useState(false);
+  const [monitorOn, setMonitorOn] = useState(true);
+
+  const [screenTitle, setScreenTitle] = useState("STUDIO READY");
+  const [screenText, setScreenText] = useState(
+    "Control panel ready. Use the all-in-one smart switch above the hero buttons to choose AutoDJ, SmartDJ, or LiveDJ."
+  );
+
+  const [nowPlayingText, setNowPlayingText] = useState("Click refresh to load current song.");
+  const [listenerText, setListenerText] = useState("Listeners waiting...");
+  const [stationText, setStationText] = useState("Tha Core Online Radio");
 
   const [volume, setVolume] = useState(72);
+  const [monitorVol, setMonitorVol] = useState(65);
+  const [micGain, setMicGain] = useState(45);
+  const [musicGain, setMusicGain] = useState(70);
   const [tempo, setTempo] = useState(50);
   const [bass, setBass] = useState(64);
   const [mid, setMid] = useState(58);
-  const [treble, setTreble] = useState(61);
+  const [high, setHigh] = useState(61);
+  const [reverb, setReverb] = useState(20);
+  const [delay, setDelay] = useState(12);
+  const [echo, setEcho] = useState(18);
   const [crossfade, setCrossfade] = useState(50);
-
-  const [displayMode, setDisplayMode] = useState("LIVE CONTROL");
-  const [screenText, setScreenText] = useState(
-    "Studio ready. Stream monitor standing by."
-  );
 
   const [logs, setLogs] = useState<LogItem[]>([
     {
       id: 1,
       time: "Now",
-      message: "Control room loaded for Tha Core Online Radio.",
+      message: "Latest studio panel loaded with now-playing status above hero.",
     },
   ]);
 
-  const nowPlaying = useMemo(() => {
-    if (onAir && isPlaying) return "LIVE FROM THA CORE • Stream active";
-    if (autoDj) return "AutoDJ standing by • Playlist ready";
-    return "Manual studio mode • Waiting for live control";
-  }, [onAir, isPlaying, autoDj]);
+  const isLive = broadcast === "live";
+  const isCue = broadcast === "cue";
+  const visiblePads = pads.filter((pad) => pad.mode === selectedMode);
+  const currentDjMode: DjMode = smartDj ? "SMARTDJ" : liveDj ? "LIVEDJ" : "AUTODJ";
+
+  const broadcastLabel = useMemo(() => {
+    if (broadcast === "live" && liveDj) return "LIVE DJ ON AIR";
+    if (broadcast === "live" && smartDj) return "SMARTDJ BROADCASTING";
+    if (broadcast === "live" && autoDj) return "AUTODJ BROADCASTING";
+    if (broadcast === "live") return "BROADCAST LIVE";
+    if (broadcast === "paused") return "BROADCAST PAUSED";
+    if (broadcast === "cue") return "BROADCAST CUED";
+    return "OFF AIR";
+  }, [broadcast, liveDj, smartDj, autoDj]);
 
   function stamp() {
     return new Date().toLocaleTimeString([], {
@@ -87,87 +160,234 @@ export default function OwnerControlPanelPage() {
   function addLog(message: string) {
     setLogs((current) => [
       { id: Date.now(), time: stamp(), message },
-      ...current.slice(0, 8),
+      ...current.slice(0, 5),
     ]);
   }
 
-  async function togglePlay() {
+  function setMainVolume(value: number) {
+    setVolume(value);
+
+    if (audioRef.current) {
+      audioRef.current.volume = value / 100;
+    }
+  }
+
+  function setDjMode(mode: DjMode) {
+    const nextAutoDj = mode === "AUTODJ";
+    const nextSmartDj = mode === "SMARTDJ";
+    const nextLiveDj = mode === "LIVEDJ";
+
+    setAutoDj(nextAutoDj);
+    setSmartDj(nextSmartDj);
+    setLiveDj(nextLiveDj);
+    setMicLive(nextLiveDj);
+    setSelectedMode(mode);
+
+    setScreenTitle(`${mode} ACTIVE`);
+
+    if (mode === "AUTODJ") {
+      setScreenText("AutoDJ is active. Playlist flow and automatic rotation are selected.");
+      addLog("All-in-one smart switch changed to AutoDJ.");
+    }
+
+    if (mode === "SMARTDJ") {
+      setScreenText("SmartDJ is active. Smart jingles, drops, ads, and talk timing are selected.");
+      addLog("All-in-one smart switch changed to SmartDJ.");
+    }
+
+    if (mode === "LIVEDJ") {
+      setScreenText("LiveDJ is active. Manual DJ control and mic channel are armed.");
+      addLog("All-in-one smart switch changed to LiveDJ.");
+    }
+  }
+
+  async function callRadioAction(action: "skip" | "restart" | "start" | "stop") {
+    setScreenTitle(`${action.toUpperCase()} SENT`);
+    setScreenText(`Sending ${action} command to radio backend...`);
+    addLog(`${action.toUpperCase()} command sending.`);
+
+    try {
+      const response = await fetch("/api/radio/action", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ action }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data?.ok) {
+        setScreenTitle(`${action.toUpperCase()} FAILED`);
+        setScreenText(data?.error || `Could not complete ${action}. Check AzuraCast settings.`);
+        addLog(`${action.toUpperCase()} failed.`);
+        return;
+      }
+
+      setScreenTitle(`${action.toUpperCase()} COMPLETE`);
+      setScreenText(data?.message || `${action} command completed.`);
+      addLog(`${action.toUpperCase()} completed.`);
+    } catch {
+      setScreenTitle(`${action.toUpperCase()} ERROR`);
+      setScreenText("Could not reach the radio action API route.");
+      addLog(`${action.toUpperCase()} API error.`);
+    }
+  }
+
+  async function refreshNowPlaying() {
+    try {
+      setScreenTitle("NOW PLAYING");
+      setScreenText("Loading current song from radio backend...");
+      addLog("Now-playing refresh started.");
+
+      const response = await fetch("/api/radio/now-playing", {
+        cache: "no-store",
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data?.ok) {
+        setScreenTitle("NOW PLAYING ERROR");
+        setScreenText(data?.error || "Could not load now-playing data.");
+        setNowPlayingText("Now-playing failed to load.");
+        setListenerText("Check API route.");
+        addLog("Now-playing refresh failed.");
+        return;
+      }
+
+      const text = data?.nowPlaying?.text || "Unknown song";
+      const listeners = data?.listeners?.current ?? 0;
+      const station = data?.station?.name || "Tha Core Online Radio";
+
+      setNowPlayingText(text);
+      setListenerText(`${listeners} listeners online`);
+      setStationText(station);
+
+      setScreenTitle("NOW PLAYING");
+      setScreenText(`${text} • ${listeners} listeners`);
+      addLog(`Now playing loaded: ${text}`);
+    } catch {
+      setScreenTitle("NOW PLAYING ERROR");
+      setScreenText("Could not reach now-playing API route.");
+      setNowPlayingText("Could not reach now-playing API.");
+      setListenerText("API error.");
+      addLog("Now-playing API error.");
+    }
+  }
+
+  function cueBroadcast() {
+    setBroadcast("cue");
+    setScreenTitle("BROADCAST CUED");
+    setScreenText(
+      "Broadcast is cued. Turntables slow spin. Hit main Play / Pause to start the full broadcast monitor."
+    );
+    addLog("Broadcast cued.");
+  }
+
+  async function playPauseBroadcast() {
     const audio = audioRef.current;
+
     if (!audio) return;
 
-    if (isPlaying) {
+    if (broadcast === "live") {
       audio.pause();
-      setIsPlaying(false);
-      setOnAir(false);
-      setDeckA("cue");
-      setDeckB("idle");
-      setScreenText("Broadcast monitor paused. Studio is off air.");
-      addLog("Main stream monitor paused. On Air status turned off.");
+      setBroadcast("paused");
+      setScreenTitle("BROADCAST PAUSED");
+      setScreenText("Main Play / Pause paused the full broadcast monitor. Press it again to continue.");
+      addLog("Main Play / Pause paused the full broadcast monitor.");
       return;
     }
 
     try {
       audio.volume = volume / 100;
+      audio.muted = !monitorOn;
+
       await audio.play();
-      setIsPlaying(true);
-      setOnAir(true);
-      setDeckA("live");
-      setDeckB(autoDj ? "cue" : "idle");
-      setScreenText("Main stream monitor playing. Tha Core is ON AIR.");
-      addLog("Main stream monitor started. On Air status active.");
+
+      setBroadcast("live");
+      setScreenTitle("BROADCAST LIVE");
+      setScreenText("Main Play / Pause started the full broadcast monitor. Both turntables are spinning live.");
+      addLog("Main Play / Pause started the broadcast. Turntables spinning.");
     } catch {
-      setScreenText(
-        "Browser blocked playback. Click again or check stream URL / HTTPS."
-      );
-      addLog("Playback blocked by browser or stream connection.");
+      setScreenTitle("PLAYBACK BLOCKED");
+      setScreenText("Browser blocked the stream. Click Play / Pause again or check stream URL / HTTPS.");
+      addLog("Playback blocked.");
     }
   }
 
-  function toggleAutoDj() {
-    setAutoDj((value) => {
-      const next = !value;
-      setDeckB(next ? "cue" : "idle");
-      setScreenText(next ? "Smart AutoDJ switched on." : "Smart AutoDJ switched off.");
-      addLog(next ? "Smart AutoDJ switched on." : "Smart AutoDJ switched off.");
+  function stopBroadcast() {
+    const audio = audioRef.current;
+
+    if (audio) {
+      audio.pause();
+
+      try {
+        audio.currentTime = 0;
+      } catch {
+        // Live stream reset may not be allowed.
+      }
+    }
+
+    setBroadcast("off");
+    setMicLive(false);
+    setScreenTitle("STOP ALL");
+    setScreenText("Stop All stopped the full control room broadcast monitor.");
+    addLog("Stop All pressed.");
+  }
+
+  function skipNext() {
+    callRadioAction("skip");
+  }
+
+  function studioSkip() {
+    setScreenTitle("STUDIO SKIP");
+    setScreenText("Studio Skip pressed. Ready for clean SmartDJ / AutoDJ transition.");
+    addLog("Studio Skip pressed.");
+  }
+
+  function toggleMonitor() {
+    setMonitorOn((current) => {
+      const next = !current;
+
+      if (audioRef.current) {
+        audioRef.current.muted = !next;
+      }
+
+      setScreenTitle(next ? "MONITOR ON" : "MONITOR MUTED");
+      setScreenText(
+        next
+          ? "In-house studio monitor is on."
+          : "In-house monitor is muted. Public stream is not affected."
+      );
+      addLog(next ? "Monitor turned on." : "Monitor muted.");
+
       return next;
     });
   }
 
-  function triggerPad(pad: { label: string; type: string; tone: string }) {
-    setDisplayMode(pad.type.toUpperCase());
-    setScreenText(`${pad.label}: ${pad.tone}`);
-    addLog(`${pad.type} triggered: ${pad.label}`);
+  function firePad(pad: Pad) {
+    setSelectedMode(pad.mode);
+    setScreenTitle(`${pad.mode} FIRED`);
+    setScreenText(pad.message);
+
+    if (pad.mode === "SMARTDJ") setDjMode("SMARTDJ");
+    if (pad.mode === "AUTODJ") setDjMode("AUTODJ");
+    if (pad.mode === "LIVEDJ") setDjMode("LIVEDJ");
+
+    addLog(`${pad.mode}: ${pad.label}`);
   }
 
-  function runQuickAction(action: string) {
-    setDisplayMode(action.toUpperCase());
-
-    if (action === "Emergency Stop") {
-      audioRef.current?.pause();
-      setIsPlaying(false);
-      setOnAir(false);
-      setMicLive(false);
-      setDeckA("idle");
-      setDeckB("idle");
-      setScreenText("Emergency stop pressed. Studio output is now safe.");
-      addLog("Emergency stop pressed.");
-      return;
-    }
-
-    if (action === "Mic Check") {
-      setMicLive((value) => !value);
-      setScreenText(!micLive ? "Mic channel armed for live talk." : "Mic channel muted.");
-      addLog(!micLive ? "Mic channel armed." : "Mic channel muted.");
-      return;
-    }
-
-    setScreenText(`${action} panel selected. Ready for next connection.`);
-    addLog(`${action} selected.`);
+  function selectDisplay(mode: PadMode, label: string) {
+    setSelectedMode(mode);
+    setScreenTitle(`${label.toUpperCase()} DISPLAY`);
+    setScreenText(`${label} display buttons are now loaded in the hero page.`);
+    addLog(`${label} display selected.`);
   }
 
-  function updateVolume(value: number) {
-    setVolume(value);
-    if (audioRef.current) audioRef.current.volume = value / 100;
+  function selectTool(tool: FooterTool) {
+    setScreenTitle(`${tool.label.toUpperCase()} DOCK`);
+    setScreenText(tool.note);
+    addLog(`${tool.label} footer dock selected.`);
   }
 
   return (
@@ -177,140 +397,212 @@ export default function OwnerControlPanelPage() {
       <section className="shell">
         <header className="topbar">
           <div>
-            <p className="eyebrow">OWNER CONTROL ROOM</p>
-            <h1>Tha Core Online Radio</h1>
+            <p className="eyebrow">THA CORE ONLINE RADIO</p>
+            <h1>Studio Control Panel</h1>
             <p className="subtitle">
-              Red, black, and yellow studio dashboard built for live control,
-              AutoDJ, drops, jingles, monitoring, and broadcast energy.
+              Jet black and blood red studio layout with live now-playing status above hero,
+              all-in-one AutoDJ / SmartDJ / LiveDJ switch, bigger cam, hero smart buttons,
+              deck wheel sliders, skip API call, and broadcast Play / Pause monitor.
             </p>
           </div>
 
           <div className="brand-badge">
-            <div className="crown">♛</div>
-            <div>
-              <strong>TC</strong>
-              <span>Studio Live</span>
-            </div>
+            <span className="crown">♛</span>
+            <strong>TC</strong>
+            <small>STUDIO LIVE</small>
           </div>
         </header>
 
-        <section className="status-grid">
-          <div className="status-card hot">
-            <span className={onAir ? "light green" : "light red"} />
-            <small>ON AIR</small>
-            <strong>{onAir ? "LIVE" : "OFF AIR"}</strong>
-          </div>
+        <section className="status-row">
+          <StatusCard label="Broadcast" value={broadcastLabel} tone={isLive ? "green" : isCue ? "yellow" : "red"} />
+          <StatusCard label="AutoDJ" value={autoDj ? "ACTIVE" : "OFF"} tone={autoDj ? "orange" : "red"} />
+          <StatusCard label="SmartDJ" value={smartDj ? "ACTIVE" : "READY"} tone={smartDj ? "green" : "yellow"} />
+          <StatusCard label="LiveDJ" value={liveDj ? "LIVE" : "STANDBY"} tone={liveDj ? "green" : "yellow"} />
+          <StatusCard label="Mic" value={micLive ? "ARMED" : "MUTED"} tone={micLive ? "green" : "red"} />
+          <StatusCard label="Monitor" value={monitorOn ? "ON" : "MUTED"} tone={monitorOn ? "green" : "red"} />
+        </section>
 
-          <div className="status-card">
-            <span className={autoDj ? "light yellow" : "light red"} />
-            <small>SMART AUTODJ</small>
-            <strong>{autoDj ? "ACTIVE" : "OFF"}</strong>
-          </div>
+        <section className="central-log">
+          <PanelHeading left="Central Control Log" right="Above Studio" />
 
-          <div className="status-card">
-            <span className={micLive ? "light green" : "light red"} />
-            <small>MIC CHANNEL</small>
-            <strong>{micLive ? "ARMED" : "MUTED"}</strong>
-          </div>
-
-          <div className="status-card">
-            <span className={monitor ? "light green" : "light red"} />
-            <small>MONITOR</small>
-            <strong>{monitor ? "ON" : "OFF"}</strong>
+          <div className="log-row">
+            {logs.slice(0, 4).map((log) => (
+              <div key={log.id} className="log-card">
+                <span>{log.time}</span>
+                <p>{log.message}</p>
+              </div>
+            ))}
           </div>
         </section>
 
-        <section className="studio-board">
-          <div className="left-rack">
-            <div className="screen">
-              <div className="screen-top">
-                <span>{displayMode}</span>
-                <b>{onAir ? "BROADCASTING" : "STANDBY"}</b>
-              </div>
-
-              <div className="screen-body">
-                <p className="now-label">NOW PLAYING / STATUS</p>
-                <h2>{nowPlaying}</h2>
-                <p>{screenText}</p>
-              </div>
-
-              <div className="ticker">
-                <span>
-                  THA CORE ONLINE RADIO • LIVE MUSIC • JINGLES • DROPS • ADS •
-                  REQUESTS • NEWS • WEATHER • TIME READER •
-                </span>
-              </div>
-            </div>
-
-            <div className="camera-box">
-              <div className="camera-header">
-                <span>Studio Cam</span>
-                <b>{micLive ? "MIC LIVE" : "CAM READY"}</b>
-              </div>
-              <div className="camera-visual">
-                <div className="equalizer">
-                  <i />
-                  <i />
-                  <i />
-                  <i />
-                  <i />
-                  <i />
-                  <i />
-                  <i />
-                </div>
-                <p>Live studio window / video call area</p>
-              </div>
-            </div>
+        <section className="now-playing-bar">
+          <div>
+            <span>Now Playing</span>
+            <strong>{nowPlayingText}</strong>
           </div>
 
-          <div className="deck-area">
-            <Turntable
-              title="DECK A"
-              mode={deckA}
-              active={isPlaying && deckA === "live"}
-              label="MAIN STREAM"
-            />
+          <div>
+            <span>Live Status</span>
+            <strong>{listenerText}</strong>
+          </div>
 
-            <div className="mixer">
-              <button
-                type="button"
-                onClick={togglePlay}
-                className={isPlaying ? "main-power active" : "main-power"}
-              >
-                <span>{isPlaying ? "STOP" : "PLAY"}</span>
-                <b>{isPlaying ? "ON AIR" : "GO LIVE"}</b>
+          <div>
+            <span>Station</span>
+            <strong>{stationText}</strong>
+          </div>
+
+          <button type="button" onClick={refreshNowPlaying}>
+            Refresh Now Playing
+          </button>
+        </section>
+
+        <section className="main-studio">
+          <section className="left-display panel">
+            <PanelHeading left={screenTitle} right={broadcastLabel} />
+
+            <div className="screen">
+              <p className="screen-kicker">LIVE DISPLAY</p>
+              <h2>{broadcastLabel}</h2>
+              <p>{screenText}</p>
+
+              <div className="lamp-grid">
+                <span className={autoDj ? "lamp on orange" : "lamp"}>AUTODJ</span>
+                <span className={smartDj ? "lamp on green" : "lamp"}>SMARTDJ</span>
+                <span className={liveDj ? "lamp on red" : "lamp"}>LIVEDJ</span>
+                <span className={micLive ? "lamp on yellow" : "lamp"}>MIC</span>
+              </div>
+            </div>
+
+            <div className="hero-smart-area">
+              <PanelHeading left="All-In-One Smart Switch" right={currentDjMode} />
+
+              <div className="smart-mode-switch">
+                <button
+                  type="button"
+                  onClick={() => setDjMode("AUTODJ")}
+                  className={currentDjMode === "AUTODJ" ? "active auto" : "auto"}
+                >
+                  <span>AutoDJ</span>
+                  <b>Playlist</b>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setDjMode("SMARTDJ")}
+                  className={currentDjMode === "SMARTDJ" ? "active smart" : "smart"}
+                >
+                  <span>SmartDJ</span>
+                  <b>Smart Flow</b>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setDjMode("LIVEDJ")}
+                  className={currentDjMode === "LIVEDJ" ? "active live" : "live"}
+                >
+                  <span>LiveDJ</span>
+                  <b>Mic / Manual</b>
+                </button>
+              </div>
+
+              <div className="display-switches">
+                <button type="button" onClick={() => selectDisplay("JINGLES", "Jingles")} className="display-btn blood">
+                  Jingles Display
+                </button>
+
+                <button type="button" onClick={() => selectDisplay("COM", "Commercial")} className="display-btn dark">
+                  Commercial Display
+                </button>
+              </div>
+
+              <div className="hero-tabs">
+                {padModes.map((mode) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => selectDisplay(mode, mode)}
+                    className={selectedMode === mode ? "active" : ""}
+                  >
+                    {mode}
+                  </button>
+                ))}
+              </div>
+
+              <div className="hero-pad-grid">
+                {visiblePads.map((pad) => (
+                  <button
+                    key={`${pad.mode}-${pad.label}`}
+                    type="button"
+                    onClick={() => firePad(pad)}
+                    className={`pad ${pad.color}`}
+                  >
+                    <small>{pad.mode}</small>
+                    <strong>{pad.label}</strong>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          <section className="turntable-stage">
+            <Turntable title="DECK A" label="MAIN BROADCAST" state={broadcast} />
+
+            <section className="broadcast-center">
+              <div className="cam-box">
+                <PanelHeading left="Studio Cam" right={micLive ? "MIC LIVE" : "READY"} />
+
+                <div className="cam-view">
+                  <div className={isLive ? "cam-bars active" : "cam-bars"}>
+                    <i />
+                    <i />
+                    <i />
+                    <i />
+                    <i />
+                    <i />
+                    <i />
+                  </div>
+
+                  <p>Camera / video call / live studio window</p>
+                </div>
+              </div>
+
+              <button type="button" onClick={playPauseBroadcast} className={isLive ? "main-play active" : "main-play"}>
+                <span>MAIN BROADCAST</span>
+                <b>{isLive ? "PAUSE ALL" : "PLAY ALL"}</b>
               </button>
 
-              <button
-                type="button"
-                onClick={toggleAutoDj}
-                className={autoDj ? "auto-switch active" : "auto-switch"}
-              >
-                <span>SMART AUTODJ</span>
-                <b>{autoDj ? "ON" : "OFF"}</b>
-              </button>
+              <div className="broadcast-buttons">
+                <button type="button" onClick={cueBroadcast} className="btn blood">Cue</button>
+                <button type="button" onClick={stopBroadcast} className="btn red">Stop All</button>
+                <button type="button" onClick={skipNext} className="btn blue">Skip</button>
+                <button type="button" onClick={studioSkip} className="btn purple">Studio Skip</button>
+                <button type="button" onClick={toggleMonitor} className="btn green">Monitor</button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMicLive((current) => !current);
+                    addLog("Mic toggled.");
+                  }}
+                  className="btn orange"
+                >
+                  Mic
+                </button>
+              </div>
 
-              <div className="slider-bank">
-                <ControlSlider
-                  label="Volume"
-                  value={volume}
-                  setValue={updateVolume}
-                />
-                <ControlSlider label="Tempo" value={tempo} setValue={setTempo} />
-                <ControlSlider label="Bass" value={bass} setValue={setBass} />
-                <ControlSlider label="Mid" value={mid} setValue={setMid} />
-                <ControlSlider
-                  label="Treble"
-                  value={treble}
-                  setValue={setTreble}
-                />
+              <div className="mode-buttons">
+                <button type="button" onClick={() => selectDisplay("JINGLES", "Jingles")}>Jingles</button>
+                <button type="button" onClick={() => selectDisplay("DROPS", "Drops")}>Drops</button>
+                <button type="button" onClick={() => selectDisplay("COM", "Commercial")}>Com</button>
+                <button type="button" onClick={() => selectDisplay("ADS", "Ads")}>Ads</button>
+                <button type="button" onClick={() => setDjMode("SMARTDJ")}>SmartDJ</button>
+                <button type="button" onClick={() => setDjMode("AUTODJ")}>AutoDJ</button>
+                <button type="button" onClick={() => setDjMode("LIVEDJ")}>LiveDJ</button>
+                <button type="button" onClick={() => firePad(visiblePads[0] || pads[0])}>Smart Fire</button>
+                <button type="button" onClick={refreshNowPlaying}>Now Playing</button>
               </div>
 
               <div className="crossfader">
-                <div>
-                  <span>Deck A</span>
-                  <b>{crossfade < 45 ? "HOT" : "READY"}</b>
-                </div>
+                <span>Deck A</span>
                 <input
                   type="range"
                   min="0"
@@ -318,572 +610,507 @@ export default function OwnerControlPanelPage() {
                   value={crossfade}
                   onChange={(event) => setCrossfade(Number(event.target.value))}
                 />
-                <div>
-                  <span>Deck B</span>
-                  <b>{crossfade > 55 ? "HOT" : "READY"}</b>
-                </div>
+                <span>Deck B</span>
               </div>
 
-              <div className="mini-switches">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMonitor((value) => !value);
-                    addLog(!monitor ? "Studio monitor switched on." : "Studio monitor switched off.");
-                  }}
-                >
-                  Monitor {monitor ? "On" : "Off"}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMicLive((value) => !value);
-                    addLog(!micLive ? "Mic armed." : "Mic muted.");
-                  }}
-                >
-                  Mic {micLive ? "Mute" : "Arm"}
-                </button>
+              <div className="slider-bank">
+                <ControlSlider label="Main" value={volume} setValue={setMainVolume} />
+                <ControlSlider label="Mon" value={monitorVol} setValue={setMonitorVol} />
+                <ControlSlider label="Mic" value={micGain} setValue={setMicGain} />
+                <ControlSlider label="Music" value={musicGain} setValue={setMusicGain} />
+                <ControlSlider label="Tempo" value={tempo} setValue={setTempo} />
+                <ControlSlider label="Bass" value={bass} setValue={setBass} />
+                <ControlSlider label="Mid" value={mid} setValue={setMid} />
+                <ControlSlider label="High" value={high} setValue={setHigh} />
+                <ControlSlider label="Rev" value={reverb} setValue={setReverb} />
+                <ControlSlider label="Delay" value={delay} setValue={setDelay} />
+                <ControlSlider label="Echo" value={echo} setValue={setEcho} />
               </div>
+            </section>
+
+            <Turntable title="DECK B" label="AUTODJ / JINGLES" state={broadcast} />
+          </section>
+
+          <section className="right-pads panel">
+            <PanelHeading left="Studio Meter / Mode Display" right={selectedMode} />
+
+            <div className="mode-display">
+              <h3>{currentDjMode}</h3>
+              <p>All-in-one smart switch controls AutoDJ, SmartDJ, and LiveDJ from the hero page.</p>
+
+              <button type="button" onClick={() => firePad(visiblePads[0] || pads[0])}>
+                Fire First {selectedMode}
+              </button>
             </div>
 
-            <Turntable
-              title="DECK B"
-              mode={deckB}
-              active={autoDj && deckB !== "idle"}
-              label="AUTODJ / JINGLES"
-            />
-          </div>
+            <div className="meter">
+              <PanelHeading left="Studio Meter" right={isLive ? "Moving" : "Idle"} />
 
-          <div className="right-rack">
-            <div className="jingle-panel">
-              <div className="panel-heading">
-                <span>One Click Pads</span>
-                <b>Jingles / Ads / Drops</b>
-              </div>
-
-              <div className="pads">
-                {jingles.map((pad) => (
-                  <button
-                    key={pad.label}
-                    type="button"
-                    onClick={() => triggerPad(pad)}
-                  >
-                    <small>{pad.type}</small>
-                    <strong>{pad.label}</strong>
-                  </button>
-                ))}
+              <div className={isLive ? "meter-bars active" : "meter-bars"}>
+                <i />
+                <i />
+                <i />
+                <i />
+                <i />
+                <i />
+                <i />
+                <i />
+                <i />
+                <i />
               </div>
             </div>
-
-            <div className="meter-panel">
-              <div className="panel-heading">
-                <span>Live Levels</span>
-                <b>Studio Meter</b>
-              </div>
-
-              <div className={isPlaying ? "vu active" : "vu"}>
-                <i />
-                <i />
-                <i />
-                <i />
-                <i />
-                <i />
-                <i />
-                <i />
-                <i />
-                <i />
-                <i />
-                <i />
-              </div>
-
-              <div className="signal-row">
-                <span>Stream</span>
-                <b>{isPlaying ? "Good" : "Idle"}</b>
-              </div>
-              <div className="signal-row">
-                <span>AutoDJ</span>
-                <b>{autoDj ? "Ready" : "Manual"}</b>
-              </div>
-              <div className="signal-row">
-                <span>Requests</span>
-                <b>Open</b>
-              </div>
-            </div>
-          </div>
+          </section>
         </section>
 
-        <section className="bottom-grid">
-          <div className="actions-panel">
-            <div className="panel-heading">
-              <span>Radio Control Buttons</span>
-              <b>Quick Access</b>
-            </div>
+        <footer className="footer-dock panel">
+          <PanelHeading
+            left="Footer Control Dock"
+            right="Blog • News • Weather • Store • Community • Chat • Upload"
+          />
 
-            <div className="action-buttons">
-              {quickActions.map((action) => (
-                <button
-                  key={action}
-                  type="button"
-                  onClick={() => runQuickAction(action)}
-                  className={action === "Emergency Stop" ? "danger" : ""}
-                >
-                  {action}
-                </button>
-              ))}
-            </div>
+          <div className="footer-grid">
+            {footerTools.map((tool) => (
+              <a
+                key={tool.label}
+                href={tool.href}
+                onClick={() => selectTool(tool)}
+                className={`footer-tool ${tool.color}`}
+              >
+                <strong>{tool.label}</strong>
+                <span>{tool.note}</span>
+              </a>
+            ))}
           </div>
-
-          <div className="log-panel">
-            <div className="panel-heading">
-              <span>Control Log</span>
-              <b>Recent Moves</b>
-            </div>
-
-            <div className="logs">
-              {logs.map((log) => (
-                <div key={log.id} className="log-item">
-                  <span>{log.time}</span>
-                  <p>{log.message}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="revenue-panel">
-            <div className="panel-heading">
-              <span>Station Pulse</span>
-              <b>Owner View</b>
-            </div>
-
-            <div className="pulse-list">
-              <div>
-                <span>Listeners Now</span>
-                <strong>{onAir ? "127" : "0"}</strong>
-              </div>
-              <div>
-                <span>Song Requests</span>
-                <strong>18</strong>
-              </div>
-              <div>
-                <span>Ad Slots Today</span>
-                <strong>6</strong>
-              </div>
-              <div>
-                <span>Promo Revenue</span>
-                <strong>JMD $12,500</strong>
-              </div>
-            </div>
-          </div>
-        </section>
+        </footer>
       </section>
 
-      <style jsx>{`
-        * {
-          box-sizing: border-box;
-        }
+      <style jsx global>{`
+        * { box-sizing: border-box; }
+
+        body { margin: 0; }
 
         .control-page {
           min-height: 100vh;
+          padding: 22px;
+          color: #ffe9e9;
           background:
-            radial-gradient(circle at top left, rgba(255, 208, 0, 0.22), transparent 32%),
-            radial-gradient(circle at top right, rgba(255, 0, 0, 0.28), transparent 30%),
-            linear-gradient(135deg, #090000 0%, #160000 38%, #050505 100%);
-          color: #fff7d6;
-          padding: 24px;
-          font-family:
-            Inter,
-            system-ui,
-            -apple-system,
-            BlinkMacSystemFont,
-            "Segoe UI",
-            sans-serif;
+            radial-gradient(circle at top left, rgba(155, 0, 0, 0.35), transparent 28%),
+            radial-gradient(circle at top right, rgba(95, 0, 0, 0.44), transparent 32%),
+            linear-gradient(135deg, #000000 0%, #070000 38%, #160000 68%, #000000 100%);
+          font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
         }
 
         .shell {
-          width: min(1800px, 100%);
+          width: min(1850px, 100%);
           margin: 0 auto;
-          border: 1px solid rgba(255, 213, 0, 0.28);
+          padding: 22px;
           border-radius: 34px;
-          padding: 24px;
           background:
-            linear-gradient(180deg, rgba(255, 255, 255, 0.05), transparent),
-            rgba(12, 0, 0, 0.86);
+            linear-gradient(180deg, rgba(190, 0, 0, 0.12), transparent),
+            rgba(0, 0, 0, 0.94);
+          border: 1px solid rgba(185, 0, 0, 0.72);
           box-shadow:
-            0 0 80px rgba(255, 0, 0, 0.24),
-            inset 0 0 50px rgba(255, 213, 0, 0.04);
+            0 0 100px rgba(120, 0, 0, 0.44),
+            inset 0 0 55px rgba(150, 0, 0, 0.12);
         }
 
         .topbar {
           display: flex;
           justify-content: space-between;
+          gap: 22px;
           align-items: center;
-          gap: 20px;
-          padding: 22px;
+          padding: 20px;
           border-radius: 28px;
           background:
-            linear-gradient(90deg, rgba(255, 0, 0, 0.28), rgba(255, 214, 0, 0.1)),
-            #100000;
-          border: 1px solid rgba(255, 213, 0, 0.25);
+            linear-gradient(90deg, rgba(120, 0, 0, 0.7), rgba(0, 0, 0, 0.9)),
+            #030000;
+          border: 1px solid rgba(190, 0, 0, 0.68);
         }
 
         .eyebrow {
           margin: 0 0 8px;
-          color: #ffd500;
-          font-weight: 900;
+          color: #ff2b2b;
+          font-size: 11px;
+          font-weight: 950;
           letter-spacing: 0.25em;
-          font-size: 12px;
         }
 
         h1 {
           margin: 0;
-          font-size: clamp(34px, 5vw, 74px);
+          color: #ffffff;
+          font-size: clamp(34px, 5vw, 78px);
           line-height: 0.9;
-          color: #fff;
           text-transform: uppercase;
-          text-shadow:
-            0 0 18px rgba(255, 0, 0, 0.9),
-            0 0 36px rgba(255, 213, 0, 0.32);
+          text-shadow: 0 0 16px rgba(255, 0, 0, 0.95), 0 0 40px rgba(120, 0, 0, 0.65);
         }
 
         .subtitle {
-          margin: 14px 0 0;
-          max-width: 860px;
-          color: #ffeeb0;
-          font-size: 16px;
-          line-height: 1.6;
+          margin: 12px 0 0;
+          max-width: 980px;
+          color: #ffc9c9;
+          font-size: 15px;
+          line-height: 1.5;
         }
 
         .brand-badge {
           min-width: 190px;
-          height: 120px;
-          border-radius: 26px;
-          background:
-            radial-gradient(circle, rgba(255, 213, 0, 0.25), transparent 55%),
-            #050505;
-          border: 1px solid rgba(255, 213, 0, 0.5);
+          min-height: 118px;
           display: grid;
           place-items: center;
           text-align: center;
-          box-shadow: 0 0 34px rgba(255, 213, 0, 0.2);
+          border-radius: 24px;
+          background: radial-gradient(circle, rgba(190, 0, 0, 0.34), transparent 58%), #000;
+          border: 1px solid rgba(255, 0, 0, 0.6);
+          box-shadow: 0 0 34px rgba(160, 0, 0, 0.4);
         }
 
-        .crown {
-          color: #ffd500;
-          font-size: 30px;
-          line-height: 1;
-        }
+        .brand-badge .crown { color: #ff2b2b; font-size: 26px; line-height: 1; }
+        .brand-badge strong { color: #ff1f1f; font-size: 40px; line-height: 1; text-shadow: 0 0 15px rgba(255, 0, 0, 0.9); }
+        .brand-badge small { color: #ffd7d7; font-size: 11px; font-weight: 950; letter-spacing: 0.12em; }
 
-        .brand-badge strong {
-          display: block;
-          font-size: 36px;
-          color: #ff1f1f;
-          text-shadow: 0 0 12px rgba(255, 0, 0, 0.85);
-        }
-
-        .brand-badge span {
-          display: block;
-          color: #ffd500;
-          font-size: 12px;
-          text-transform: uppercase;
-          letter-spacing: 0.16em;
-        }
-
-        .status-grid {
+        .status-row {
           display: grid;
-          grid-template-columns: repeat(4, minmax(0, 1fr));
-          gap: 14px;
-          margin: 18px 0;
+          grid-template-columns: repeat(6, 1fr);
+          gap: 12px;
+          margin: 16px 0;
         }
 
         .status-card {
-          min-height: 105px;
-          border-radius: 24px;
-          background:
-            linear-gradient(145deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.01)),
-            #100;
-          border: 1px solid rgba(255, 213, 0, 0.22);
-          padding: 18px;
           position: relative;
+          min-height: 88px;
+          padding: 15px;
+          border-radius: 21px;
+          background: linear-gradient(145deg, rgba(170, 0, 0, 0.15), rgba(255, 255, 255, 0.018)), #030000;
+          border: 1px solid rgba(180, 0, 0, 0.48);
           overflow: hidden;
         }
 
-        .status-card.hot {
-          border-color: rgba(255, 0, 0, 0.65);
-          box-shadow: 0 0 28px rgba(255, 0, 0, 0.18);
+        .status-light {
+          position: absolute;
+          top: 15px;
+          left: 15px;
+          width: 16px;
+          height: 16px;
+          border-radius: 50%;
+          background: currentColor;
+          box-shadow: 0 0 18px currentColor;
         }
+
+        .status-light.green { color: #00ff76; }
+        .status-light.red { color: #ff1b1b; }
+        .status-light.yellow { color: #ff3b3b; }
+        .status-light.orange { color: #ff4f00; }
 
         .status-card small {
           display: block;
-          margin-left: 34px;
-          color: #ffdb57;
-          font-weight: 900;
-          letter-spacing: 0.18em;
+          margin-left: 26px;
+          color: #ff6b6b;
+          font-size: 10px;
+          font-weight: 950;
+          letter-spacing: 0.14em;
+          text-transform: uppercase;
         }
 
         .status-card strong {
           display: block;
-          margin-top: 12px;
-          font-size: 31px;
+          margin-top: 13px;
           color: #fff;
+          font-size: 18px;
+          text-transform: uppercase;
         }
 
-        .light {
-          width: 22px;
-          height: 22px;
-          border-radius: 50%;
-          position: absolute;
-          top: 18px;
-          left: 18px;
-          box-shadow: 0 0 18px currentColor;
-        }
-
-        .green {
-          color: #00ff76;
-          background: #00ff76;
-        }
-
-        .red {
-          color: #ff1b1b;
-          background: #ff1b1b;
-        }
-
-        .yellow {
-          color: #ffd500;
-          background: #ffd500;
-        }
-
-        .studio-board {
-          display: grid;
-          grid-template-columns: 1fr 2.1fr 1fr;
-          gap: 18px;
-          align-items: stretch;
-        }
-
-        .left-rack,
-        .right-rack {
-          display: grid;
-          gap: 18px;
-        }
-
-        .screen,
-        .camera-box,
-        .jingle-panel,
-        .meter-panel,
-        .actions-panel,
-        .log-panel,
-        .revenue-panel {
-          border-radius: 28px;
-          background:
-            linear-gradient(145deg, rgba(255, 213, 0, 0.07), rgba(255, 0, 0, 0.06)),
-            #080000;
-          border: 1px solid rgba(255, 213, 0, 0.24);
-          box-shadow: inset 0 0 30px rgba(255, 255, 255, 0.035);
-        }
-
-        .screen {
-          min-height: 360px;
+        .panel,
+        .central-log {
+          border-radius: 26px;
+          background: linear-gradient(145deg, rgba(140, 0, 0, 0.18), rgba(0, 0, 0, 0.8)), #030000;
+          border: 1px solid rgba(180, 0, 0, 0.48);
+          box-shadow: inset 0 0 30px rgba(255, 0, 0, 0.06);
           overflow: hidden;
         }
 
-        .screen-top,
-        .camera-header,
         .panel-heading {
           display: flex;
           justify-content: space-between;
           align-items: center;
           gap: 12px;
-          padding: 16px 18px;
-          border-bottom: 1px solid rgba(255, 213, 0, 0.16);
+          padding: 13px 15px;
+          border-bottom: 1px solid rgba(180, 0, 0, 0.42);
         }
 
-        .screen-top span,
-        .camera-header span,
         .panel-heading span {
-          color: #ffd500;
-          font-size: 12px;
-          font-weight: 900;
-          letter-spacing: 0.17em;
+          color: #ff3b3b;
+          font-size: 11px;
+          font-weight: 950;
+          letter-spacing: 0.16em;
           text-transform: uppercase;
         }
 
-        .screen-top b,
-        .camera-header b,
         .panel-heading b {
           color: #fff;
-          font-size: 12px;
+          font-size: 10px;
+          text-transform: uppercase;
+          text-align: right;
+        }
+
+        .central-log { margin-bottom: 16px; }
+
+        .log-row {
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 10px;
+          padding: 12px;
+        }
+
+        .log-card {
+          display: grid;
+          grid-template-columns: 54px 1fr;
+          gap: 8px;
+          align-items: center;
+          min-height: 48px;
+          padding: 8px;
+          border-radius: 14px;
+          background: rgba(255, 0, 0, 0.055);
+          border: 1px solid rgba(180, 0, 0, 0.26);
+        }
+
+        .log-card span { color: #ff3b3b; font-size: 11px; font-weight: 950; }
+        .log-card p { margin: 0; color: #ffd7d7; font-size: 12px; line-height: 1.3; }
+
+        .now-playing-bar {
+          display: grid;
+          grid-template-columns: 1.3fr 0.7fr 0.9fr 220px;
+          gap: 12px;
+          align-items: center;
+          margin-bottom: 16px;
+          padding: 14px;
+          border-radius: 24px;
+          background: linear-gradient(90deg, rgba(180, 0, 0, 0.42), rgba(0, 0, 0, 0.92)), #030000;
+          border: 1px solid rgba(190, 0, 0, 0.6);
+          box-shadow: 0 0 38px rgba(160, 0, 0, 0.22);
+        }
+
+        .now-playing-bar div {
+          min-height: 58px;
+          display: grid;
+          align-content: center;
+          padding: 10px 14px;
+          border-radius: 18px;
+          background: rgba(0, 0, 0, 0.46);
+          border: 1px solid rgba(180, 0, 0, 0.28);
+        }
+
+        .now-playing-bar span {
+          color: #ff4b4b;
+          font-size: 10px;
+          font-weight: 950;
+          letter-spacing: 0.18em;
           text-transform: uppercase;
         }
 
-        .screen-body {
-          padding: 28px 20px;
-          min-height: 240px;
-          background:
-            repeating-linear-gradient(
-              0deg,
-              rgba(255, 213, 0, 0.035),
-              rgba(255, 213, 0, 0.035) 1px,
-              transparent 1px,
-              transparent 8px
-            );
+        .now-playing-bar strong {
+          margin-top: 4px;
+          color: #fff;
+          font-size: 15px;
+          text-transform: uppercase;
         }
 
-        .now-label {
+        .now-playing-bar button {
+          min-height: 58px;
+          border: 0;
+          border-radius: 18px;
+          color: #fff;
+          background: linear-gradient(180deg, #d90000, #580000);
+          font-weight: 950;
+          text-transform: uppercase;
+          cursor: pointer;
+          box-shadow: 0 6px 0 #050000;
+        }
+
+        .main-studio {
+          display: grid;
+          grid-template-columns: 0.98fr 2.28fr 0.9fr;
+          gap: 16px;
+          align-items: start;
+        }
+
+        .screen {
+          min-height: 245px;
+          padding: 24px 18px;
+          background: repeating-linear-gradient(0deg, rgba(255, 0, 0, 0.04), rgba(255, 0, 0, 0.04) 1px, transparent 1px, transparent 8px);
+        }
+
+        .screen-kicker {
           margin: 0 0 12px;
           color: #ff3434;
-          font-weight: 900;
+          font-size: 11px;
+          font-weight: 950;
           letter-spacing: 0.18em;
-          font-size: 12px;
         }
 
-        .screen-body h2 {
+        .screen h2 {
           margin: 0;
-          font-size: clamp(24px, 3vw, 44px);
-          line-height: 1;
           color: #fff;
+          font-size: clamp(24px, 2.6vw, 43px);
+          line-height: 1;
+          text-transform: uppercase;
         }
 
-        .screen-body p:last-child {
-          color: #ffeeb0;
-          line-height: 1.5;
-          font-size: 16px;
+        .screen p { color: #ffd7d7; font-size: 15px; line-height: 1.5; }
+
+        .lamp-grid {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 8px;
+          margin-top: 18px;
         }
 
-        .ticker {
-          overflow: hidden;
-          border-top: 1px solid rgba(255, 213, 0, 0.18);
-          padding: 14px 0;
-          color: #ffd500;
-          white-space: nowrap;
-        }
-
-        .ticker span {
-          display: inline-block;
-          min-width: 100%;
-          animation: ticker 16s linear infinite;
-          font-weight: 900;
-          letter-spacing: 0.12em;
-        }
-
-        .camera-box {
-          min-height: 260px;
-          overflow: hidden;
-        }
-
-        .camera-visual {
-          min-height: 198px;
+        .lamp {
           display: grid;
           place-items: center;
-          text-align: center;
-          background:
-            radial-gradient(circle, rgba(255, 0, 0, 0.28), transparent 55%),
-            linear-gradient(135deg, #111, #000);
-        }
-
-        .camera-visual p {
-          margin: 0;
-          color: #ffeeb0;
-        }
-
-        .equalizer {
-          height: 88px;
-          display: flex;
-          align-items: end;
-          gap: 7px;
-        }
-
-        .equalizer i {
-          width: 12px;
+          min-height: 37px;
           border-radius: 999px;
-          background: linear-gradient(#ffd500, #ff1b1b);
-          animation: bounce 0.9s infinite ease-in-out;
-          box-shadow: 0 0 16px rgba(255, 213, 0, 0.35);
+          color: #777;
+          background: #080808;
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          font-size: 10px;
+          font-weight: 950;
         }
 
-        .equalizer i:nth-child(1) {
-          height: 35px;
-        }
-        .equalizer i:nth-child(2) {
-          height: 68px;
-          animation-delay: 0.1s;
-        }
-        .equalizer i:nth-child(3) {
-          height: 42px;
-          animation-delay: 0.2s;
-        }
-        .equalizer i:nth-child(4) {
-          height: 78px;
-          animation-delay: 0.3s;
-        }
-        .equalizer i:nth-child(5) {
-          height: 55px;
-          animation-delay: 0.4s;
-        }
-        .equalizer i:nth-child(6) {
-          height: 88px;
-          animation-delay: 0.5s;
-        }
-        .equalizer i:nth-child(7) {
-          height: 48px;
-          animation-delay: 0.6s;
-        }
-        .equalizer i:nth-child(8) {
-          height: 70px;
-          animation-delay: 0.7s;
-        }
+        .lamp.on.orange { background: #ff4f00; color: #fff; box-shadow: 0 0 15px rgba(255, 79, 0, 0.55); }
+        .lamp.on.green { background: #00ff76; color: #00170b; box-shadow: 0 0 15px rgba(0, 255, 118, 0.55); }
+        .lamp.on.red { background: #a40000; color: #fff; box-shadow: 0 0 15px rgba(255, 0, 0, 0.55); }
+        .lamp.on.yellow { background: #ff1b1b; color: #fff; box-shadow: 0 0 15px rgba(255, 27, 27, 0.55); }
 
-        .deck-area {
-          border-radius: 36px;
-          padding: 22px;
-          background:
-            radial-gradient(circle at center, rgba(255, 213, 0, 0.12), transparent 55%),
-            linear-gradient(160deg, #260000, #050505 52%, #150000);
-          border: 1px solid rgba(255, 213, 0, 0.28);
+        .hero-smart-area { border-top: 1px solid rgba(180, 0, 0, 0.4); }
+
+        .smart-mode-switch {
           display: grid;
-          grid-template-columns: 1fr 340px 1fr;
-          gap: 18px;
-          align-items: center;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 8px;
+          padding: 12px 12px 0;
+        }
+
+        .smart-mode-switch button {
+          min-height: 62px;
+          border: 0;
+          border-radius: 16px;
+          background: linear-gradient(180deg, #111, #000);
+          color: #ff7a7a;
+          border: 1px solid rgba(180, 0, 0, 0.4);
+          cursor: pointer;
+          text-transform: uppercase;
+          font-weight: 950;
+          box-shadow: 0 5px 0 rgba(0, 0, 0, 0.45);
+        }
+
+        .smart-mode-switch button span { display: block; font-size: 13px; }
+        .smart-mode-switch button b { display: block; margin-top: 4px; font-size: 10px; color: #ffd7d7; }
+
+        .smart-mode-switch button.active.auto {
+          background: linear-gradient(180deg, #ff4f00, #5b1700);
+          color: #fff;
+          box-shadow: 0 0 22px rgba(255, 79, 0, 0.35), 0 5px 0 #050000;
+        }
+
+        .smart-mode-switch button.active.smart {
+          background: linear-gradient(180deg, #ff1b1b, #5b0000);
+          color: #fff;
+          box-shadow: 0 0 22px rgba(255, 0, 0, 0.42), 0 5px 0 #050000;
+        }
+
+        .smart-mode-switch button.active.live {
+          background: linear-gradient(180deg, #00ff76, #004b23);
+          color: #00170b;
+          box-shadow: 0 0 22px rgba(0, 255, 118, 0.32), 0 5px 0 #050000;
+        }
+
+        .display-switches {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 8px;
+          padding: 12px 12px 0;
+        }
+
+        .display-btn {
+          min-height: 44px;
+          border: 0;
+          border-radius: 14px;
+          cursor: pointer;
+          font-weight: 950;
+          text-transform: uppercase;
+          box-shadow: 0 5px 0 rgba(0, 0, 0, 0.45);
+        }
+
+        .display-btn.blood { background: linear-gradient(180deg, #d90000, #580000); color: #fff; }
+        .display-btn.dark { background: linear-gradient(180deg, #151515, #000); color: #ff3b3b; border: 1px solid rgba(190, 0, 0, 0.55); }
+
+        .hero-tabs {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 7px;
+          padding: 12px;
+        }
+
+        .hero-tabs button {
+          min-height: 35px;
+          border-radius: 12px;
+          background: #090909;
+          color: #ff4b4b;
+          border: 1px solid rgba(180, 0, 0, 0.38);
+          font-size: 10px;
+          cursor: pointer;
+          font-weight: 950;
+          text-transform: uppercase;
+        }
+
+        .hero-tabs button.active {
+          background: #a40000;
+          color: #fff;
+          box-shadow: 0 0 18px rgba(255, 0, 0, 0.25);
+        }
+
+        .hero-pad-grid {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 8px;
+          padding: 0 12px 12px;
+          max-height: 350px;
+          overflow: auto;
+        }
+
+        .turntable-stage {
+          display: grid;
+          grid-template-columns: 1fr 390px 1fr;
+          gap: 14px;
+          align-items: stretch;
+          padding: 18px;
+          border-radius: 34px;
+          background: radial-gradient(circle at center, rgba(150, 0, 0, 0.28), transparent 55%), linear-gradient(160deg, #100000, #000 52%, #120000);
+          border: 1px solid rgba(190, 0, 0, 0.58);
         }
 
         .deck {
-          min-height: 530px;
-          border-radius: 34px;
-          padding: 20px;
-          background:
-            radial-gradient(circle at 50% 42%, rgba(255, 0, 0, 0.18), transparent 55%),
-            #090909;
-          border: 1px solid rgba(255, 213, 0, 0.28);
           position: relative;
+          min-height: 690px;
+          padding: 18px;
           overflow: hidden;
+          border-radius: 32px;
+          background: radial-gradient(circle at 50% 42%, rgba(160, 0, 0, 0.24), transparent 55%), linear-gradient(145deg, #090909, #000);
+          border: 1px solid rgba(180, 0, 0, 0.48);
+          box-shadow: inset 0 0 30px rgba(255, 0, 0, 0.045), 0 18px 30px rgba(0, 0, 0, 0.45);
         }
 
-        .deck-head {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 22px;
-        }
-
-        .deck-head strong {
-          font-size: 22px;
-          color: #ffd500;
-        }
-
-        .deck-head span {
-          font-size: 12px;
-          color: #fff;
-          border: 1px solid rgba(255, 213, 0, 0.25);
-          border-radius: 999px;
-          padding: 8px 12px;
-        }
+        .deck-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
+        .deck-head strong { color: #ff3b3b; font-size: 22px; }
+        .deck-head span { padding: 7px 11px; border-radius: 999px; color: #fff; font-size: 11px; border: 1px solid rgba(180, 0, 0, 0.55); }
 
         .platter-wrap {
           position: relative;
-          width: min(330px, 100%);
+          width: min(360px, 100%);
           aspect-ratio: 1 / 1;
-          margin: 34px auto 20px;
           display: grid;
           place-items: center;
+          margin: 44px auto 18px;
         }
 
         .platter {
@@ -891,518 +1118,387 @@ export default function OwnerControlPanelPage() {
           height: 100%;
           border-radius: 50%;
           background:
-            radial-gradient(circle, #ffd500 0 5%, #101010 6% 13%, #252525 14% 16%, #050505 17% 24%, #222 25% 27%, #050505 28% 44%, #222 45% 47%, #050505 48% 61%, #262626 62% 64%, #050505 65%),
-            conic-gradient(from 40deg, rgba(255, 0, 0, 0.85), transparent, rgba(255, 213, 0, 0.65), transparent, rgba(255, 0, 0, 0.85));
-          border: 12px solid #171717;
-          box-shadow:
-            0 0 0 4px rgba(255, 213, 0, 0.12),
-            0 18px 35px rgba(0, 0, 0, 0.55),
-            inset 0 0 45px rgba(0, 0, 0, 0.9);
+            radial-gradient(circle, #ff1b1b 0 4%, #090909 5% 10%, #222 11% 12%, #050505 13% 22%, #202020 23% 24%, #050505 25% 35%, #232323 36% 37%, #050505 38% 48%, #202020 49% 50%, #050505 51% 62%, #242424 63% 64%, #050505 65%),
+            repeating-radial-gradient(circle, rgba(255, 255, 255, 0.08) 0 1px, transparent 1px 7px),
+            conic-gradient(from 40deg, rgba(255, 0, 0, 0.85), transparent, rgba(120, 0, 0, 0.75), transparent, rgba(255, 0, 0, 0.85));
+          border: 14px solid #111;
+          box-shadow: 0 0 0 4px rgba(180, 0, 0, 0.2), 0 18px 35px rgba(0, 0, 0, 0.65), inset 0 0 45px rgba(0, 0, 0, 0.9);
         }
 
-        .platter.spin {
-          animation: spin 1.3s linear infinite;
+        .record-label {
+          position: absolute;
+          width: 72px;
+          height: 72px;
+          border-radius: 50%;
+          background: radial-gradient(circle, #fff, #ff1b1b 58%, #420000);
+          display: grid;
+          place-items: center;
+          color: #160000;
+          font-weight: 950;
+          box-shadow: 0 0 20px rgba(255, 0, 0, 0.35);
         }
 
-        .deck.active .platter.spin {
-          animation-duration: 0.7s;
-        }
+        .deck.live .platter,
+        .deck.live .record-label { animation: spin 0.9s linear infinite; }
+
+        .deck.cue .platter,
+        .deck.cue .record-label { animation: spin 2.6s linear infinite; }
 
         .needle {
-          width: 42%;
-          height: 9px;
-          background: linear-gradient(90deg, #ffd500, #ff1b1b);
           position: absolute;
-          top: 25%;
-          right: 0;
-          transform: rotate(28deg);
-          transform-origin: right center;
+          top: 20%;
+          right: -2%;
+          width: 44%;
+          height: 9px;
           border-radius: 999px;
-          box-shadow: 0 0 16px rgba(255, 213, 0, 0.45);
+          transform: rotate(27deg);
+          transform-origin: right center;
+          background: linear-gradient(90deg, #ff1b1b, #650000);
+          box-shadow: 0 0 16px rgba(255, 0, 0, 0.45);
         }
 
         .needle::after {
           content: "";
-          width: 42px;
-          height: 42px;
-          border-radius: 50%;
-          background: #ffd500;
           position: absolute;
           right: -16px;
           top: -17px;
-          box-shadow: 0 0 18px rgba(255, 213, 0, 0.55);
+          width: 42px;
+          height: 42px;
+          border-radius: 50%;
+          background: #ff1b1b;
+          box-shadow: 0 0 18px rgba(255, 0, 0, 0.55);
         }
 
-        .deck-label {
-          text-align: center;
+        .deck-label { text-align: center; }
+        .deck-label b { display: block; color: #fff; font-size: 19px; }
+        .deck-label span { display: block; margin-top: 7px; color: #ff8f8f; font-size: 11px; font-weight: 950; letter-spacing: 0.15em; text-transform: uppercase; }
+
+        .deck-wheel-sliders {
+          display: grid;
+          gap: 8px;
+          margin: 18px 0 14px;
+          padding: 12px;
+          border-radius: 18px;
+          background: rgba(255, 0, 0, 0.045);
+          border: 1px solid rgba(180, 0, 0, 0.24);
         }
 
-        .deck-label b {
-          display: block;
-          color: #fff;
-          font-size: 20px;
+        .deck-wheel-slider {
+          display: grid;
+          grid-template-columns: 58px 1fr 36px;
+          gap: 8px;
+          align-items: center;
         }
 
-        .deck-label span {
-          display: block;
-          margin-top: 6px;
-          color: #ffdb57;
-          font-size: 12px;
-          letter-spacing: 0.15em;
-          text-transform: uppercase;
-        }
+        .deck-wheel-slider label { color: #ff6868; font-size: 10px; font-weight: 950; text-transform: uppercase; }
+        .deck-wheel-slider input { width: 100%; accent-color: #ff1b1b; }
+        .deck-wheel-slider span { color: #fff; font-size: 10px; font-weight: 950; text-align: right; }
 
         .deck-buttons {
           display: grid;
           grid-template-columns: repeat(3, 1fr);
-          gap: 10px;
-          margin-top: 28px;
+          gap: 8px;
+          margin-top: 16px;
         }
 
+        button { font-family: inherit; }
+
         .deck-buttons button,
-        .mini-switches button,
-        .action-buttons button,
-        .pads button {
-          border: 0;
+        .btn,
+        .mode-buttons button,
+        .pad,
+        .main-play,
+        .footer-tool,
+        .display-btn {
           cursor: pointer;
-          font-weight: 900;
+          font-weight: 950;
           text-transform: uppercase;
-          transition:
-            transform 0.2s ease,
-            box-shadow 0.2s ease,
-            background 0.2s ease;
+          transition: transform 0.2s ease, filter 0.2s ease, box-shadow 0.2s ease;
         }
 
         .deck-buttons button {
-          min-height: 56px;
-          border-radius: 16px;
-          color: #160000;
-          background: linear-gradient(180deg, #ffd500, #ffae00);
-          box-shadow: 0 8px 0 #6b1c00;
+          min-height: 42px;
+          border: 0;
+          border-radius: 14px;
+          color: #fff;
+          background: linear-gradient(180deg, #b00000, #3b0000);
+          box-shadow: 0 6px 0 #050000;
+          font-size: 11px;
         }
 
-        .deck-buttons button:hover,
-        .mini-switches button:hover,
-        .action-buttons button:hover,
-        .pads button:hover,
-        .main-power:hover,
-        .auto-switch:hover {
-          transform: translateY(-2px);
-        }
-
-        .mixer {
-          min-height: 620px;
-          border-radius: 30px;
-          background:
-            linear-gradient(180deg, rgba(255, 213, 0, 0.08), transparent),
-            #070707;
-          border: 1px solid rgba(255, 213, 0, 0.28);
-          padding: 18px;
+        .broadcast-center {
+          min-height: 690px;
           display: flex;
           flex-direction: column;
-          gap: 14px;
+          gap: 10px;
+          padding: 13px;
+          border-radius: 28px;
+          background: linear-gradient(180deg, rgba(120, 0, 0, 0.18), transparent), #020202;
+          border: 1px solid rgba(180, 0, 0, 0.52);
         }
 
-        .main-power,
-        .auto-switch {
+        .cam-box {
+          border-radius: 20px;
+          overflow: hidden;
+          background: #020000;
+          border: 1px solid rgba(180, 0, 0, 0.42);
+        }
+
+        .cam-view {
+          min-height: 165px;
+          display: grid;
+          place-items: center;
+          text-align: center;
+          padding: 14px;
+          background: radial-gradient(circle, rgba(180, 0, 0, 0.32), transparent 60%), linear-gradient(135deg, #151515, #000);
+        }
+
+        .cam-view p { margin: 6px 0 0; color: #ffd7d7; font-size: 13px; }
+
+        .cam-bars,
+        .meter-bars {
+          display: flex;
+          align-items: end;
+          gap: 6px;
+        }
+
+        .cam-bars { height: 76px; }
+
+        .cam-bars i {
+          width: 11px;
+          height: 26px;
+          border-radius: 999px;
+          background: linear-gradient(#ff5a5a, #6f0000);
+        }
+
+        .cam-bars.active i,
+        .meter-bars.active i { animation: meter 0.7s infinite ease-in-out; }
+
+        .main-play {
+          min-height: 72px;
           border: 0;
-          border-radius: 24px;
-          cursor: pointer;
-          min-height: 94px;
+          border-radius: 20px;
           color: #fff;
-          background: linear-gradient(180deg, #3a0000, #160000);
-          border: 1px solid rgba(255, 213, 0, 0.26);
-          box-shadow: inset 0 0 20px rgba(255, 0, 0, 0.14);
+          background: linear-gradient(180deg, #b00000, #3a0000);
+          box-shadow: 0 7px 0 #050000, 0 0 28px rgba(180, 0, 0, 0.3);
         }
 
-        .main-power.active {
-          background: linear-gradient(180deg, #ff1b1b, #7a0000);
-          box-shadow:
-            0 0 30px rgba(255, 0, 0, 0.45),
-            inset 0 0 18px rgba(255, 255, 255, 0.12);
+        .main-play.active {
+          background: linear-gradient(180deg, #ff1b1b, #650000);
+          box-shadow: 0 7px 0 #050000, 0 0 35px rgba(255, 0, 0, 0.45);
         }
 
-        .auto-switch.active {
-          background: linear-gradient(180deg, #ffd500, #b86d00);
-          color: #140000;
-          box-shadow: 0 0 28px rgba(255, 213, 0, 0.3);
+        .main-play span { display: block; font-size: 11px; letter-spacing: 0.16em; }
+        .main-play b { display: block; margin-top: 3px; font-size: 25px; }
+
+        .broadcast-buttons,
+        .mode-buttons {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 7px;
         }
 
-        .main-power span,
-        .auto-switch span {
-          display: block;
-          font-size: 13px;
-          letter-spacing: 0.16em;
+        .btn {
+          min-height: 44px;
+          border: 0;
+          border-radius: 14px;
+          font-size: 10px;
+          box-shadow: 0 5px 0 rgba(0, 0, 0, 0.4);
         }
 
-        .main-power b,
-        .auto-switch b {
-          display: block;
-          font-size: 28px;
-          margin-top: 4px;
+        .btn.blood { background: #9b0000; color: #fff; }
+
+        .mode-buttons button {
+          min-height: 36px;
+          border-radius: 12px;
+          background: #080808;
+          color: #ff4b4b;
+          border: 1px solid rgba(180, 0, 0, 0.38);
+          font-size: 10px;
         }
+
+        .crossfader {
+          display: grid;
+          grid-template-columns: 58px 1fr 58px;
+          align-items: center;
+          gap: 8px;
+          padding: 11px;
+          border-radius: 18px;
+          background: #070000;
+          border: 1px solid rgba(180, 0, 0, 0.36);
+        }
+
+        .crossfader span {
+          color: #ff4b4b;
+          font-size: 10px;
+          font-weight: 950;
+          text-transform: uppercase;
+          text-align: center;
+        }
+
+        .crossfader input { width: 100%; accent-color: #ff1b1b; }
 
         .slider-bank {
           display: grid;
-          grid-template-columns: repeat(5, 1fr);
-          gap: 8px;
-          min-height: 285px;
-          padding: 14px;
-          border-radius: 22px;
-          background: rgba(255, 255, 255, 0.035);
-          border: 1px solid rgba(255, 213, 0, 0.14);
+          grid-template-columns: repeat(11, minmax(42px, 1fr));
+          gap: 5px;
+          min-height: 210px;
+          padding: 7px;
+          overflow-x: auto;
+          border-radius: 18px;
+          background: rgba(255, 0, 0, 0.035);
+          border: 1px solid rgba(180, 0, 0, 0.18);
         }
 
         .control-slider {
           display: grid;
           justify-items: center;
-          gap: 10px;
+          gap: 5px;
+          padding: 6px 3px;
+          border-radius: 13px;
+          background: rgba(0, 0, 0, 0.56);
+          border: 1px solid rgba(180, 0, 0, 0.18);
         }
 
         .control-slider label {
-          color: #ffd500;
-          font-size: 11px;
-          font-weight: 900;
+          color: #ff4b4b;
+          font-size: 8px;
+          font-weight: 950;
           text-transform: uppercase;
+          text-align: center;
         }
 
         .control-slider input {
           writing-mode: bt-lr;
           -webkit-appearance: slider-vertical;
-          width: 35px;
-          height: 190px;
-          accent-color: #ffd500;
-        }
-
-        .control-slider strong {
-          color: #fff;
-          font-size: 12px;
-        }
-
-        .crossfader {
-          display: grid;
-          grid-template-columns: 65px 1fr 65px;
-          align-items: center;
-          gap: 10px;
-          padding: 16px;
-          border-radius: 20px;
-          background: #120000;
-          border: 1px solid rgba(255, 213, 0, 0.18);
-        }
-
-        .crossfader div {
-          text-align: center;
-        }
-
-        .crossfader span {
-          display: block;
-          color: #ffd500;
-          font-size: 11px;
-          text-transform: uppercase;
-          font-weight: 900;
-        }
-
-        .crossfader b {
-          color: #fff;
-          font-size: 12px;
-        }
-
-        .crossfader input {
-          width: 100%;
+          width: 25px;
+          height: 132px;
           accent-color: #ff1b1b;
         }
 
-        .mini-switches {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 10px;
-        }
+        .control-slider strong { color: #fff; font-size: 9px; }
 
-        .mini-switches button {
-          min-height: 54px;
+        .pad {
+          min-height: 56px;
+          border: 0;
           border-radius: 16px;
-          background: #ffd500;
-          color: #160000;
+          box-shadow: 0 5px 0 rgba(0, 0, 0, 0.42);
         }
 
-        .pads {
-          padding: 16px;
-          display: grid;
-          grid-template-columns: repeat(2, 1fr);
-          gap: 10px;
-        }
+        .pad small { display: block; font-size: 8px; letter-spacing: 0.14em; }
+        .pad strong { display: block; margin-top: 4px; font-size: 12px; }
 
-        .pads button {
-          min-height: 78px;
-          border-radius: 18px;
-          background:
-            linear-gradient(180deg, rgba(255, 213, 0, 0.95), rgba(255, 174, 0, 0.95));
-          color: #160000;
-          box-shadow: 0 7px 0 #681900;
-        }
+        .yellow { background: #ff4b4b; color: #fff; }
+        .red { background: #9b0000; color: #fff; }
+        .green { background: #00ff76; color: #00170b; }
+        .blue { background: #00d1ff; color: #001014; }
+        .purple { background: #7d1fff; color: #fff; }
+        .orange { background: #ff4f00; color: #fff; }
 
-        .pads button small {
-          display: block;
-          font-size: 10px;
-          letter-spacing: 0.16em;
-        }
+        .mode-display { padding: 18px; }
+        .mode-display h3 { margin: 0; color: #ff3b3b; font-size: 34px; line-height: 1; }
+        .mode-display p { color: #ffd7d7; line-height: 1.45; }
 
-        .pads button strong {
-          display: block;
-          margin-top: 5px;
-          font-size: 15px;
-        }
-
-        .meter-panel {
-          padding-bottom: 16px;
-        }
-
-        .vu {
-          padding: 18px;
-          min-height: 150px;
-          display: flex;
-          align-items: end;
-          gap: 7px;
-        }
-
-        .vu i {
-          flex: 1;
-          min-width: 8px;
-          border-radius: 999px 999px 0 0;
-          background: linear-gradient(#ff1b1b, #ffd500);
-          height: 20%;
-          opacity: 0.4;
-        }
-
-        .vu.active i {
-          animation: meter 0.8s infinite ease-in-out;
-          opacity: 1;
-        }
-
-        .vu i:nth-child(2) {
-          animation-delay: 0.1s;
-        }
-        .vu i:nth-child(3) {
-          animation-delay: 0.2s;
-        }
-        .vu i:nth-child(4) {
-          animation-delay: 0.3s;
-        }
-        .vu i:nth-child(5) {
-          animation-delay: 0.4s;
-        }
-        .vu i:nth-child(6) {
-          animation-delay: 0.5s;
-        }
-        .vu i:nth-child(7) {
-          animation-delay: 0.15s;
-        }
-        .vu i:nth-child(8) {
-          animation-delay: 0.25s;
-        }
-        .vu i:nth-child(9) {
-          animation-delay: 0.35s;
-        }
-        .vu i:nth-child(10) {
-          animation-delay: 0.45s;
-        }
-        .vu i:nth-child(11) {
-          animation-delay: 0.55s;
-        }
-        .vu i:nth-child(12) {
-          animation-delay: 0.65s;
-        }
-
-        .signal-row {
-          display: flex;
-          justify-content: space-between;
-          margin: 8px 16px;
-          padding: 12px 0;
-          border-top: 1px solid rgba(255, 213, 0, 0.12);
-        }
-
-        .signal-row span {
-          color: #ffeeb0;
-        }
-
-        .signal-row b {
-          color: #ffd500;
-        }
-
-        .bottom-grid {
-          display: grid;
-          grid-template-columns: 1.45fr 1fr 0.9fr;
-          gap: 18px;
-          margin-top: 18px;
-        }
-
-        .action-buttons {
-          padding: 16px;
-          display: grid;
-          grid-template-columns: repeat(4, 1fr);
-          gap: 10px;
-        }
-
-        .action-buttons button {
-          min-height: 58px;
-          border-radius: 16px;
-          background: #ffd500;
-          color: #160000;
-          border: 1px solid rgba(255, 255, 255, 0.16);
-        }
-
-        .action-buttons button.danger {
-          background: #ff1b1b;
-          color: #fff;
-          box-shadow: 0 0 18px rgba(255, 0, 0, 0.34);
-        }
-
-        .logs {
-          padding: 16px;
-          display: grid;
-          gap: 10px;
-          max-height: 260px;
-          overflow: auto;
-        }
-
-        .log-item {
-          display: grid;
-          grid-template-columns: 64px 1fr;
-          gap: 10px;
-          align-items: start;
-          padding: 10px;
+        .mode-display button {
+          width: 100%;
+          min-height: 46px;
+          border: 0;
           border-radius: 14px;
-          background: rgba(255, 255, 255, 0.035);
-          border: 1px solid rgba(255, 213, 0, 0.12);
+          background: linear-gradient(180deg, #b00000, #3b0000);
+          color: #fff;
+          font-weight: 950;
+          text-transform: uppercase;
+          cursor: pointer;
         }
 
-        .log-item span {
-          color: #ffd500;
-          font-size: 12px;
-          font-weight: 900;
+        .meter { border-top: 1px solid rgba(180, 0, 0, 0.35); }
+        .meter-bars { height: 120px; padding: 14px; }
+
+        .meter-bars i {
+          flex: 1;
+          min-width: 7px;
+          height: 22%;
+          border-radius: 999px 999px 0 0;
+          background: linear-gradient(#ff1b1b, #570000);
+          opacity: 0.35;
         }
 
-        .log-item p {
-          margin: 0;
-          color: #ffeeb0;
-          font-size: 13px;
-          line-height: 1.4;
-        }
+        .meter-bars.active i { opacity: 1; }
 
-        .pulse-list {
-          padding: 16px;
+        .footer-dock { margin-top: 16px; }
+
+        .footer-grid {
           display: grid;
-          gap: 10px;
+          grid-template-columns: repeat(10, 1fr);
+          gap: 9px;
+          padding: 13px;
         }
 
-        .pulse-list div {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: 14px;
+        .footer-tool {
+          min-height: 64px;
+          border: 0;
           border-radius: 16px;
-          background: rgba(255, 255, 255, 0.04);
-          border: 1px solid rgba(255, 213, 0, 0.12);
+          display: grid;
+          place-items: center;
+          text-align: center;
+          text-decoration: none;
+          box-shadow: 0 5px 0 rgba(0, 0, 0, 0.45);
         }
 
-        .pulse-list span {
-          color: #ffeeb0;
-        }
+        .footer-tool strong { display: block; font-size: 12px; }
+        .footer-tool span { display: block; margin-top: 3px; font-size: 9px; line-height: 1.2; text-transform: none; opacity: 0.86; }
 
-        .pulse-list strong {
-          color: #ffd500;
-          font-size: 20px;
+        button:hover,
+        .footer-tool:hover {
+          transform: translateY(-2px);
+          filter: brightness(1.08);
         }
 
         @keyframes spin {
-          to {
-            transform: rotate(360deg);
-          }
-        }
-
-        @keyframes ticker {
-          from {
-            transform: translateX(100%);
-          }
-          to {
-            transform: translateX(-100%);
-          }
-        }
-
-        @keyframes bounce {
-          0%,
-          100% {
-            transform: scaleY(0.55);
-          }
-          50% {
-            transform: scaleY(1.15);
-          }
+          to { transform: rotate(360deg); }
         }
 
         @keyframes meter {
-          0%,
-          100% {
-            height: 24%;
-          }
-          50% {
-            height: 96%;
-          }
+          0%, 100% { height: 24%; }
+          50% { height: 96%; }
         }
 
-        @media (max-width: 1400px) {
-          .studio-board,
-          .bottom-grid {
-            grid-template-columns: 1fr;
-          }
-
-          .deck-area {
-            grid-template-columns: 1fr;
-          }
-
-          .mixer {
-            min-height: auto;
-          }
-
-          .slider-bank {
-            min-height: 240px;
-          }
+        @media (max-width: 1500px) {
+          .status-row { grid-template-columns: repeat(3, 1fr); }
+          .now-playing-bar { grid-template-columns: 1fr 1fr; }
+          .main-studio { grid-template-columns: 1fr; }
+          .turntable-stage { grid-template-columns: 1fr; }
+          .deck,
+          .broadcast-center { min-height: auto; }
+          .log-row { grid-template-columns: repeat(2, 1fr); }
+          .footer-grid { grid-template-columns: repeat(5, 1fr); }
         }
 
         @media (max-width: 760px) {
-          .control-page {
-            padding: 12px;
-          }
+          .control-page { padding: 12px; }
+          .shell { padding: 12px; border-radius: 24px; }
+          .topbar { flex-direction: column; align-items: stretch; }
+          .brand-badge { width: 100%; }
 
-          .shell {
-            padding: 12px;
-            border-radius: 24px;
-          }
-
-          .topbar {
-            flex-direction: column;
-            align-items: stretch;
-          }
-
-          .brand-badge {
-            width: 100%;
-          }
-
-          .status-grid {
+          .status-row,
+          .log-row,
+          .now-playing-bar,
+          .lamp-grid,
+          .hero-pad-grid,
+          .smart-mode-switch {
             grid-template-columns: 1fr;
           }
 
-          .pads,
-          .action-buttons {
-            grid-template-columns: 1fr;
+          .broadcast-buttons,
+          .mode-buttons,
+          .hero-tabs,
+          .display-switches,
+          .footer-grid {
+            grid-template-columns: repeat(2, 1fr);
           }
 
           .slider-bank {
-            grid-template-columns: repeat(5, 1fr);
-            overflow-x: auto;
-          }
-
-          .deck {
-            min-height: 430px;
+            grid-template-columns: repeat(11, 46px);
           }
         }
       `}</style>
@@ -1410,32 +1506,74 @@ export default function OwnerControlPanelPage() {
   );
 }
 
-function Turntable({
-  title,
-  mode,
-  active,
+function StatusCard({
   label,
+  value,
+  tone,
 }: {
-  title: string;
-  mode: DeckMode;
-  active: boolean;
   label: string;
+  value: string;
+  tone: "green" | "red" | "yellow" | "orange";
 }) {
   return (
-    <div className={active ? "deck active" : "deck"}>
+    <div className="status-card">
+      <span className={`status-light ${tone}`} />
+      <small>{label}</small>
+      <strong>{value}</strong>
+    </div>
+  );
+}
+
+function PanelHeading({ left, right }: { left: string; right: string }) {
+  return (
+    <div className="panel-heading">
+      <span>{left}</span>
+      <b>{right}</b>
+    </div>
+  );
+}
+
+function Turntable({
+  title,
+  label,
+  state,
+}: {
+  title: string;
+  label: string;
+  state: BroadcastState;
+}) {
+  const deckClass =
+    state === "live" ? "deck live" : state === "cue" ? "deck cue" : "deck";
+
+  return (
+    <div className={deckClass}>
       <div className="deck-head">
         <strong>{title}</strong>
-        <span>{mode.toUpperCase()}</span>
+        <span>{state === "live" ? "SPINNING" : state === "cue" ? "CUED" : "READY"}</span>
       </div>
 
       <div className="platter-wrap">
-        <div className={active ? "platter spin" : "platter"} />
+        <div className="platter" />
+        <div className="record-label">TC</div>
         <div className="needle" />
       </div>
 
       <div className="deck-label">
         <b>{label}</b>
-        <span>{active ? "spinning live" : "ready to cue"}</span>
+        <span>
+          {state === "live"
+            ? "turntable spinning live"
+            : state === "cue"
+              ? "slow cue spin"
+              : "ready"}
+        </span>
+      </div>
+
+      <div className="deck-wheel-sliders">
+        <DeckWheelSlider label="Pitch" defaultValue={52} />
+        <DeckWheelSlider label="Trim" defaultValue={62} />
+        <DeckWheelSlider label="Brake" defaultValue={36} />
+        <DeckWheelSlider label="Scratch" defaultValue={48} />
       </div>
 
       <div className="deck-buttons">
@@ -1443,6 +1581,22 @@ function Turntable({
         <button type="button">Sync</button>
         <button type="button">Load</button>
       </div>
+    </div>
+  );
+}
+
+function DeckWheelSlider({
+  label,
+  defaultValue,
+}: {
+  label: string;
+  defaultValue: number;
+}) {
+  return (
+    <div className="deck-wheel-slider">
+      <label>{label}</label>
+      <input type="range" min="0" max="100" defaultValue={defaultValue} />
+      <span>{defaultValue}%</span>
     </div>
   );
 }
