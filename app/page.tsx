@@ -1,466 +1,795 @@
 "use client";
 
-import Link from "next/link";
-import PlayLiveButton from "@/components/play-live-button";
-import VisitorEngagementWidgets from "@/components/visitor-engagement-widgets";
-import { useEffect, useMemo, useState } from "react";
-import { products } from "./store/products";
+import type { CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
-const WHATSAPP_LINK = "https://wa.me/18768842867";
+const STREAM_URL =
+  process.env.NEXT_PUBLIC_STREAM_URL ||
+  "https://thacoreonlinerad.com/listen/tha-core-online/radio.mp3";
+
+type NowPlayingData = {
+  song?: {
+    artist?: string;
+    title?: string;
+    text?: string;
+    art?: string;
+  };
+  station?: {
+    name?: string;
+    listen_url?: string;
+  };
+  listeners?: {
+    current?: number;
+    unique?: number;
+    total?: number;
+  };
+  now_playing?: {
+    song?: {
+      artist?: string;
+      title?: string;
+      text?: string;
+      art?: string;
+    };
+  };
+};
+
+const navLinks = [
+  { label: "Community Chat", href: "/chat" },
+  { label: "Store", href: "/store" },
+  { label: "Upload Entry", href: "/upload" },
+  { label: "World News", href: "/news/world" },
+  { label: "Music News", href: "/news/music" },
+  { label: "Blog / Stories", href: "/blog" },
+  { label: "Cash Pot / Lotto", href: "/lotto" },
+  { label: "Time Reader", href: "/time-reader" },
+  { label: "Weather Reader", href: "/weather-reader" },
+  { label: "Radio", href: "/radio" },
+];
+
+const featureCards = [
+  {
+    title: "Listeners Online",
+    value: "Live count",
+    text: "See who is tuned in now.",
+  },
+  {
+    title: "Joined Today",
+    value: "34 new listeners",
+    text: "Fresh visitors joining Tha Core.",
+  },
+  {
+    title: "Top Cities",
+    value: "Kingston • Montego Bay • London",
+    text: "Tha Core reaching across the map.",
+  },
+  {
+    title: "Live Energy",
+    value: "Music • Chat • Store • Giveaways",
+    text: "One home for the whole movement.",
+  },
+];
 
 export default function HomePage() {
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [volume, setVolume] = useState(0.85);
   const [listeners, setListeners] = useState(0);
-  const [ticker, setTicker] = useState(0);
-  const [poll, setPoll] = useState("");
-  const [checkedIn, setCheckedIn] = useState(false);
-  const [requestName, setRequestName] = useState("");
-  const [requestMessage, setRequestMessage] = useState("");
-  const [nowSong, setNowSong] = useState("Tha Core Live Mix");
-  const [nowArtist, setNowArtist] = useState("Live From Tha Core");
+  const [nowPlaying, setNowPlaying] = useState(
+    "Live From Tha Core - Tha Core Live Mix"
+  );
+  const [logoSrc, setLogoSrc] = useState("/Tha-Core-Logo.png");
 
-  const featuredProducts = useMemo(() => products.slice(0, 8), []);
-
-  const tickerItems = [
-    `NOW PLAYING: ${nowArtist} â€” ${nowSong}`,
-    "UPCOMING SHOW: Dancehall Drive starts soon",
-    "STORE SALE: Custom prints and radio promos available",
-    "BIRTHDAY SHOUTOUT: Send your birthday shoutout live",
-    "SPONSOR AD: Sponsor slots available now",
-  ];
+  const tickerText = useMemo(() => {
+    return nowPlaying || "Live From Tha Core - Tha Core Live Mix";
+  }, [nowPlaying]);
 
   useEffect(() => {
     async function loadNowPlaying() {
       try {
-        const res = await fetch("/api/now-playing", { cache: "no-store" });
-        const data = await res.json();
+        const urls = [
+          process.env.NEXT_PUBLIC_AZURACAST_NOW_PLAYING_URL,
+          "https://thacoreonlinerad.com/api/nowplaying/1",
+        ].filter(Boolean) as string[];
 
-        setNowSong(data.song || "Tha Core Live Mix");
-        setNowArtist(data.artist || "Live From Tha Core");
+        const response = await fetch(urls[0], {
+          cache: "no-store",
+        });
 
-        if (typeof data.listeners === "number") {
-          setListeners(data.listeners);
+        if (!response.ok) return;
+
+        const data: NowPlayingData = await response.json();
+
+        const songText =
+          data?.now_playing?.song?.text ||
+          data?.song?.text ||
+          [
+            data?.now_playing?.song?.artist || data?.song?.artist,
+            data?.now_playing?.song?.title || data?.song?.title,
+          ]
+            .filter(Boolean)
+            .join(" - ");
+
+        if (songText) {
+          setNowPlaying(songText);
+        }
+
+        if (typeof data?.listeners?.current === "number") {
+          setListeners(data.listeners.current);
         }
       } catch {
-        setNowSong("Tha Core Live Mix");
-        setNowArtist("Live From Tha Core");
+        // Keep fallback text if AzuraCast cannot be reached.
       }
     }
 
     loadNowPlaying();
 
-    const nowPlayingTimer = setInterval(loadNowPlaying, 15000);
-    const tick = setInterval(() => {
-      setTicker((v) => (v + 1) % 5);
-    }, 3500);
+    const timer = window.setInterval(() => {
+      loadNowPlaying();
+    }, 10000);
 
     return () => {
-      clearInterval(nowPlayingTimer);
-      clearInterval(tick);
+      window.clearInterval(timer);
     };
   }, []);
 
-  const requestText = encodeURIComponent(
-    `THA CORE RADIO VISITOR REQUEST
+  useEffect(() => {
+    if (!audioRef.current) return;
+    audioRef.current.volume = volume;
+  }, [volume]);
 
-Name:
-${requestName || "No name entered"}
+  async function toggleLiveRadio() {
+    if (!audioRef.current) return;
 
-Request / Shoutout:
-${requestMessage || "No message entered"}
+    try {
+      if (isPlaying) {
+        audioRef.current.pause();
+        setIsPlaying(false);
+        return;
+      }
 
-Time Submitted:
-${new Date().toLocaleString()}
-
-Sent from Tha Core Radio website`
-  );
+      audioRef.current.src = STREAM_URL;
+      audioRef.current.volume = volume;
+      await audioRef.current.play();
+      setIsPlaying(true);
+    } catch {
+      setIsPlaying(false);
+    }
+  }
 
   return (
-    <main className="min-h-screen bg-black px-4 py-6 pb-44 text-white sm:px-6">
-      <section className="mx-auto max-w-7xl">
-        <style>{`
-          @keyframes trackMarquee {
-            0% { transform: translateX(30%); }
-            100% { transform: translateX(-100%); }
-          }
-        `}</style>
+    <main style={styles.page}>
+      <audio ref={audioRef} preload="none" />
 
-        <div className="mb-5 rounded-2xl border border-red-700 bg-zinc-950 px-5 py-3 text-lg font-black italic text-yellow-400 shadow-[0_0_55px_rgba(34,197,94,.8)]">
-          {tickerItems[ticker]}
-        </div>
+      <section style={styles.pageShell}>
+        <section style={styles.topTicker}>
+          <strong>NOW PLAYING:</strong> {tickerText}
+        </section>
 
-        <div className="mb-5 rounded-3xl border border-red-700 bg-gradient-to-br from-red-950 to-black p-5 shadow-[0_0_55px_rgba(34,197,94,.75)]">
-          <p className="text-xl font-black italic text-yellow-400">
-            Vote next song â€¢ Flash sale ends in 10 mins â€¢ Drop your shoutout live now
-          </p>
-        </div>
+        <section style={styles.alertTicker}>
+          Vote next song • Flash sale ends in 10 mins • Drop your shoutout live
+          now
+        </section>
 
-        <div className="rounded-[2rem] border-2 border-red-600 bg-gradient-to-br from-yellow-200 via-amber-300 to-yellow-500 p-6 shadow-[0_0_75px_rgba(34,197,94,.85)]">
-          <div className="grid gap-8 lg:grid-cols-[1fr_300px]">
-            <div>
-              <p className="text-sm font-black tracking-[0.35em] text-black">
-                LIVE FROM THA CORE
-              </p>
+        <section style={styles.hero}>
+          <div style={styles.heroContent}>
+            <p style={styles.kicker}>LIVE FROM THA CORE</p>
 
-              <h1 className="mt-4 text-5xl font-black text-black md:text-7xl">
-                Tha Core Radio
-              </h1>
+            <h1 style={styles.title}>Tha Core Radio</h1>
 
-              <p className="mt-4 max-w-3xl text-lg font-bold text-black">
-                Live radio, store, chat, uploads, shoutouts, world news, radio promos, and business moves.
-              </p>
+            <p style={styles.subtitle}>
+              Live radio, store, chat, uploads, shoutouts, world news, radio
+              promos, and business moves.
+            </p>
 
-              <div className="mt-6 rounded-3xl border-2 border-red-500 bg-black/90 p-5 shadow-[0_0_75px_rgba(34,197,94,1)]">
-                <div className="inline-flex rounded-full border border-yellow-400 bg-red-700 px-4 py-2 shadow-[0_0_25px_rgba(250,204,21,.8)]">
-                  <p className="text-base font-black tracking-[0.15em] text-yellow-300">
-                    ON AIR NOW â€¢ NOW PLAYING
-                  </p>
-                </div>
+            <section style={styles.nowPlayingCard}>
+              <div style={styles.onAirBadge}>ON AIR NOW • NOW PLAYING</div>
 
-                <div className="mt-3 flex gap-2">
-                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((i) => (
-                    <span
-                      key={i}
-                      className="h-4 w-4 animate-pulse rounded-full bg-yellow-400 shadow-[0_0_28px_rgba(250,204,21,1)]"
-                    />
-                  ))}
-                </div>
-
-                <div className="mt-4 max-w-full overflow-hidden rounded-xl border border-red-700 bg-black p-3">
-                  <div
-                    className="whitespace-nowrap text-base font-black text-white md:text-lg"
-                    style={{ animation: "trackMarquee 12s linear infinite" }}
-                  >
-                    ðŸŽµ {nowArtist} â€” {nowSong} â€¢
-                  </div>
-                </div>
-
-                <p className="mt-3 text-gray-300">{nowArtist}</p>
-
-                <p className="mt-4 text-2xl font-black text-red-400">
-                  {listeners} listeners online
-                </p>
+              <div style={styles.lightRow}>
+                {Array.from({ length: 10 }).map((_, index) => (
+                  <span
+                    key={index}
+                    style={{
+                      ...styles.goldLight,
+                      animationDelay: `${index * 0.08}s`,
+                    }}
+                  />
+                ))}
               </div>
 
-              <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-7">
-                <PlayLiveButton />
+              <div style={styles.songBox}>{tickerText}</div>
 
-                <a
-                  href={WHATSAPP_LINK}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="rounded-2xl bg-red-700 px-5 py-4 text-center font-black"
-                >
-                  Join WhatsApp
-                </a>
+              <p style={styles.stationLine}>Live From Tha Core</p>
 
-                <Link href="/store" className="rounded-2xl bg-black px-5 py-4 text-center font-black text-white">
-                  Store
-                </Link>
+              <p style={styles.listenerCount}>
+                {listeners} listeners online
+              </p>
+            </section>
 
-                <Link href="/uploads" className="rounded-2xl bg-red-700 px-5 py-4 text-center font-black">
-                  Upload Entry
-                </Link>
+            <div style={styles.buttonGrid}>
+              <a href="/chat" style={styles.redButton}>
+                Join Community Chat
+              </a>
 
-                <Link href="/news" className="rounded-2xl bg-red-700 px-5 py-4 text-center font-black">
-                  World News
-                </Link>
+              <a href="/store" style={styles.blackButton}>
+                Store
+              </a>
 
-                <Link href="/blog" className="rounded-2xl bg-black px-5 py-4 text-center font-black text-yellow-400">
-                  Blog / Stories
-                </Link>
+              <a href="/upload" style={styles.redButton}>
+                Upload Entry
+              </a>
 
-                <Link href="/lotto" className="rounded-2xl bg-red-700 px-5 py-4 text-center font-black">
-                  Cash Pot / Lotto
-                </Link>
-              </div>
-            </div>
+              <a href="/news/world" style={styles.redButton}>
+                World News
+              </a>
 
-            <div className="flex items-start justify-center lg:justify-end">
-              <img
-                src="/logo-site.png?v=777"
-                alt="Tha Core Logo"
-                className="h-64 w-64 rounded-full border-[6px] border-green-400 bg-transparent object-contain p-0 shadow-[0_0_120px_rgba(34,197,94,1)]"
-              />
-            </div>
-          </div>
-        </div>
+              <a href="/blog" style={styles.blackButton}>
+                Blog / Stories
+              </a>
 
-        <div className="mt-8 grid gap-6 md:grid-cols-4">
-          <Card title="Listeners Online" text={`${listeners} tuned in now`} />
-          <Card title="Joined Today" text="34 new listeners today" />
-          <Card title="Top Cities" text="Kingston â€¢ Montego Bay â€¢ London" />
-          <Card title="Live Energy" text="Music â€¢ Chat â€¢ Store â€¢ Giveaways" />
-        </div>
-
-        <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_.8fr]">
-          <Panel title="Request Song / Shoutout">
-            <input
-              value={requestName}
-              onChange={(e) => setRequestName(e.target.value)}
-              placeholder="Your name"
-              className="w-full rounded-xl bg-black p-4"
-            />
-
-            <textarea
-              value={requestMessage}
-              onChange={(e) => setRequestMessage(e.target.value)}
-              placeholder="Song request, birthday shoutout, or message..."
-              className="mt-3 h-32 w-full rounded-xl bg-black p-4"
-            />
-
-            <a
-              href={`${WHATSAPP_LINK}?text=${requestText}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-4 block rounded-xl bg-red-700 px-6 py-4 text-center font-black"
-            >
-              Send To WhatsApp
-            </a>
-          </Panel>
-
-          <Panel title="Money Moves">
-            <div className="grid gap-3">
-              <Link href="/store" className="rounded-xl bg-red-700 p-4 font-black">
-                Advertise With Us
-              </Link>
-
-              <Link href="/store" className="rounded-xl bg-black p-4 font-black">
-                Sponsor A Show
-              </Link>
-
-              <Link href="/store" className="rounded-xl bg-black p-4 font-black">
-                Radio Promo Package
-              </Link>
-
-              <a
-                href={WHATSAPP_LINK}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="rounded-xl bg-white p-4 text-center font-black text-black"
-              >
-                Donate / Support
+              <a href="/lotto" style={styles.redButton}>
+                Cash Pot / Lotto
               </a>
             </div>
-          </Panel>
-        </div>
-
-        <div className="mt-8 grid gap-6 md:grid-cols-3">
-          <Panel title="Poll Of The Day">
-            <p className="font-bold">Dancehall or Reggae tonight?</p>
-
-            <button onClick={() => setPoll("Dancehall")} className="mt-4 w-full rounded-xl bg-red-700 px-5 py-3 font-black">
-              Dancehall
-            </button>
-
-            <button onClick={() => setPoll("Reggae")} className="mt-3 w-full rounded-xl bg-white px-5 py-3 font-black text-black">
-              Reggae
-            </button>
-
-            <p className="mt-3 text-gray-300">Your vote: {poll || "Not voted yet"}</p>
-          </Panel>
-
-          <Panel title="Daily Reward / Check-In">
-            <p className="text-gray-300">Youâ€™ve visited 3 days in a row.</p>
-
-            <button onClick={() => setCheckedIn(true)} className="mt-5 rounded-xl bg-red-700 px-5 py-3 font-black">
-              {checkedIn ? "Badge Unlocked âœ“" : "Daily Check-In"}
-            </button>
-          </Panel>
-
-          <Panel title="DJ Cam / Visualizer">
-            <div className="flex h-44 items-center justify-center rounded-2xl bg-black text-center text-gray-400">
-              Live studio cam / visualizer screen goes here
-            </div>
-          </Panel>
-        </div>
-
-        <div className="mt-8 rounded-3xl border border-red-700 bg-zinc-950 p-6 shadow-[0_0_55px_rgba(34,197,94,.75)]">
-          <h2 className="text-3xl font-black text-red-400">News Preview</h2>
-
-          <div className="mt-6 grid gap-5 md:grid-cols-3">
-            <NewsCard href="/news/world" icon="ðŸŒ" title="World News" text="Breaking headlines and global updates." />
-            <NewsCard href="/news/music" icon="ðŸŽ¤" title="Music & Culture" text="Reggae, dancehall, entertainment and artists." />
-            <NewsCard href="/news/business" icon="ðŸ’¼" title="Money Moves" text="Business, ads, promos, and opportunities." />
           </div>
-        </div>
 
-        <div className="mt-8 rounded-3xl border border-red-700 bg-zinc-950 p-6 shadow-[0_0_55px_rgba(34,197,94,.75)]">
-          <h2 className="text-3xl font-black text-red-400">Featured Blog Stories</h2>
-
-          <div className="mt-6 grid gap-5 md:grid-cols-3">
-            <BlogCard
-              href="/blog/behind-the-core/from-idea-to-live-platform"
-              category="BEHIND THE CORE"
-              title="From Idea To Live Platform"
-              text="How Tha Core moved from idea stage into a real live radio, store, news, and blog platform."
-            />
-
-            <BlogCard
-              href="/blog/business-tips/how-small-businesses-can-sell-faster-with-simple-offers"
-              category="BUSINESS TIPS"
-              title="How Small Businesses Can Sell Faster"
-              text="Clear offers, strong visuals, WhatsApp ordering, and fast replies help drive sales."
-            />
-
-            <BlogCard
-              href="/blog/music-culture/dancehall-reggae-and-the-voice-of-the-people"
-              category="MUSIC & CULTURE"
-              title="Dancehall, Reggae & The Voice Of The People"
-              text="Why music remains identity, movement, culture, and connection."
+          <div style={styles.logoPanel}>
+            <img
+              src={logoSrc}
+              alt="Tha Core Radio Logo"
+              style={styles.logo}
+              onError={() => {
+                if (logoSrc === "/Tha-Core-Logo.png") {
+                  setLogoSrc("/logo.png");
+                } else if (logoSrc === "/logo.png") {
+                  setLogoSrc("/icon-512.png");
+                }
+              }}
             />
           </div>
-        </div>
+        </section>
 
-        <VisitorEngagementWidgets />
-
-        <div className="mt-8 rounded-3xl border border-red-700 bg-zinc-950 p-6 shadow-[0_0_55px_rgba(34,197,94,.75)]">
-          <h2 className="text-3xl font-black text-red-400">Featured Store Items</h2>
-
-          <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-            {featuredProducts.map((product: any) => (
-              <Link key={product.id} href="/store" className="rounded-3xl bg-black p-4 hover:bg-red-950">
-                <div
-                  className="h-72 rounded-2xl bg-gradient-to-br from-yellow-200 via-amber-300 to-yellow-500 bg-contain bg-center bg-no-repeat"
-                  style={{ backgroundImage: `url(${product.image})` }}
-                />
-
-                <h3 className="mt-4 text-xl font-black">{product.name}</h3>
-
-                <p className="font-black text-red-400">
-                  JMD ${product.price.toLocaleString()}
-                </p>
-              </Link>
-            ))}
-          </div>
-        </div>
-
-        <div className="mt-8 rounded-3xl border border-red-700 bg-zinc-950 p-6 shadow-[0_0_55px_rgba(34,197,94,.75)]">
-          <p className="text-sm tracking-[0.35em] text-red-300">THA CORE RADIO</p>
-
-          <h2 className="mt-3 text-4xl font-black text-red-400">
-            Weekly Radio Program Schedule
-          </h2>
-
-          <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            {[
-              ["Sunday", "Gospel Morning â€¢ Family Vibes â€¢ Sunday Talk"],
-              ["Monday", "Money Moves â€¢ Business Promo â€¢ Fresh Start Mix"],
-              ["Tuesday", "Dancehall Drive â€¢ Listener Requests"],
-              ["Wednesday", "Midweek Motivation â€¢ Community Talk"],
-              ["Thursday", "Throwback Night â€¢ Old School Mix"],
-              ["Friday", "Weekend Warm Up â€¢ Party Mix"],
-              ["Saturday", "Live From Tha Core â€¢ DJ Special"],
-            ].map(([day, show]) => (
-              <div key={day} className="rounded-2xl bg-black p-5">
-                <h3 className="text-2xl font-black text-red-400">{day}</h3>
-                <p className="mt-3 text-gray-300">{show}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="mt-8 grid gap-6 md:grid-cols-2">
-          <Link href="/weather-reader" className="rounded-2xl border border-red-700 bg-zinc-900 p-6 hover:bg-red-950/40">
-            <h2 className="text-2xl font-black text-red-400">Weather Reader</h2>
-            <p className="mt-3 text-gray-300">Automated weather updates for listeners.</p>
-          </Link>
-
-          <Link href="/time-reader" className="rounded-2xl border border-red-700 bg-zinc-900 p-6 hover:bg-red-950/40">
-            <h2 className="text-2xl font-black text-red-400">Time Reader</h2>
-            <p className="mt-3 text-gray-300">Automatic station time announcements.</p>
-          </Link>
-        </div>
-
-        <footer className="mt-10 rounded-3xl border border-red-700 bg-gradient-to-br from-yellow-200 via-amber-300 to-yellow-500 p-6 text-center text-black">
-          <div className="grid items-center gap-6 md:grid-cols-[150px_1fr]">
-            <div className="flex justify-center md:justify-start">
-              <img
-                src="/logo-site.png?v=777"
-                alt="Tha Core Logo"
-                className="h-32 w-32 rounded-full border-4 border-green-400 bg-transparent object-contain p-0 shadow-[0_0_70px_rgba(34,197,94,1)]"
-              />
-            </div>
-
-            <div>
-              <p className="text-3xl font-black">Tha Core Radio</p>
-
-              <p className="mt-2 font-bold">
-                WhatsApp: 876-884-2867 â€¢ Email: dailydunney@gmail.com
+        <section style={styles.featureGrid}>
+          {featureCards.map((card) => (
+            <article key={card.title} style={styles.featureCard}>
+              <h2 style={styles.featureTitle}>{card.title}</h2>
+              <p style={styles.featureValue}>
+                {card.title === "Listeners Online"
+                  ? `${listeners} tuned in now`
+                  : card.value}
               </p>
+              <p style={styles.featureText}>{card.text}</p>
+            </article>
+          ))}
+        </section>
 
-              <p className="mt-2 font-bold">
-                Live radio â€¢ Store â€¢ Promos â€¢ Community
-              </p>
+        <section style={styles.sectionGrid}>
+          <article style={styles.sectionCard}>
+            <p style={styles.sectionKicker}>Tha Core Store</p>
+            <h2 style={styles.sectionTitle}>Prints, merch, promos & ads</h2>
+            <p style={styles.sectionText}>
+              Shop designs, radio promos, ads, printing services, and custom
+              products while the music keeps playing.
+            </p>
+            <a href="/store" style={styles.sectionButton}>
+              Open Store
+            </a>
+          </article>
 
-              <p className="mt-2 text-sm font-bold">
-                Â© 2026 Tha Core. All rights reserved.
-              </p>
-            </div>
-          </div>
-        </footer>
+          <article style={styles.sectionCard}>
+            <p style={styles.sectionKicker}>Community</p>
+            <h2 style={styles.sectionTitle}>Chat, shoutouts & uploads</h2>
+            <p style={styles.sectionText}>
+              Listeners can send shoutouts, upload entries, follow updates, and
+              stay locked in with Tha Core.
+            </p>
+            <a href="/chat" style={styles.sectionButton}>
+              Join Community Chat
+            </a>
+          </article>
+
+          <article style={styles.sectionCard}>
+            <p style={styles.sectionKicker}>News & Updates</p>
+            <h2 style={styles.sectionTitle}>World, music, sports & weather</h2>
+            <p style={styles.sectionText}>
+              Keep the site active with news sections, blogs, cash pot, weather,
+              and time reader tools.
+            </p>
+            <a href="/news" style={styles.sectionButton}>
+              Read News
+            </a>
+          </article>
+        </section>
+
+        <section style={styles.linkRail}>
+          {navLinks.map((link) => (
+            <a key={link.href} href={link.href} style={styles.railLink}>
+              {link.label}
+            </a>
+          ))}
+        </section>
       </section>
+
+      <aside style={styles.floatingPlayer}>
+        <p style={styles.floatKicker}>THA CORE RADIO</p>
+
+        <h2 style={styles.floatTitle}>Floating Player</h2>
+
+        <p style={styles.floatText}>One-touch live radio control.</p>
+
+        <div style={styles.floatSong}>♫ {tickerText}</div>
+
+        <button type="button" onClick={toggleLiveRadio} style={styles.floatBtn}>
+          {isPlaying ? "Pause Live" : "Play Live"}
+        </button>
+
+        <label style={styles.volumeLabel}>
+          Volume
+          <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.01"
+            value={volume}
+            onChange={(event) => setVolume(Number(event.target.value))}
+            style={styles.volumeSlider}
+          />
+        </label>
+
+        <p style={styles.streamUrl}>{STREAM_URL}</p>
+      </aside>
+
+      <style jsx global>{`
+        html,
+        body {
+          margin: 0;
+          padding: 0;
+          background: #020402;
+        }
+
+        * {
+          box-sizing: border-box;
+        }
+
+        @keyframes glowPulse {
+          0% {
+            opacity: 0.45;
+            transform: scale(0.85);
+          }
+
+          100% {
+            opacity: 1;
+            transform: scale(1.18);
+          }
+        }
+
+        @media (max-width: 1100px) {
+          .hide-mobile {
+            display: none;
+          }
+        }
+      `}</style>
     </main>
   );
 }
 
-function Card({ title, text }: { title: string; text: string }) {
-  return (
-    <div className="rounded-3xl border border-red-700 bg-zinc-950 p-6 shadow-[0_0_30px_rgba(34,197,94,.45)]">
-      <h2 className="text-2xl font-black text-red-400">{title}</h2>
-      <p className="mt-3 text-gray-200">{text}</p>
-    </div>
-  );
-}
+const styles: Record<string, CSSProperties> = {
+  page: {
+    minHeight: "100vh",
+    width: "100%",
+    background:
+      "radial-gradient(circle at center, rgba(0, 180, 80, 0.36), transparent 42%), linear-gradient(180deg, #030603 0%, #000 48%, #021106 100%)",
+    color: "#fff",
+    fontFamily:
+      "Arial, Helvetica, system-ui, -apple-system, BlinkMacSystemFont, sans-serif",
+    padding: "28px 18px 80px",
+  },
 
-function Panel({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="rounded-3xl border border-red-700 bg-zinc-950 p-6 shadow-[0_0_30px_rgba(34,197,94,.45)]">
-      <h2 className="mb-5 text-3xl font-black text-red-400">{title}</h2>
-      {children}
-    </div>
-  );
-}
+  pageShell: {
+    width: "100%",
+    maxWidth: "1320px",
+    margin: "0 auto",
+  },
 
-function NewsCard({
-  href,
-  icon,
-  title,
-  text,
-}: {
-  href: string;
-  icon: string;
-  title: string;
-  text: string;
-}) {
-  return (
-    <Link href={href} className="block rounded-2xl bg-black p-5 hover:bg-red-950/50">
-      <div className="text-5xl">{icon}</div>
-      <h3 className="mt-4 text-2xl font-black text-red-400">{title}</h3>
-      <p className="mt-2 text-gray-300">{text}</p>
-      <p className="mt-4 font-black text-red-400">Open â†’</p>
-    </Link>
-  );
-}
+  topTicker: {
+    width: "100%",
+    border: "1px solid rgba(255, 0, 0, 0.75)",
+    borderRadius: "16px",
+    background:
+      "linear-gradient(135deg, rgba(0,0,0,0.96), rgba(12,40,18,0.95))",
+    color: "#ffea00",
+    padding: "18px 24px",
+    fontSize: "20px",
+    fontWeight: 900,
+    fontStyle: "italic",
+    boxShadow: "0 0 34px rgba(0,255,120,0.22)",
+    marginBottom: "20px",
+    overflow: "hidden",
+    whiteSpace: "nowrap",
+    textOverflow: "ellipsis",
+  },
 
-function BlogCard({
-  href,
-  category,
-  title,
-  text,
-}: {
-  href: string;
-  category: string;
-  title: string;
-  text: string;
-}) {
-  return (
-    <Link href={href} className="block rounded-2xl bg-black p-5 hover:bg-red-950/50">
-      <p className="text-sm font-black tracking-[0.3em] text-red-400">
-        {category}
-      </p>
-      <h3 className="mt-3 text-2xl font-black text-white">{title}</h3>
-      <p className="mt-3 text-gray-300">{text}</p>
-      <p className="mt-4 font-black text-red-400">Read Story â†’</p>
-    </Link>
-  );
-}
+  alertTicker: {
+    width: "100%",
+    border: "1px solid rgba(255, 0, 0, 0.75)",
+    borderRadius: "16px",
+    background:
+      "linear-gradient(135deg, rgba(20,0,0,0.96), rgba(11,50,20,0.95))",
+    color: "#ffea00",
+    padding: "22px 24px",
+    fontSize: "20px",
+    fontWeight: 900,
+    fontStyle: "italic",
+    marginBottom: "22px",
+    boxShadow: "0 0 30px rgba(0,255,120,0.2)",
+  },
+
+  hero: {
+    position: "relative",
+    display: "grid",
+    gridTemplateColumns: "1fr 270px",
+    gap: "26px",
+    minHeight: "620px",
+    borderRadius: "30px",
+    border: "2px solid #ff1616",
+    background:
+      "linear-gradient(135deg, #fff47a 0%, #ffe34a 38%, #ffc400 72%, #11d36a 100%)",
+    color: "#050505",
+    padding: "42px 30px",
+    overflow: "hidden",
+    boxShadow:
+      "0 0 55px rgba(0,255,100,0.35), 0 0 90px rgba(255,0,0,0.18)",
+  },
+
+  heroContent: {
+    position: "relative",
+    zIndex: 2,
+    maxWidth: "960px",
+  },
+
+  kicker: {
+    margin: "0 0 24px",
+    letterSpacing: "0.48em",
+    fontSize: "14px",
+    fontWeight: 1000,
+  },
+
+  title: {
+    margin: "0 0 18px",
+    fontSize: "clamp(54px, 7vw, 92px)",
+    lineHeight: 0.92,
+    fontWeight: 1000,
+    color: "#000",
+  },
+
+  subtitle: {
+    margin: "0 0 28px",
+    fontSize: "19px",
+    fontWeight: 900,
+    color: "#050505",
+    lineHeight: 1.45,
+  },
+
+  logoPanel: {
+    position: "relative",
+    zIndex: 2,
+    display: "flex",
+    alignItems: "flex-start",
+    justifyContent: "center",
+    paddingTop: "10px",
+  },
+
+  logo: {
+    width: "245px",
+    height: "245px",
+    borderRadius: "999px",
+    objectFit: "cover",
+    border: "8px solid #00d46a",
+    background: "#000",
+    boxShadow: "0 18px 60px rgba(0,0,0,0.48)",
+  },
+
+  nowPlayingCard: {
+    width: "100%",
+    maxWidth: "930px",
+    borderRadius: "22px",
+    border: "2px solid #f00000",
+    background: "rgba(12, 12, 0, 0.86)",
+    padding: "22px",
+    color: "#fff",
+    boxShadow: "inset 0 0 26px rgba(0,0,0,0.5)",
+    marginBottom: "26px",
+  },
+
+  onAirBadge: {
+    display: "inline-flex",
+    alignItems: "center",
+    borderRadius: "999px",
+    background: "linear-gradient(135deg, #d00000, #a00000)",
+    border: "2px solid #ffdd00",
+    color: "#ffef00",
+    padding: "12px 20px",
+    fontWeight: 1000,
+    letterSpacing: "0.14em",
+    boxShadow: "0 0 22px rgba(255,221,0,0.45)",
+    marginBottom: "14px",
+  },
+
+  lightRow: {
+    display: "flex",
+    gap: "9px",
+    margin: "0 0 18px",
+  },
+
+  goldLight: {
+    width: "17px",
+    height: "17px",
+    borderRadius: "999px",
+    background: "#ffca00",
+    boxShadow: "0 0 14px rgba(255,204,0,0.9)",
+    animationName: "glowPulse",
+    animationDuration: "1s",
+    animationTimingFunction: "ease-in-out",
+    animationIterationCount: "infinite",
+    animationDirection: "alternate",
+  },
+
+  songBox: {
+    borderRadius: "12px",
+    border: "1px solid #ff0000",
+    background: "#030303",
+    padding: "15px 18px",
+    color: "#fff",
+    fontSize: "18px",
+    fontWeight: 1000,
+    textAlign: "right",
+    overflow: "hidden",
+    whiteSpace: "nowrap",
+    textOverflow: "ellipsis",
+  },
+
+  stationLine: {
+    margin: "18px 0 0",
+    color: "#fff",
+    fontSize: "16px",
+    fontWeight: 800,
+  },
+
+  listenerCount: {
+    margin: "18px 0 0",
+    color: "#ff6666",
+    fontSize: "25px",
+    fontWeight: 1000,
+  },
+
+  buttonGrid: {
+    display: "flex",
+    alignItems: "stretch",
+    flexWrap: "wrap",
+    gap: "12px",
+  },
+
+  redButton: {
+    minWidth: "120px",
+    minHeight: "82px",
+    border: "0",
+    borderRadius: "14px",
+    background: "linear-gradient(135deg, #d90000, #bd0000)",
+    color: "#fff",
+    padding: "16px 18px",
+    fontSize: "16px",
+    fontWeight: 1000,
+    textDecoration: "none",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    textAlign: "center",
+    cursor: "pointer",
+    boxShadow: "0 10px 24px rgba(0,0,0,0.25)",
+  },
+
+  blackButton: {
+    minWidth: "120px",
+    minHeight: "82px",
+    borderRadius: "14px",
+    background: "#020202",
+    color: "#fff",
+    padding: "16px 18px",
+    fontSize: "16px",
+    fontWeight: 1000,
+    textDecoration: "none",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    textAlign: "center",
+    boxShadow: "0 10px 24px rgba(0,0,0,0.25)",
+  },
+
+  featureGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+    gap: "24px",
+    marginTop: "36px",
+  },
+
+  featureCard: {
+    borderRadius: "22px",
+    border: "1px solid #d90000",
+    background: "rgba(5,5,5,0.92)",
+    padding: "24px",
+    color: "#fff",
+    minHeight: "150px",
+    boxShadow: "0 0 28px rgba(0,255,120,0.14)",
+  },
+
+  featureTitle: {
+    margin: "0 0 14px",
+    color: "#ff5f5f",
+    fontSize: "25px",
+    fontWeight: 1000,
+  },
+
+  featureValue: {
+    margin: "0 0 10px",
+    color: "#fff",
+    fontSize: "16px",
+    lineHeight: 1.5,
+  },
+
+  featureText: {
+    margin: 0,
+    color: "rgba(255,255,255,0.76)",
+    lineHeight: 1.5,
+  },
+
+  sectionGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+    gap: "24px",
+    marginTop: "32px",
+  },
+
+  sectionCard: {
+    borderRadius: "24px",
+    border: "1px solid rgba(255,0,0,0.8)",
+    background:
+      "linear-gradient(135deg, rgba(10,10,10,0.98), rgba(20,35,15,0.94))",
+    padding: "28px",
+    minHeight: "260px",
+    color: "#fff",
+  },
+
+  sectionKicker: {
+    margin: "0 0 10px",
+    color: "#ffdf00",
+    fontSize: "13px",
+    fontWeight: 1000,
+    letterSpacing: "0.12em",
+    textTransform: "uppercase",
+  },
+
+  sectionTitle: {
+    margin: "0 0 14px",
+    fontSize: "28px",
+    lineHeight: 1.05,
+    fontWeight: 1000,
+  },
+
+  sectionText: {
+    margin: "0 0 24px",
+    color: "rgba(255,255,255,0.76)",
+    lineHeight: 1.55,
+    fontSize: "16px",
+  },
+
+  sectionButton: {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: "999px",
+    background: "linear-gradient(135deg, #d90000, #ff2525)",
+    color: "#fff",
+    fontWeight: 1000,
+    padding: "13px 20px",
+    textDecoration: "none",
+  },
+
+  linkRail: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "10px",
+    marginTop: "30px",
+    paddingBottom: "60px",
+  },
+
+  railLink: {
+    borderRadius: "999px",
+    border: "1px solid rgba(255,0,0,0.75)",
+    background: "rgba(0,0,0,0.72)",
+    color: "#ffdf00",
+    padding: "11px 16px",
+    textDecoration: "none",
+    fontWeight: 900,
+  },
+
+  floatingPlayer: {
+    position: "fixed",
+    right: "24px",
+    bottom: "24px",
+    width: "330px",
+    borderRadius: "22px",
+    border: "1px solid #ff0000",
+    background: "rgba(6,6,6,0.96)",
+    color: "#fff",
+    padding: "24px",
+    zIndex: 40,
+    boxShadow: "0 20px 70px rgba(0,0,0,0.55)",
+  },
+
+  floatKicker: {
+    margin: "0 0 14px",
+    color: "#ff6d6d",
+    letterSpacing: "0.28em",
+    fontSize: "13px",
+    fontWeight: 1000,
+  },
+
+  floatTitle: {
+    margin: "0 0 8px",
+    fontSize: "31px",
+    fontWeight: 1000,
+  },
+
+  floatText: {
+    margin: "0 0 16px",
+    color: "rgba(255,255,255,0.7)",
+  },
+
+  floatSong: {
+    borderRadius: "12px",
+    border: "1px solid #ff0000",
+    background: "#050505",
+    padding: "13px 14px",
+    color: "#ffdf00",
+    fontWeight: 900,
+    overflow: "hidden",
+    whiteSpace: "nowrap",
+    textOverflow: "ellipsis",
+    marginBottom: "14px",
+  },
+
+  floatBtn: {
+    width: "100%",
+    border: "0",
+    borderRadius: "14px",
+    background: "linear-gradient(135deg, #e00000, #c40000)",
+    color: "#fff",
+    padding: "17px",
+    fontSize: "16px",
+    fontWeight: 1000,
+    cursor: "pointer",
+    marginBottom: "16px",
+  },
+
+  volumeLabel: {
+    display: "block",
+    color: "rgba(255,255,255,0.72)",
+    fontSize: "13px",
+    fontWeight: 900,
+  },
+
+  volumeSlider: {
+    width: "100%",
+    marginTop: "10px",
+    accentColor: "#009dff",
+  },
+
+  streamUrl: {
+    margin: "12px 0 0",
+    color: "rgba(255,255,255,0.42)",
+    fontSize: "10px",
+    overflow: "hidden",
+    whiteSpace: "nowrap",
+    textOverflow: "ellipsis",
+  },
+};
