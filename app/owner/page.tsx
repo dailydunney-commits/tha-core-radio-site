@@ -2,9 +2,16 @@
 
 import { useMemo, useRef, useState } from "react";
 
-type DeckMode = "idle" | "cue" | "live" | "paused";
 type BroadcastState = "off" | "cue" | "live" | "paused";
 type PadMode = "JINGLES" | "DROPS" | "COM" | "ADS" | "SMARTDJ" | "AUTODJ" | "LIVEDJ";
+type PadColor = "yellow" | "red" | "green" | "blue" | "purple" | "orange";
+
+type Pad = {
+  label: string;
+  mode: PadMode;
+  message: string;
+  color: PadColor;
+};
 
 type LogItem = {
   id: number;
@@ -12,11 +19,10 @@ type LogItem = {
   message: string;
 };
 
-type Pad = {
+type FooterTool = {
   label: string;
-  mode: PadMode;
-  tone: string;
-  color: "yellow" | "red" | "green" | "blue" | "purple" | "orange";
+  note: string;
+  color: PadColor;
 };
 
 const STREAM_URL =
@@ -34,148 +40,116 @@ const padModes: PadMode[] = [
 ];
 
 const pads: Pad[] = [
-  {
-    label: "Station ID",
-    mode: "JINGLES",
-    tone: "Official Tha Core station ID fired.",
-    color: "yellow",
-  },
-  {
-    label: "Big Intro",
-    mode: "JINGLES",
-    tone: "Main show intro jingle ready.",
-    color: "orange",
-  },
-  {
-    label: "DJ Drop",
-    mode: "DROPS",
-    tone: "DJ Daily Bread drop fired.",
-    color: "purple",
-  },
-  {
-    label: "Dancehall Drop",
-    mode: "DROPS",
-    tone: "Dancehall energy drop selected.",
-    color: "red",
-  },
-  {
-    label: "Com Break",
-    mode: "COM",
-    tone: "Commercial break command selected.",
-    color: "blue",
-  },
-  {
-    label: "Sponsor Ad",
-    mode: "ADS",
-    tone: "Sponsor advertisement shot triggered.",
-    color: "green",
-  },
-  {
-    label: "Smart Mix",
-    mode: "SMARTDJ",
-    tone: "SmartDJ checking next best move.",
-    color: "purple",
-  },
-  {
-    label: "AutoDJ Flow",
-    mode: "AUTODJ",
-    tone: "AutoDJ playlist flow armed.",
-    color: "orange",
-  },
-  {
-    label: "Live DJ Mic",
-    mode: "LIVEDJ",
-    tone: "Live DJ mic and manual deck mode selected.",
-    color: "red",
-  },
-  {
-    label: "Request Line",
-    mode: "LIVEDJ",
-    tone: "Listener request line opened.",
-    color: "green",
-  },
-  {
-    label: "Weather",
-    mode: "SMARTDJ",
-    tone: "Weather reader command ready.",
-    color: "blue",
-  },
-  {
-    label: "Time Check",
-    mode: "SMARTDJ",
-    tone: "Time check reader command ready.",
-    color: "yellow",
-  },
+  { label: "Station ID", mode: "JINGLES", message: "Tha Core official station ID fired.", color: "yellow" },
+  { label: "Big Intro", mode: "JINGLES", message: "Big intro jingle fired.", color: "orange" },
+  { label: "You Locked In", mode: "JINGLES", message: "You are locked in to Tha Core Online Radio.", color: "green" },
+  { label: "Morning Vibe", mode: "JINGLES", message: "Morning vibe jingle fired.", color: "yellow" },
+  { label: "Late Night", mode: "JINGLES", message: "Late night jingle fired.", color: "purple" },
+  { label: "Dancehall Core", mode: "JINGLES", message: "Dancehall Core jingle fired.", color: "red" },
+  { label: "Reggae Core", mode: "JINGLES", message: "Reggae Core jingle fired.", color: "green" },
+  { label: "Weekend Mix", mode: "JINGLES", message: "Weekend mix jingle fired.", color: "blue" },
+  { label: "Fresh Music", mode: "JINGLES", message: "Fresh music jingle fired.", color: "orange" },
+  { label: "Back To Back", mode: "JINGLES", message: "Back-to-back music jingle fired.", color: "yellow" },
+
+  { label: "DJ Drop", mode: "DROPS", message: "DJ Daily Bread drop fired.", color: "purple" },
+  { label: "Pull Up", mode: "DROPS", message: "Pull up selector drop fired.", color: "red" },
+  { label: "Crowd Hype", mode: "DROPS", message: "Crowd hype drop fired.", color: "orange" },
+  { label: "Dancehall Drop", mode: "DROPS", message: "Dancehall drop fired.", color: "green" },
+  { label: "Hip Hop Drop", mode: "DROPS", message: "Hip hop drop fired.", color: "blue" },
+  { label: "Reggae Drop", mode: "DROPS", message: "Reggae drop fired.", color: "yellow" },
+
+  { label: "Com Break", mode: "COM", message: "Commercial break selected.", color: "blue" },
+  { label: "Back Soon", mode: "COM", message: "Back soon commercial bridge selected.", color: "yellow" },
+  { label: "Sponsor Block", mode: "COM", message: "Sponsor block selected.", color: "green" },
+  { label: "Voice Promo", mode: "COM", message: "Voice promo selected.", color: "purple" },
+  { label: "Street Promo", mode: "COM", message: "Street promo commercial selected.", color: "orange" },
+  { label: "Radio Promo", mode: "COM", message: "Radio promo commercial selected.", color: "red" },
+
+  { label: "Store Ad", mode: "ADS", message: "Tha Core store ad fired.", color: "green" },
+  { label: "Print Ad", mode: "ADS", message: "Graphics and printing ad fired.", color: "blue" },
+  { label: "Music Promo", mode: "ADS", message: "Music promotion ad fired.", color: "orange" },
+  { label: "Sponsor Ad", mode: "ADS", message: "Sponsor ad fired.", color: "yellow" },
+
+  { label: "Smart Mix", mode: "SMARTDJ", message: "SmartDJ mix selected.", color: "purple" },
+  { label: "Smart Jingle", mode: "SMARTDJ", message: "SmartDJ jingle timing selected.", color: "yellow" },
+  { label: "Smart Ads", mode: "SMARTDJ", message: "SmartDJ ad timing selected.", color: "green" },
+  { label: "Smart Talk", mode: "SMARTDJ", message: "SmartDJ talk break selected.", color: "blue" },
+
+  { label: "AutoDJ Flow", mode: "AUTODJ", message: "AutoDJ flow selected.", color: "orange" },
+  { label: "Auto Next", mode: "AUTODJ", message: "AutoDJ next command selected.", color: "green" },
+  { label: "Auto Break", mode: "AUTODJ", message: "AutoDJ break selected.", color: "blue" },
+  { label: "Auto Rotate", mode: "AUTODJ", message: "AutoDJ rotation selected.", color: "yellow" },
+
+  { label: "Live Mic", mode: "LIVEDJ", message: "Live DJ mic armed.", color: "red" },
+  { label: "Talk Break", mode: "LIVEDJ", message: "Live DJ talk break selected.", color: "yellow" },
+  { label: "Shout Out", mode: "LIVEDJ", message: "Live shout out selected.", color: "orange" },
+  { label: "Request Line", mode: "LIVEDJ", message: "Request line opened.", color: "green" },
 ];
 
-const broadcastButtons = [
-  { label: "Cue", kind: "cue" },
-  { label: "Play / Pause", kind: "play" },
-  { label: "Stop All", kind: "stop" },
-  { label: "Skip Next", kind: "skipNext" },
-  { label: "Skip Back", kind: "skipBack" },
-  { label: "Studio Skip", kind: "studioSkip" },
-  { label: "Monitor", kind: "monitor" },
-  { label: "Mic", kind: "mic" },
-  { label: "LiveDJ", kind: "liveDj" },
-  { label: "AutoDJ", kind: "autoDj" },
-  { label: "SmartDJ", kind: "smartDj" },
-  { label: "Ads", kind: "ads" },
+const footerTools: FooterTool[] = [
+  { label: "Blog", note: "Blog page shortcut ready", color: "yellow" },
+  { label: "News", note: "News desk shortcut ready", color: "red" },
+  { label: "Weather", note: "Weather reader shortcut ready", color: "blue" },
+  { label: "Store", note: "Store shortcut ready", color: "green" },
+  { label: "Community", note: "Community page shortcut ready", color: "purple" },
+  { label: "Chat", note: "Community chat shortcut ready", color: "orange" },
+  { label: "Upload", note: "Upload center shortcut ready", color: "yellow" },
+  { label: "Requests", note: "Song request shortcut ready", color: "green" },
+  { label: "Schedule", note: "Show schedule shortcut ready", color: "blue" },
+  { label: "Promos", note: "Promo tools shortcut ready", color: "red" },
 ];
 
 export default function OwnerControlPanelPage() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const [broadcast, setBroadcast] = useState<BroadcastState>("off");
-  const [deckA, setDeckA] = useState<DeckMode>("idle");
-  const [deckB, setDeckB] = useState<DeckMode>("idle");
-
   const [selectedMode, setSelectedMode] = useState<PadMode>("JINGLES");
+
   const [autoDj, setAutoDj] = useState(true);
   const [smartDj, setSmartDj] = useState(false);
   const [liveDj, setLiveDj] = useState(false);
   const [micLive, setMicLive] = useState(false);
-  const [inHouseMonitor, setInHouseMonitor] = useState(true);
+  const [monitorOn, setMonitorOn] = useState(true);
 
   const [screenTitle, setScreenTitle] = useState("STUDIO READY");
   const [screenText, setScreenText] = useState(
-    "Tha Core control room ready. Camera, cue, play/pause, stop all, skip, monitor, SmartDJ, AutoDJ, LiveDJ, jingles, drops, commercials, and ads are loaded."
+    "Control panel ready. Main Play / Pause controls the full broadcast monitor. All smart one-click buttons are now in the hero display."
   );
 
   const [volume, setVolume] = useState(72);
-  const [monitorVolume, setMonitorVolume] = useState(65);
+  const [monitorVol, setMonitorVol] = useState(65);
   const [micGain, setMicGain] = useState(45);
   const [musicGain, setMusicGain] = useState(70);
   const [tempo, setTempo] = useState(50);
   const [bass, setBass] = useState(64);
   const [mid, setMid] = useState(58);
-  const [treble, setTreble] = useState(61);
+  const [high, setHigh] = useState(61);
   const [reverb, setReverb] = useState(20);
   const [delay, setDelay] = useState(12);
   const [echo, setEcho] = useState(18);
-  const [compression, setCompression] = useState(44);
-  const [limiter, setLimiter] = useState(60);
   const [crossfade, setCrossfade] = useState(50);
 
   const [logs, setLogs] = useState<LogItem[]>([
     {
       id: 1,
       time: "Now",
-      message: "Studio working version loaded. Backup remains untouched.",
+      message: "Jet black / blood red studio version loaded.",
     },
   ]);
 
-  const isBroadcasting = broadcast === "live";
-  const filteredPads = pads.filter((pad) => pad.mode === selectedMode);
+  const isLive = broadcast === "live";
+  const isCue = broadcast === "cue";
+  const visiblePads = pads.filter((pad) => pad.mode === selectedMode);
 
-  const nowPlaying = useMemo(() => {
+  const broadcastLabel = useMemo(() => {
     if (broadcast === "live" && liveDj) return "LIVE DJ ON AIR";
-    if (broadcast === "live" && autoDj) return "AUTODJ BROADCASTING";
     if (broadcast === "live" && smartDj) return "SMARTDJ BROADCASTING";
+    if (broadcast === "live" && autoDj) return "AUTODJ BROADCASTING";
+    if (broadcast === "live") return "BROADCAST LIVE";
     if (broadcast === "paused") return "BROADCAST PAUSED";
     if (broadcast === "cue") return "BROADCAST CUED";
     return "OFF AIR";
-  }, [broadcast, autoDj, smartDj, liveDj]);
+  }, [broadcast, liveDj, smartDj, autoDj]);
 
   function stamp() {
     return new Date().toLocaleTimeString([], {
@@ -191,17 +165,15 @@ export default function OwnerControlPanelPage() {
     ]);
   }
 
-  function updateMainVolume(value: number) {
+  function setMainVolume(value: number) {
     setVolume(value);
     if (audioRef.current) audioRef.current.volume = value / 100;
   }
 
   function cueBroadcast() {
     setBroadcast("cue");
-    setDeckA("cue");
-    setDeckB(autoDj || smartDj ? "cue" : "idle");
     setScreenTitle("BROADCAST CUED");
-    setScreenText("Broadcast is cued. Hit Play / Pause to start the studio broadcast monitor.");
+    setScreenText("Broadcast is cued. Turntables slow spin. Hit main Play / Pause to start the full broadcast monitor.");
     addLog("Broadcast cued.");
   }
 
@@ -212,29 +184,25 @@ export default function OwnerControlPanelPage() {
     if (broadcast === "live") {
       audio.pause();
       setBroadcast("paused");
-      setDeckA("paused");
-      setDeckB("paused");
       setScreenTitle("BROADCAST PAUSED");
-      setScreenText("All broadcast monitoring paused. Hit Play / Pause again to continue.");
-      addLog("Broadcast paused.");
+      setScreenText("Main Play / Pause paused the full broadcast monitor. Press it again to continue.");
+      addLog("Main Play / Pause paused the full broadcast monitor.");
       return;
     }
 
     try {
       audio.volume = volume / 100;
-      audio.muted = !inHouseMonitor;
+      audio.muted = !monitorOn;
       await audio.play();
 
       setBroadcast("live");
-      setDeckA("live");
-      setDeckB("live");
-      setScreenTitle("BROADCASTING");
-      setScreenText("Broadcast monitor playing. Both turntables spinning with real studio feel.");
-      addLog("Broadcast started. Turntables spinning.");
+      setScreenTitle("BROADCAST LIVE");
+      setScreenText("Main Play / Pause started the full broadcast monitor. Both turntables are spinning live.");
+      addLog("Main Play / Pause started the broadcast. Turntables spinning.");
     } catch {
       setScreenTitle("PLAYBACK BLOCKED");
-      setScreenText("Browser blocked audio. Click Play again or check stream URL / HTTPS.");
-      addLog("Playback blocked by browser or stream connection.");
+      setScreenText("Browser blocked the stream. Click Play / Pause again or check stream URL / HTTPS.");
+      addLog("Playback blocked.");
     }
   }
 
@@ -246,74 +214,61 @@ export default function OwnerControlPanelPage() {
       try {
         audio.currentTime = 0;
       } catch {
-        // Live streams may not allow reset.
+        // Live stream reset may not be allowed.
       }
     }
 
     setBroadcast("off");
-    setDeckA("idle");
-    setDeckB("idle");
     setMicLive(false);
-    setScreenTitle("ALL BROADCASTING STOPPED");
-    setScreenText("All broadcast monitoring stopped from the control room panel.");
-    addLog("Stop All pressed. Broadcast monitor stopped.");
+    setScreenTitle("STOP ALL");
+    setScreenText("Stop All stopped the full control room broadcast monitor.");
+    addLog("Stop All pressed.");
+  }
+
+  function skipNext() {
+    setScreenTitle("SKIP NEXT");
+    setScreenText("Skip Next pressed. Ready to wire into AzuraCast skip API.");
+    addLog("Skip Next pressed.");
+  }
+
+  function studioSkip() {
+    setScreenTitle("STUDIO SKIP");
+    setScreenText("Studio Skip pressed. Ready for clean SmartDJ / AutoDJ transition.");
+    addLog("Studio Skip pressed.");
   }
 
   function toggleMonitor() {
-    setInHouseMonitor((current) => {
+    setMonitorOn((current) => {
       const next = !current;
+      if (audioRef.current) audioRef.current.muted = !next;
 
-      if (audioRef.current) {
-        audioRef.current.muted = !next;
-      }
-
-      setScreenTitle(next ? "IN-HOUSE MONITOR ON" : "IN-HOUSE MONITOR OFF");
+      setScreenTitle(next ? "MONITOR ON" : "MONITOR MUTED");
       setScreenText(
         next
-          ? "Studio in-house monitor is on. You can hear the broadcast in the control room."
-          : "Studio in-house monitor muted. Public stream is not affected."
+          ? "In-house studio monitor is on."
+          : "In-house monitor is muted. Public stream is not affected."
       );
-      addLog(next ? "In-house monitor switched on." : "In-house monitor switched off.");
+      addLog(next ? "Monitor turned on." : "Monitor muted.");
 
       return next;
     });
   }
 
-  function skipNext() {
-    setScreenTitle("SKIP NEXT");
-    setScreenText("Skip Next pressed. This button is ready to connect to AzuraCast skip API.");
-    addLog("Skip Next pressed.");
-  }
-
-  function skipBack() {
-    setScreenTitle("SKIP BACK");
-    setScreenText("Skip Back pressed. Studio back-skip command selected.");
-    addLog("Skip Back pressed.");
-  }
-
-  function studioSkip() {
-    setScreenTitle("STUDIO SKIP");
-    setScreenText("Studio Skip pressed. SmartDJ / AutoDJ can use this for the next clean transition.");
-    addLog("Studio Skip pressed.");
-  }
-
-  function triggerPad(pad: Pad) {
+  function firePad(pad: Pad) {
     setSelectedMode(pad.mode);
     setScreenTitle(`${pad.mode} FIRED`);
-    setScreenText(pad.tone);
-
-    if (pad.mode === "AUTODJ") {
-      setAutoDj(true);
-      setSmartDj(false);
-      setLiveDj(false);
-      setDeckB(broadcast === "live" ? "live" : "cue");
-    }
+    setScreenText(pad.message);
 
     if (pad.mode === "SMARTDJ") {
       setSmartDj(true);
       setAutoDj(false);
       setLiveDj(false);
-      setDeckB(broadcast === "live" ? "live" : "cue");
+    }
+
+    if (pad.mode === "AUTODJ") {
+      setAutoDj(true);
+      setSmartDj(false);
+      setLiveDj(false);
     }
 
     if (pad.mode === "LIVEDJ") {
@@ -323,76 +278,20 @@ export default function OwnerControlPanelPage() {
       setMicLive(true);
     }
 
-    addLog(`${pad.mode} pad fired: ${pad.label}`);
+    addLog(`${pad.mode}: ${pad.label}`);
   }
 
-  function smartOneClick() {
-    const firstPad = filteredPads[0] || pads[0];
-    triggerPad(firstPad);
-    setScreenTitle(`SMART BUTTON: ${selectedMode}`);
-    addLog(`Smart one-click fired ${selectedMode}.`);
+  function selectDisplay(mode: PadMode, label: string) {
+    setSelectedMode(mode);
+    setScreenTitle(`${label.toUpperCase()} DISPLAY`);
+    setScreenText(`${label} display buttons are now loaded in the hero page.`);
+    addLog(`${label} display selected.`);
   }
 
-  function runBroadcastButton(kind: string) {
-    if (kind === "cue") return cueBroadcast();
-    if (kind === "play") return playPauseBroadcast();
-    if (kind === "stop") return stopBroadcast();
-    if (kind === "skipNext") return skipNext();
-    if (kind === "skipBack") return skipBack();
-    if (kind === "studioSkip") return studioSkip();
-    if (kind === "monitor") return toggleMonitor();
-
-    if (kind === "mic") {
-      setMicLive((current) => {
-        const next = !current;
-        setScreenTitle(next ? "MIC ARMED" : "MIC MUTED");
-        setScreenText(next ? "Live DJ mic channel armed." : "Live DJ mic channel muted.");
-        addLog(next ? "Mic armed." : "Mic muted.");
-        return next;
-      });
-      return;
-    }
-
-    if (kind === "liveDj") {
-      setLiveDj(true);
-      setAutoDj(false);
-      setSmartDj(false);
-      setMicLive(true);
-      setSelectedMode("LIVEDJ");
-      setScreenTitle("LIVE DJ MODE");
-      setScreenText("LiveDJ selected. Manual studio control and mic are ready.");
-      addLog("LiveDJ mode selected.");
-      return;
-    }
-
-    if (kind === "autoDj") {
-      setAutoDj(true);
-      setSmartDj(false);
-      setLiveDj(false);
-      setSelectedMode("AUTODJ");
-      setScreenTitle("AUTODJ MODE");
-      setScreenText("AutoDJ selected. Playlist flow ready.");
-      addLog("AutoDJ selected.");
-      return;
-    }
-
-    if (kind === "smartDj") {
-      setSmartDj(true);
-      setAutoDj(false);
-      setLiveDj(false);
-      setSelectedMode("SMARTDJ");
-      setScreenTitle("SMARTDJ MODE");
-      setScreenText("SmartDJ selected. Intelligent radio flow ready.");
-      addLog("SmartDJ selected.");
-      return;
-    }
-
-    if (kind === "ads") {
-      setSelectedMode("ADS");
-      setScreenTitle("ADS PANEL");
-      setScreenText("Ads buttons ready.");
-      addLog("Ads panel selected.");
-    }
+  function selectTool(tool: FooterTool) {
+    setScreenTitle(`${tool.label.toUpperCase()} DOCK`);
+    setScreenText(tool.note);
+    addLog(`${tool.label} footer dock selected.`);
   }
 
   return (
@@ -405,36 +304,33 @@ export default function OwnerControlPanelPage() {
             <p className="eyebrow">THA CORE ONLINE RADIO</p>
             <h1>Studio Control Panel</h1>
             <p className="subtitle">
-              Real studio layout with central log, camera above cue, broadcast buttons,
-              skip controls, smaller buttons, full mixer sliders, and spinning turntables.
+              Jet black and blood red studio layout with bigger cam, all smart one-click
+              buttons in the hero display, extra sliders under each turntable wheel, jingle
+              display, commercial display, and full broadcast Play / Pause.
             </p>
           </div>
 
           <div className="brand-badge">
-            <div className="crown">♛</div>
+            <span className="crown">♛</span>
             <strong>TC</strong>
-            <span>STUDIO LIVE</span>
+            <small>STUDIO LIVE</small>
           </div>
         </header>
 
-        <section className="status-grid">
-          <StatusCard
-            label="Broadcast"
-            value={nowPlaying}
-            color={broadcast === "live" ? "green" : broadcast === "cue" ? "yellow" : "red"}
-          />
-          <StatusCard label="SmartDJ" value={smartDj ? "ACTIVE" : "READY"} color={smartDj ? "green" : "yellow"} />
-          <StatusCard label="AutoDJ" value={autoDj ? "ACTIVE" : "OFF"} color={autoDj ? "orange" : "red"} />
-          <StatusCard label="LiveDJ" value={liveDj ? "LIVE" : "STANDBY"} color={liveDj ? "green" : "yellow"} />
-          <StatusCard label="Mic" value={micLive ? "ARMED" : "MUTED"} color={micLive ? "green" : "red"} />
-          <StatusCard label="Monitor" value={inHouseMonitor ? "ON" : "OFF"} color={inHouseMonitor ? "green" : "red"} />
+        <section className="status-row">
+          <StatusCard label="Broadcast" value={broadcastLabel} tone={isLive ? "green" : isCue ? "yellow" : "red"} />
+          <StatusCard label="AutoDJ" value={autoDj ? "ACTIVE" : "OFF"} tone={autoDj ? "orange" : "red"} />
+          <StatusCard label="SmartDJ" value={smartDj ? "ACTIVE" : "READY"} tone={smartDj ? "green" : "yellow"} />
+          <StatusCard label="LiveDJ" value={liveDj ? "LIVE" : "STANDBY"} tone={liveDj ? "green" : "yellow"} />
+          <StatusCard label="Mic" value={micLive ? "ARMED" : "MUTED"} tone={micLive ? "green" : "red"} />
+          <StatusCard label="Monitor" value={monitorOn ? "ON" : "MUTED"} tone={monitorOn ? "green" : "red"} />
         </section>
 
         <section className="central-log">
-          <PanelHeading left="Central Control Log" right="Above Hero" />
-          <div className="central-log-row">
+          <PanelHeading left="Central Control Log" right="Above Studio" />
+          <div className="log-row">
             {logs.slice(0, 4).map((log) => (
-              <div key={log.id} className="central-log-item">
+              <div key={log.id} className="log-card">
                 <span>{log.time}</span>
                 <p>{log.message}</p>
               </div>
@@ -442,19 +338,16 @@ export default function OwnerControlPanelPage() {
           </div>
         </section>
 
-        <section className="studio-layout">
-          <div className="hero-screen">
-            <div className="screen-top">
-              <span>{screenTitle}</span>
-              <b>{nowPlaying}</b>
-            </div>
+        <section className="main-studio">
+          <section className="left-display panel">
+            <PanelHeading left={screenTitle} right={broadcastLabel} />
 
-            <div className="screen-body">
-              <p className="screen-kicker">LIVE HERO DISPLAY</p>
-              <h2>{nowPlaying}</h2>
+            <div className="screen">
+              <p className="screen-kicker">LIVE DISPLAY</p>
+              <h2>{broadcastLabel}</h2>
               <p>{screenText}</p>
 
-              <div className="mode-lamps">
+              <div className="lamp-grid">
                 <span className={autoDj ? "lamp on orange" : "lamp"}>AUTODJ</span>
                 <span className={smartDj ? "lamp on green" : "lamp"}>SMARTDJ</span>
                 <span className={liveDj ? "lamp on red" : "lamp"}>LIVEDJ</span>
@@ -462,30 +355,55 @@ export default function OwnerControlPanelPage() {
               </div>
             </div>
 
-            <div className="ticker">
-              <span>
-                THA CORE ONLINE RADIO • BROADCAST • CUE • PLAY / PAUSE • STOP ALL • SKIP NEXT • STUDIO SKIP • JINGLES • DROPS • COM • ADS • SMARTDJ • AUTODJ • LIVEDJ •
-              </span>
+            <div className="hero-smart-area">
+              <PanelHeading left="Hero Smart One Click Buttons" right={selectedMode} />
+
+              <div className="display-switches">
+                <button type="button" onClick={() => selectDisplay("JINGLES", "Jingles")} className="display-btn blood">
+                  Jingles Display
+                </button>
+                <button type="button" onClick={() => selectDisplay("COM", "Commercial")} className="display-btn dark">
+                  Commercial Display
+                </button>
+              </div>
+
+              <div className="hero-tabs">
+                {padModes.map((mode) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => selectDisplay(mode, mode)}
+                    className={selectedMode === mode ? "active" : ""}
+                  >
+                    {mode}
+                  </button>
+                ))}
+              </div>
+
+              <div className="hero-pad-grid">
+                {visiblePads.map((pad) => (
+                  <button
+                    key={`${pad.mode}-${pad.label}`}
+                    type="button"
+                    onClick={() => firePad(pad)}
+                    className={`pad ${pad.color}`}
+                  >
+                    <small>{pad.mode}</small>
+                    <strong>{pad.label}</strong>
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          </section>
 
-          <div className="turntable-board">
-            <Turntable
-              title="DECK A"
-              mode={deckA}
-              label="MAIN BROADCAST"
-              active={isBroadcasting}
-            />
+          <section className="turntable-stage">
+            <Turntable title="DECK A" label="MAIN BROADCAST" state={broadcast} />
 
-            <div className="broadcast-section">
+            <section className="broadcast-center">
               <div className="cam-box">
-                <div className="cam-top">
-                  <span>Studio Cam</span>
-                  <b>{micLive ? "MIC LIVE" : "READY"}</b>
-                </div>
-
+                <PanelHeading left="Studio Cam" right={micLive ? "MIC LIVE" : "READY"} />
                 <div className="cam-view">
-                  <div className={isBroadcasting ? "cam-eq active" : "cam-eq"}>
+                  <div className={isLive ? "cam-bars active" : "cam-bars"}>
                     <i />
                     <i />
                     <i />
@@ -498,58 +416,79 @@ export default function OwnerControlPanelPage() {
                 </div>
               </div>
 
+              <button
+                type="button"
+                onClick={playPauseBroadcast}
+                className={isLive ? "main-play active" : "main-play"}
+              >
+                <span>MAIN BROADCAST</span>
+                <b>{isLive ? "PAUSE ALL" : "PLAY ALL"}</b>
+              </button>
+
               <div className="broadcast-buttons">
+                <button type="button" onClick={cueBroadcast} className="btn blood">Cue</button>
+                <button type="button" onClick={stopBroadcast} className="btn red">Stop All</button>
+                <button type="button" onClick={skipNext} className="btn blue">Skip</button>
+                <button type="button" onClick={studioSkip} className="btn purple">Studio Skip</button>
+                <button type="button" onClick={toggleMonitor} className="btn green">Monitor</button>
                 <button
                   type="button"
-                  onClick={cueBroadcast}
-                  className={broadcast === "cue" ? "studio-btn cue active" : "studio-btn cue"}
+                  onClick={() => {
+                    setMicLive((current) => !current);
+                    addLog("Mic toggled.");
+                  }}
+                  className="btn orange"
                 >
-                  Cue
-                </button>
-
-                <button
-                  type="button"
-                  onClick={playPauseBroadcast}
-                  className={broadcast === "live" ? "studio-btn play active" : "studio-btn play"}
-                >
-                  {broadcast === "live" ? "Pause" : "Play"}
-                </button>
-
-                <button type="button" onClick={stopBroadcast} className="studio-btn stop">
-                  Stop All
-                </button>
-
-                <button type="button" onClick={skipNext} className="studio-btn skip">
-                  Skip Next
-                </button>
-
-                <button type="button" onClick={skipBack} className="studio-btn skip2">
-                  Skip Back
-                </button>
-
-                <button type="button" onClick={studioSkip} className="studio-btn smart">
-                  Studio Skip
+                  Mic
                 </button>
               </div>
 
-              <div className="small-action-grid">
-                {broadcastButtons.slice(6).map((button) => (
-                  <button
-                    key={button.label}
-                    type="button"
-                    onClick={() => runBroadcastButton(button.kind)}
-                  >
-                    {button.label}
-                  </button>
-                ))}
+              <div className="mode-buttons">
+                <button type="button" onClick={() => selectDisplay("JINGLES", "Jingles")}>Jingles</button>
+                <button type="button" onClick={() => selectDisplay("DROPS", "Drops")}>Drops</button>
+                <button type="button" onClick={() => selectDisplay("COM", "Commercial")}>Com</button>
+                <button type="button" onClick={() => selectDisplay("ADS", "Ads")}>Ads</button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSmartDj(true);
+                    setAutoDj(false);
+                    setLiveDj(false);
+                    selectDisplay("SMARTDJ", "SmartDJ");
+                  }}
+                >
+                  SmartDJ
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAutoDj(true);
+                    setSmartDj(false);
+                    setLiveDj(false);
+                    selectDisplay("AUTODJ", "AutoDJ");
+                  }}
+                >
+                  AutoDJ
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLiveDj(true);
+                    setAutoDj(false);
+                    setSmartDj(false);
+                    setMicLive(true);
+                    selectDisplay("LIVEDJ", "LiveDJ");
+                  }}
+                >
+                  LiveDJ
+                </button>
+                <button type="button" onClick={() => firePad(visiblePads[0] || pads[0])}>
+                  Smart Fire
+                </button>
               </div>
 
               <div className="crossfader">
-                <div>
-                  <span>Deck A</span>
-                  <b>{crossfade < 45 ? "HOT" : "READY"}</b>
-                </div>
-
+                <span>Deck A</span>
                 <input
                   type="range"
                   min="0"
@@ -557,76 +496,41 @@ export default function OwnerControlPanelPage() {
                   value={crossfade}
                   onChange={(event) => setCrossfade(Number(event.target.value))}
                 />
-
-                <div>
-                  <span>Deck B</span>
-                  <b>{crossfade > 55 ? "HOT" : "READY"}</b>
-                </div>
+                <span>Deck B</span>
               </div>
 
-              <div className="slider-bank compact">
-                <ControlSlider label="Main" value={volume} setValue={updateMainVolume} />
-                <ControlSlider label="Mon" value={monitorVolume} setValue={setMonitorVolume} />
+              <div className="slider-bank">
+                <ControlSlider label="Main" value={volume} setValue={setMainVolume} />
+                <ControlSlider label="Mon" value={monitorVol} setValue={setMonitorVol} />
                 <ControlSlider label="Mic" value={micGain} setValue={setMicGain} />
                 <ControlSlider label="Music" value={musicGain} setValue={setMusicGain} />
                 <ControlSlider label="Tempo" value={tempo} setValue={setTempo} />
                 <ControlSlider label="Bass" value={bass} setValue={setBass} />
                 <ControlSlider label="Mid" value={mid} setValue={setMid} />
-                <ControlSlider label="High" value={treble} setValue={setTreble} />
-                <ControlSlider label="Reverb" value={reverb} setValue={setReverb} />
+                <ControlSlider label="High" value={high} setValue={setHigh} />
+                <ControlSlider label="Rev" value={reverb} setValue={setReverb} />
                 <ControlSlider label="Delay" value={delay} setValue={setDelay} />
                 <ControlSlider label="Echo" value={echo} setValue={setEcho} />
-                <ControlSlider label="Comp" value={compression} setValue={setCompression} />
-                <ControlSlider label="Limit" value={limiter} setValue={setLimiter} />
               </div>
+            </section>
+
+            <Turntable title="DECK B" label="AUTODJ / JINGLES" state={broadcast} />
+          </section>
+
+          <section className="right-pads panel">
+            <PanelHeading left="Studio Meter / Mode Display" right={selectedMode} />
+
+            <div className="mode-display">
+              <h3>{selectedMode}</h3>
+              <p>All smart one-click buttons are now loaded in the hero page display.</p>
+              <button type="button" onClick={() => firePad(visiblePads[0] || pads[0])}>
+                Fire First {selectedMode}
+              </button>
             </div>
 
-            <Turntable
-              title="DECK B"
-              mode={deckB}
-              label="AUTODJ / JINGLES / DROPS"
-              active={isBroadcasting}
-            />
-          </div>
-
-          <div className="pad-panel">
-            <PanelHeading left="One Click Smart Pads" right={selectedMode} />
-
-            <div className="mode-tabs">
-              {padModes.map((mode) => (
-                <button
-                  key={mode}
-                  type="button"
-                  onClick={() => setSelectedMode(mode)}
-                  className={selectedMode === mode ? "selected" : ""}
-                >
-                  {mode}
-                </button>
-              ))}
-            </div>
-
-            <button type="button" onClick={smartOneClick} className="smart-fire">
-              Smart Fire {selectedMode}
-            </button>
-
-            <div className="pads">
-              {filteredPads.map((pad) => (
-                <button
-                  key={`${pad.mode}-${pad.label}`}
-                  type="button"
-                  onClick={() => triggerPad(pad)}
-                  className={`pad ${pad.color}`}
-                >
-                  <small>{pad.mode}</small>
-                  <strong>{pad.label}</strong>
-                </button>
-              ))}
-            </div>
-
-            <div className="meter-panel">
-              <PanelHeading left="Studio Meter" right={isBroadcasting ? "Moving" : "Idle"} />
-
-              <div className={isBroadcasting ? "vu active" : "vu"}>
+            <div className="meter">
+              <PanelHeading left="Studio Meter" right={isLive ? "Moving" : "Idle"} />
+              <div className={isLive ? "meter-bars active" : "meter-bars"}>
                 <i />
                 <i />
                 <i />
@@ -637,23 +541,27 @@ export default function OwnerControlPanelPage() {
                 <i />
                 <i />
                 <i />
-              </div>
-
-              <div className="signal-row">
-                <span>Stream</span>
-                <b>{isBroadcasting ? "Live" : "Idle"}</b>
-              </div>
-              <div className="signal-row">
-                <span>Monitor</span>
-                <b>{inHouseMonitor ? "On" : "Muted"}</b>
-              </div>
-              <div className="signal-row">
-                <span>Mic</span>
-                <b>{micLive ? "Armed" : "Muted"}</b>
               </div>
             </div>
-          </div>
+          </section>
         </section>
+
+        <footer className="footer-dock panel">
+          <PanelHeading left="Footer Control Dock" right="Blog • News • Weather • Store • Community • Chat • Upload" />
+          <div className="footer-grid">
+            {footerTools.map((tool) => (
+              <button
+                key={tool.label}
+                type="button"
+                onClick={() => selectTool(tool)}
+                className={`footer-tool ${tool.color}`}
+              >
+                <strong>{tool.label}</strong>
+                <span>{tool.note}</span>
+              </button>
+            ))}
+          </div>
+        </footer>
       </section>
 
       <style jsx global>{`
@@ -668,18 +576,12 @@ export default function OwnerControlPanelPage() {
         .control-page {
           min-height: 100vh;
           padding: 22px;
-          color: #fff4c0;
+          color: #ffe9e9;
           background:
-            radial-gradient(circle at top left, rgba(255, 213, 0, 0.16), transparent 28%),
-            radial-gradient(circle at top right, rgba(255, 0, 0, 0.28), transparent 32%),
-            linear-gradient(135deg, #050000 0%, #210000 42%, #050505 100%);
-          font-family:
-            Inter,
-            system-ui,
-            -apple-system,
-            BlinkMacSystemFont,
-            "Segoe UI",
-            sans-serif;
+            radial-gradient(circle at top left, rgba(155, 0, 0, 0.35), transparent 28%),
+            radial-gradient(circle at top right, rgba(95, 0, 0, 0.44), transparent 32%),
+            linear-gradient(135deg, #000000 0%, #070000 38%, #160000 68%, #000000 100%);
+          font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
         }
 
         .shell {
@@ -688,12 +590,12 @@ export default function OwnerControlPanelPage() {
           padding: 22px;
           border-radius: 34px;
           background:
-            linear-gradient(180deg, rgba(255, 255, 255, 0.05), transparent),
-            rgba(9, 0, 0, 0.92);
-          border: 1px solid rgba(255, 213, 0, 0.28);
+            linear-gradient(180deg, rgba(190, 0, 0, 0.12), transparent),
+            rgba(0, 0, 0, 0.94);
+          border: 1px solid rgba(185, 0, 0, 0.72);
           box-shadow:
-            0 0 90px rgba(255, 0, 0, 0.22),
-            inset 0 0 55px rgba(255, 213, 0, 0.045);
+            0 0 100px rgba(120, 0, 0, 0.44),
+            inset 0 0 55px rgba(150, 0, 0, 0.12);
         }
 
         .topbar {
@@ -704,14 +606,14 @@ export default function OwnerControlPanelPage() {
           padding: 20px;
           border-radius: 28px;
           background:
-            linear-gradient(90deg, rgba(255, 0, 0, 0.34), rgba(255, 213, 0, 0.1)),
-            #100000;
-          border: 1px solid rgba(255, 213, 0, 0.25);
+            linear-gradient(90deg, rgba(120, 0, 0, 0.7), rgba(0, 0, 0, 0.9)),
+            #030000;
+          border: 1px solid rgba(190, 0, 0, 0.68);
         }
 
         .eyebrow {
           margin: 0 0 8px;
-          color: #ffd500;
+          color: #ff2b2b;
           font-size: 11px;
           font-weight: 950;
           letter-spacing: 0.25em;
@@ -725,13 +627,13 @@ export default function OwnerControlPanelPage() {
           text-transform: uppercase;
           text-shadow:
             0 0 16px rgba(255, 0, 0, 0.95),
-            0 0 40px rgba(255, 213, 0, 0.24);
+            0 0 40px rgba(120, 0, 0, 0.65);
         }
 
         .subtitle {
           margin: 12px 0 0;
-          max-width: 940px;
-          color: #ffeeb0;
+          max-width: 980px;
+          color: #ffc9c9;
           font-size: 15px;
           line-height: 1.5;
         }
@@ -744,14 +646,14 @@ export default function OwnerControlPanelPage() {
           text-align: center;
           border-radius: 24px;
           background:
-            radial-gradient(circle, rgba(255, 213, 0, 0.25), transparent 58%),
-            #050505;
-          border: 1px solid rgba(255, 213, 0, 0.5);
-          box-shadow: 0 0 34px rgba(255, 213, 0, 0.22);
+            radial-gradient(circle, rgba(190, 0, 0, 0.34), transparent 58%),
+            #000;
+          border: 1px solid rgba(255, 0, 0, 0.6);
+          box-shadow: 0 0 34px rgba(160, 0, 0, 0.4);
         }
 
         .brand-badge .crown {
-          color: #ffd500;
+          color: #ff2b2b;
           font-size: 26px;
           line-height: 1;
         }
@@ -763,16 +665,16 @@ export default function OwnerControlPanelPage() {
           text-shadow: 0 0 15px rgba(255, 0, 0, 0.9);
         }
 
-        .brand-badge span {
-          color: #ffd500;
+        .brand-badge small {
+          color: #ffd7d7;
           font-size: 11px;
           font-weight: 950;
           letter-spacing: 0.12em;
         }
 
-        .status-grid {
+        .status-row {
           display: grid;
-          grid-template-columns: repeat(6, minmax(0, 1fr));
+          grid-template-columns: repeat(6, 1fr);
           gap: 12px;
           margin: 16px 0;
         }
@@ -781,12 +683,12 @@ export default function OwnerControlPanelPage() {
           position: relative;
           min-height: 88px;
           padding: 15px;
-          overflow: hidden;
           border-radius: 21px;
           background:
-            linear-gradient(145deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.015)),
-            #0b0000;
-          border: 1px solid rgba(255, 213, 0, 0.22);
+            linear-gradient(145deg, rgba(170, 0, 0, 0.15), rgba(255, 255, 255, 0.018)),
+            #030000;
+          border: 1px solid rgba(180, 0, 0, 0.48);
+          overflow: hidden;
         }
 
         .status-light {
@@ -800,26 +702,15 @@ export default function OwnerControlPanelPage() {
           box-shadow: 0 0 18px currentColor;
         }
 
-        .status-light.green {
-          color: #00ff76;
-        }
-
-        .status-light.red {
-          color: #ff1b1b;
-        }
-
-        .status-light.yellow {
-          color: #ffd500;
-        }
-
-        .status-light.orange {
-          color: #ff8a00;
-        }
+        .status-light.green { color: #00ff76; }
+        .status-light.red { color: #ff1b1b; }
+        .status-light.yellow { color: #ff3b3b; }
+        .status-light.orange { color: #ff4f00; }
 
         .status-card small {
           display: block;
           margin-left: 26px;
-          color: #ffdb57;
+          color: #ff6b6b;
           font-size: 10px;
           font-weight: 950;
           letter-spacing: 0.14em;
@@ -829,29 +720,58 @@ export default function OwnerControlPanelPage() {
         .status-card strong {
           display: block;
           margin-top: 13px;
-          color: #ffffff;
+          color: #fff;
           font-size: 18px;
           text-transform: uppercase;
         }
 
+        .panel,
         .central-log {
-          margin-bottom: 16px;
-          border-radius: 24px;
-          overflow: hidden;
+          border-radius: 26px;
           background:
-            linear-gradient(90deg, rgba(255, 213, 0, 0.09), rgba(255, 0, 0, 0.08)),
-            #080000;
-          border: 1px solid rgba(255, 213, 0, 0.24);
+            linear-gradient(145deg, rgba(140, 0, 0, 0.18), rgba(0, 0, 0, 0.8)),
+            #030000;
+          border: 1px solid rgba(180, 0, 0, 0.48);
+          box-shadow: inset 0 0 30px rgba(255, 0, 0, 0.06);
+          overflow: hidden;
         }
 
-        .central-log-row {
+        .panel-heading {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 12px;
+          padding: 13px 15px;
+          border-bottom: 1px solid rgba(180, 0, 0, 0.42);
+        }
+
+        .panel-heading span {
+          color: #ff3b3b;
+          font-size: 11px;
+          font-weight: 950;
+          letter-spacing: 0.16em;
+          text-transform: uppercase;
+        }
+
+        .panel-heading b {
+          color: #fff;
+          font-size: 10px;
+          text-transform: uppercase;
+          text-align: right;
+        }
+
+        .central-log {
+          margin-bottom: 16px;
+        }
+
+        .log-row {
           display: grid;
           grid-template-columns: repeat(4, 1fr);
           gap: 10px;
           padding: 12px;
         }
 
-        .central-log-item {
+        .log-card {
           display: grid;
           grid-template-columns: 54px 1fr;
           gap: 8px;
@@ -859,84 +779,38 @@ export default function OwnerControlPanelPage() {
           min-height: 48px;
           padding: 8px;
           border-radius: 14px;
-          background: rgba(255, 255, 255, 0.04);
-          border: 1px solid rgba(255, 213, 0, 0.1);
+          background: rgba(255, 0, 0, 0.055);
+          border: 1px solid rgba(180, 0, 0, 0.26);
         }
 
-        .central-log-item span {
-          color: #ffd500;
+        .log-card span {
+          color: #ff3b3b;
           font-size: 11px;
           font-weight: 950;
         }
 
-        .central-log-item p {
+        .log-card p {
           margin: 0;
-          color: #ffeeb0;
+          color: #ffd7d7;
           font-size: 12px;
           line-height: 1.3;
         }
 
-        .studio-layout {
+        .main-studio {
           display: grid;
-          grid-template-columns: 0.95fr 2.35fr 0.9fr;
+          grid-template-columns: 0.98fr 2.28fr 0.9fr;
           gap: 16px;
           align-items: start;
         }
 
-        .hero-screen,
-        .pad-panel,
-        .meter-panel {
-          border-radius: 26px;
-          background:
-            linear-gradient(145deg, rgba(255, 213, 0, 0.065), rgba(255, 0, 0, 0.06)),
-            #080000;
-          border: 1px solid rgba(255, 213, 0, 0.24);
-          box-shadow: inset 0 0 30px rgba(255, 255, 255, 0.035);
-          overflow: hidden;
-        }
-
-        .hero-screen {
-          min-height: 520px;
-        }
-
-        .screen-top,
-        .panel-heading,
-        .cam-top {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          gap: 12px;
-          padding: 13px 15px;
-          border-bottom: 1px solid rgba(255, 213, 0, 0.16);
-        }
-
-        .screen-top span,
-        .panel-heading span,
-        .cam-top span {
-          color: #ffd500;
-          font-size: 11px;
-          font-weight: 950;
-          letter-spacing: 0.16em;
-          text-transform: uppercase;
-        }
-
-        .screen-top b,
-        .panel-heading b,
-        .cam-top b {
-          color: #fff;
-          font-size: 10px;
-          text-transform: uppercase;
-          text-align: right;
-        }
-
-        .screen-body {
-          min-height: 390px;
+        .screen {
+          min-height: 245px;
           padding: 24px 18px;
           background:
             repeating-linear-gradient(
               0deg,
-              rgba(255, 213, 0, 0.035),
-              rgba(255, 213, 0, 0.035) 1px,
+              rgba(255, 0, 0, 0.04),
+              rgba(255, 0, 0, 0.04) 1px,
               transparent 1px,
               transparent 8px
             );
@@ -950,7 +824,7 @@ export default function OwnerControlPanelPage() {
           letter-spacing: 0.18em;
         }
 
-        .screen-body h2 {
+        .screen h2 {
           margin: 0;
           color: #fff;
           font-size: clamp(24px, 2.6vw, 43px);
@@ -958,13 +832,13 @@ export default function OwnerControlPanelPage() {
           text-transform: uppercase;
         }
 
-        .screen-body p {
-          color: #ffeeb0;
+        .screen p {
+          color: #ffd7d7;
           font-size: 15px;
           line-height: 1.5;
         }
 
-        .mode-lamps {
+        .lamp-grid {
           display: grid;
           grid-template-columns: repeat(2, 1fr);
           gap: 8px;
@@ -977,53 +851,84 @@ export default function OwnerControlPanelPage() {
           min-height: 37px;
           border-radius: 999px;
           color: #777;
-          background: #151515;
+          background: #080808;
           border: 1px solid rgba(255, 255, 255, 0.08);
           font-size: 10px;
           font-weight: 950;
         }
 
-        .lamp.on.orange {
-          background: #ff8a00;
-          color: #100700;
-          box-shadow: 0 0 15px rgba(255, 138, 0, 0.55);
+        .lamp.on.orange { background: #ff4f00; color: #fff; box-shadow: 0 0 15px rgba(255, 79, 0, 0.55); }
+        .lamp.on.green { background: #00ff76; color: #00170b; box-shadow: 0 0 15px rgba(0, 255, 118, 0.55); }
+        .lamp.on.red { background: #a40000; color: #fff; box-shadow: 0 0 15px rgba(255, 0, 0, 0.55); }
+        .lamp.on.yellow { background: #ff1b1b; color: #fff; box-shadow: 0 0 15px rgba(255, 27, 27, 0.55); }
+
+        .hero-smart-area {
+          border-top: 1px solid rgba(180, 0, 0, 0.4);
         }
 
-        .lamp.on.green {
-          background: #00ff76;
-          color: #00170b;
-          box-shadow: 0 0 15px rgba(0, 255, 118, 0.55);
+        .display-switches {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 8px;
+          padding: 12px 12px 0;
         }
 
-        .lamp.on.red {
-          background: #ff1b1b;
-          color: #fff;
-          box-shadow: 0 0 15px rgba(255, 0, 0, 0.55);
-        }
-
-        .lamp.on.yellow {
-          background: #ffd500;
-          color: #160000;
-          box-shadow: 0 0 15px rgba(255, 213, 0, 0.55);
-        }
-
-        .ticker {
-          overflow: hidden;
-          padding: 12px 0;
-          color: #ffd500;
-          white-space: nowrap;
-          border-top: 1px solid rgba(255, 213, 0, 0.16);
-        }
-
-        .ticker span {
-          display: inline-block;
-          min-width: 100%;
+        .display-btn {
+          min-height: 44px;
+          border: 0;
+          border-radius: 14px;
+          cursor: pointer;
           font-weight: 950;
-          letter-spacing: 0.13em;
-          animation: ticker 19s linear infinite;
+          text-transform: uppercase;
+          box-shadow: 0 5px 0 rgba(0, 0, 0, 0.45);
         }
 
-        .turntable-board {
+        .display-btn.blood {
+          background: linear-gradient(180deg, #d90000, #580000);
+          color: #fff;
+        }
+
+        .display-btn.dark {
+          background: linear-gradient(180deg, #151515, #000);
+          color: #ff3b3b;
+          border: 1px solid rgba(190, 0, 0, 0.55);
+        }
+
+        .hero-tabs {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 7px;
+          padding: 12px;
+        }
+
+        .hero-tabs button {
+          min-height: 35px;
+          border-radius: 12px;
+          background: #090909;
+          color: #ff4b4b;
+          border: 1px solid rgba(180, 0, 0, 0.38);
+          font-size: 10px;
+          cursor: pointer;
+          font-weight: 950;
+          text-transform: uppercase;
+        }
+
+        .hero-tabs button.active {
+          background: #a40000;
+          color: #fff;
+          box-shadow: 0 0 18px rgba(255, 0, 0, 0.25);
+        }
+
+        .hero-pad-grid {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 8px;
+          padding: 0 12px 12px;
+          max-height: 350px;
+          overflow: auto;
+        }
+
+        .turntable-stage {
           display: grid;
           grid-template-columns: 1fr 390px 1fr;
           gap: 14px;
@@ -1031,39 +936,27 @@ export default function OwnerControlPanelPage() {
           padding: 18px;
           border-radius: 34px;
           background:
-            radial-gradient(circle at center, rgba(255, 213, 0, 0.12), transparent 55%),
-            linear-gradient(160deg, #260000, #050505 52%, #150000);
-          border: 1px solid rgba(255, 213, 0, 0.28);
+            radial-gradient(circle at center, rgba(150, 0, 0, 0.28), transparent 55%),
+            linear-gradient(160deg, #100000, #000 52%, #120000);
+          border: 1px solid rgba(190, 0, 0, 0.58);
         }
 
         .deck {
           position: relative;
-          min-height: 640px;
+          min-height: 690px;
           padding: 18px;
           overflow: hidden;
           border-radius: 32px;
           background:
-            radial-gradient(circle at 50% 42%, rgba(255, 0, 0, 0.18), transparent 55%),
-            linear-gradient(145deg, #111, #040404);
-          border: 1px solid rgba(255, 213, 0, 0.28);
+            radial-gradient(circle at 50% 42%, rgba(160, 0, 0, 0.24), transparent 55%),
+            linear-gradient(145deg, #090909, #000);
+          border: 1px solid rgba(180, 0, 0, 0.48);
           box-shadow:
-            inset 0 0 30px rgba(255, 255, 255, 0.035),
-            0 18px 30px rgba(0, 0, 0, 0.35);
-        }
-
-        .deck::before {
-          content: "";
-          position: absolute;
-          inset: -80px auto auto -80px;
-          width: 180px;
-          height: 180px;
-          border-radius: 50%;
-          background: rgba(255, 213, 0, 0.08);
+            inset 0 0 30px rgba(255, 0, 0, 0.045),
+            0 18px 30px rgba(0, 0, 0, 0.45);
         }
 
         .deck-head {
-          position: relative;
-          z-index: 2;
           display: flex;
           justify-content: space-between;
           align-items: center;
@@ -1071,7 +964,7 @@ export default function OwnerControlPanelPage() {
         }
 
         .deck-head strong {
-          color: #ffd500;
+          color: #ff3b3b;
           font-size: 22px;
         }
 
@@ -1080,7 +973,7 @@ export default function OwnerControlPanelPage() {
           border-radius: 999px;
           color: #fff;
           font-size: 11px;
-          border: 1px solid rgba(255, 213, 0, 0.25);
+          border: 1px solid rgba(180, 0, 0, 0.55);
         }
 
         .platter-wrap {
@@ -1089,7 +982,7 @@ export default function OwnerControlPanelPage() {
           aspect-ratio: 1 / 1;
           display: grid;
           place-items: center;
-          margin: 44px auto 24px;
+          margin: 44px auto 18px;
         }
 
         .platter {
@@ -1097,25 +990,14 @@ export default function OwnerControlPanelPage() {
           height: 100%;
           border-radius: 50%;
           background:
-            radial-gradient(circle, #ffd500 0 4%, #090909 5% 10%, #222 11% 12%, #050505 13% 22%, #202020 23% 24%, #050505 25% 35%, #232323 36% 37%, #050505 38% 48%, #202020 49% 50%, #050505 51% 62%, #242424 63% 64%, #050505 65%),
+            radial-gradient(circle, #ff1b1b 0 4%, #090909 5% 10%, #222 11% 12%, #050505 13% 22%, #202020 23% 24%, #050505 25% 35%, #232323 36% 37%, #050505 38% 48%, #202020 49% 50%, #050505 51% 62%, #242424 63% 64%, #050505 65%),
             repeating-radial-gradient(circle, rgba(255, 255, 255, 0.08) 0 1px, transparent 1px 7px),
-            conic-gradient(
-              from 40deg,
-              rgba(255, 0, 0, 0.85),
-              transparent,
-              rgba(255, 213, 0, 0.65),
-              transparent,
-              rgba(255, 0, 0, 0.85)
-            );
-          border: 14px solid #171717;
+            conic-gradient(from 40deg, rgba(255, 0, 0, 0.85), transparent, rgba(120, 0, 0, 0.75), transparent, rgba(255, 0, 0, 0.85));
+          border: 14px solid #111;
           box-shadow:
-            0 0 0 4px rgba(255, 213, 0, 0.12),
-            0 18px 35px rgba(0, 0, 0, 0.55),
+            0 0 0 4px rgba(180, 0, 0, 0.2),
+            0 18px 35px rgba(0, 0, 0, 0.65),
             inset 0 0 45px rgba(0, 0, 0, 0.9);
-        }
-
-        .deck.active .platter {
-          animation: spin 1.05s linear infinite;
         }
 
         .record-label {
@@ -1123,16 +1005,22 @@ export default function OwnerControlPanelPage() {
           width: 72px;
           height: 72px;
           border-radius: 50%;
-          background: radial-gradient(circle, #fff5a6, #ffd500 58%, #8d0000);
+          background: radial-gradient(circle, #fff, #ff1b1b 58%, #420000);
           display: grid;
           place-items: center;
-          color: #250000;
+          color: #160000;
           font-weight: 950;
-          box-shadow: 0 0 20px rgba(255, 213, 0, 0.35);
+          box-shadow: 0 0 20px rgba(255, 0, 0, 0.35);
         }
 
-        .deck.active .record-label {
-          animation: spin 1.05s linear infinite;
+        .deck.live .platter,
+        .deck.live .record-label {
+          animation: spin 0.9s linear infinite;
+        }
+
+        .deck.cue .platter,
+        .deck.cue .record-label {
+          animation: spin 2.6s linear infinite;
         }
 
         .needle {
@@ -1144,8 +1032,8 @@ export default function OwnerControlPanelPage() {
           border-radius: 999px;
           transform: rotate(27deg);
           transform-origin: right center;
-          background: linear-gradient(90deg, #ffd500, #ff1b1b);
-          box-shadow: 0 0 16px rgba(255, 213, 0, 0.45);
+          background: linear-gradient(90deg, #ff1b1b, #650000);
+          box-shadow: 0 0 16px rgba(255, 0, 0, 0.45);
         }
 
         .needle::after {
@@ -1156,8 +1044,8 @@ export default function OwnerControlPanelPage() {
           width: 42px;
           height: 42px;
           border-radius: 50%;
-          background: #ffd500;
-          box-shadow: 0 0 18px rgba(255, 213, 0, 0.55);
+          background: #ff1b1b;
+          box-shadow: 0 0 18px rgba(255, 0, 0, 0.55);
         }
 
         .deck-label {
@@ -1173,18 +1061,54 @@ export default function OwnerControlPanelPage() {
         .deck-label span {
           display: block;
           margin-top: 7px;
-          color: #ffdb57;
+          color: #ff8f8f;
           font-size: 11px;
           font-weight: 950;
           letter-spacing: 0.15em;
           text-transform: uppercase;
         }
 
+        .deck-wheel-sliders {
+          display: grid;
+          gap: 8px;
+          margin: 18px 0 14px;
+          padding: 12px;
+          border-radius: 18px;
+          background: rgba(255, 0, 0, 0.045);
+          border: 1px solid rgba(180, 0, 0, 0.24);
+        }
+
+        .deck-wheel-slider {
+          display: grid;
+          grid-template-columns: 58px 1fr 36px;
+          gap: 8px;
+          align-items: center;
+        }
+
+        .deck-wheel-slider label {
+          color: #ff6868;
+          font-size: 10px;
+          font-weight: 950;
+          text-transform: uppercase;
+        }
+
+        .deck-wheel-slider input {
+          width: 100%;
+          accent-color: #ff1b1b;
+        }
+
+        .deck-wheel-slider span {
+          color: #fff;
+          font-size: 10px;
+          font-weight: 950;
+          text-align: right;
+        }
+
         .deck-buttons {
           display: grid;
           grid-template-columns: repeat(3, 1fr);
           gap: 8px;
-          margin-top: 24px;
+          margin-top: 16px;
         }
 
         button {
@@ -1192,170 +1116,140 @@ export default function OwnerControlPanelPage() {
         }
 
         .deck-buttons button,
-        .studio-btn,
-        .small-action-grid button,
-        .mode-tabs button,
+        .btn,
+        .mode-buttons button,
         .pad,
-        .smart-fire {
-          border: 0;
+        .main-play,
+        .footer-tool,
+        .display-btn {
           cursor: pointer;
           font-weight: 950;
           text-transform: uppercase;
-          transition:
-            transform 0.2s ease,
-            filter 0.2s ease,
-            box-shadow 0.2s ease;
+          transition: transform 0.2s ease, filter 0.2s ease, box-shadow 0.2s ease;
         }
 
         .deck-buttons button {
           min-height: 42px;
+          border: 0;
           border-radius: 14px;
-          color: #160000;
-          background: linear-gradient(180deg, #ffd500, #ffae00);
-          box-shadow: 0 6px 0 #6b1c00;
+          color: #fff;
+          background: linear-gradient(180deg, #b00000, #3b0000);
+          box-shadow: 0 6px 0 #050000;
           font-size: 11px;
         }
 
-        .broadcast-section {
-          min-height: 640px;
+        .broadcast-center {
+          min-height: 690px;
           display: flex;
           flex-direction: column;
           gap: 10px;
           padding: 13px;
           border-radius: 28px;
           background:
-            linear-gradient(180deg, rgba(255, 213, 0, 0.08), transparent),
-            #070707;
-          border: 1px solid rgba(255, 213, 0, 0.28);
+            linear-gradient(180deg, rgba(120, 0, 0, 0.18), transparent),
+            #020202;
+          border: 1px solid rgba(180, 0, 0, 0.52);
         }
 
         .cam-box {
           border-radius: 20px;
           overflow: hidden;
-          background: #090000;
-          border: 1px solid rgba(255, 213, 0, 0.18);
+          background: #020000;
+          border: 1px solid rgba(180, 0, 0, 0.42);
         }
 
         .cam-view {
-          min-height: 105px;
+          min-height: 165px;
           display: grid;
           place-items: center;
           text-align: center;
-          padding: 10px;
+          padding: 14px;
           background:
-            radial-gradient(circle, rgba(255, 0, 0, 0.26), transparent 60%),
-            linear-gradient(135deg, #121212, #000);
+            radial-gradient(circle, rgba(180, 0, 0, 0.32), transparent 60%),
+            linear-gradient(135deg, #151515, #000);
         }
 
         .cam-view p {
-          margin: 4px 0 0;
-          color: #ffeeb0;
-          font-size: 12px;
+          margin: 6px 0 0;
+          color: #ffd7d7;
+          font-size: 13px;
         }
 
-        .cam-eq {
-          height: 44px;
+        .cam-bars,
+        .meter-bars {
           display: flex;
           align-items: end;
-          gap: 5px;
+          gap: 6px;
         }
 
-        .cam-eq i {
-          width: 9px;
+        .cam-bars {
+          height: 76px;
+        }
+
+        .cam-bars i {
+          width: 11px;
+          height: 26px;
           border-radius: 999px;
-          height: 20px;
-          background: linear-gradient(#ffd500, #ff1b1b);
+          background: linear-gradient(#ff5a5a, #6f0000);
         }
 
-        .cam-eq.active i {
+        .cam-bars.active i,
+        .meter-bars.active i {
           animation: meter 0.7s infinite ease-in-out;
         }
 
-        .cam-eq i:nth-child(2) {
-          animation-delay: 0.1s;
+        .main-play {
+          min-height: 72px;
+          border: 0;
+          border-radius: 20px;
+          color: #fff;
+          background: linear-gradient(180deg, #b00000, #3a0000);
+          box-shadow: 0 7px 0 #050000, 0 0 28px rgba(180, 0, 0, 0.3);
         }
 
-        .cam-eq i:nth-child(3) {
-          animation-delay: 0.2s;
+        .main-play.active {
+          background: linear-gradient(180deg, #ff1b1b, #650000);
+          box-shadow: 0 7px 0 #050000, 0 0 35px rgba(255, 0, 0, 0.45);
         }
 
-        .cam-eq i:nth-child(4) {
-          animation-delay: 0.3s;
-        }
-
-        .cam-eq i:nth-child(5) {
-          animation-delay: 0.4s;
-        }
-
-        .cam-eq i:nth-child(6) {
-          animation-delay: 0.5s;
-        }
-
-        .cam-eq i:nth-child(7) {
-          animation-delay: 0.6s;
-        }
-
-        .broadcast-buttons {
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          gap: 8px;
-        }
-
-        .studio-btn {
-          min-height: 48px;
-          border-radius: 15px;
-          color: #130000;
-          background: #ffd500;
+        .main-play span {
+          display: block;
           font-size: 11px;
-          box-shadow: 0 5px 0 #6b1c00;
+          letter-spacing: 0.16em;
         }
 
-        .studio-btn.play {
-          background: #00ff76;
+        .main-play b {
+          display: block;
+          margin-top: 3px;
+          font-size: 25px;
         }
 
-        .studio-btn.play.active {
-          background: #ff8a00;
-        }
-
-        .studio-btn.stop {
-          background: #ff1b1b;
-          color: #fff;
-          box-shadow: 0 5px 0 #570000;
-        }
-
-        .studio-btn.skip {
-          background: #00d1ff;
-        }
-
-        .studio-btn.skip2 {
-          background: #9d4dff;
-          color: #fff;
-        }
-
-        .studio-btn.smart {
-          background: #ff8a00;
-        }
-
-        .studio-btn.active {
-          outline: 2px solid #fff;
-          box-shadow:
-            0 0 18px rgba(255, 213, 0, 0.32),
-            0 5px 0 #6b1c00;
-        }
-
-        .small-action-grid {
+        .broadcast-buttons,
+        .mode-buttons {
           display: grid;
           grid-template-columns: repeat(3, 1fr);
           gap: 7px;
         }
 
-        .small-action-grid button {
-          min-height: 38px;
-          border-radius: 13px;
-          background: #1b1b1b;
-          color: #ffd500;
-          border: 1px solid rgba(255, 213, 0, 0.18);
+        .btn {
+          min-height: 44px;
+          border: 0;
+          border-radius: 14px;
+          font-size: 10px;
+          box-shadow: 0 5px 0 rgba(0, 0, 0, 0.4);
+        }
+
+        .btn.blood {
+          background: #9b0000;
+          color: #fff;
+        }
+
+        .mode-buttons button {
+          min-height: 36px;
+          border-radius: 12px;
+          background: #080808;
+          color: #ff4b4b;
+          border: 1px solid rgba(180, 0, 0, 0.38);
           font-size: 10px;
         }
 
@@ -1366,25 +1260,16 @@ export default function OwnerControlPanelPage() {
           gap: 8px;
           padding: 11px;
           border-radius: 18px;
-          background: #120000;
-          border: 1px solid rgba(255, 213, 0, 0.18);
-        }
-
-        .crossfader div {
-          text-align: center;
+          background: #070000;
+          border: 1px solid rgba(180, 0, 0, 0.36);
         }
 
         .crossfader span {
-          display: block;
-          color: #ffd500;
+          color: #ff4b4b;
           font-size: 10px;
           font-weight: 950;
           text-transform: uppercase;
-        }
-
-        .crossfader b {
-          color: #fff;
-          font-size: 10px;
+          text-align: center;
         }
 
         .crossfader input {
@@ -1392,16 +1277,16 @@ export default function OwnerControlPanelPage() {
           accent-color: #ff1b1b;
         }
 
-        .slider-bank.compact {
+        .slider-bank {
           display: grid;
-          grid-template-columns: repeat(13, minmax(42px, 1fr));
+          grid-template-columns: repeat(11, minmax(42px, 1fr));
           gap: 5px;
-          min-height: 225px;
+          min-height: 210px;
           padding: 7px;
           overflow-x: auto;
           border-radius: 18px;
-          background: rgba(255, 255, 255, 0.035);
-          border: 1px solid rgba(255, 213, 0, 0.12);
+          background: rgba(255, 0, 0, 0.035);
+          border: 1px solid rgba(180, 0, 0, 0.18);
         }
 
         .control-slider {
@@ -1410,12 +1295,12 @@ export default function OwnerControlPanelPage() {
           gap: 5px;
           padding: 6px 3px;
           border-radius: 13px;
-          background: rgba(0, 0, 0, 0.26);
-          border: 1px solid rgba(255, 213, 0, 0.08);
+          background: rgba(0, 0, 0, 0.56);
+          border: 1px solid rgba(180, 0, 0, 0.18);
         }
 
         .control-slider label {
-          color: #ffd500;
+          color: #ff4b4b;
           font-size: 8px;
           font-weight: 950;
           text-transform: uppercase;
@@ -1426,8 +1311,8 @@ export default function OwnerControlPanelPage() {
           writing-mode: bt-lr;
           -webkit-appearance: slider-vertical;
           width: 25px;
-          height: 145px;
-          accent-color: #ffd500;
+          height: 132px;
+          accent-color: #ff1b1b;
         }
 
         .control-slider strong {
@@ -1435,53 +1320,11 @@ export default function OwnerControlPanelPage() {
           font-size: 9px;
         }
 
-        .mode-tabs {
-          display: grid;
-          grid-template-columns: repeat(2, 1fr);
-          gap: 7px;
-          padding: 12px 13px 8px;
-        }
-
-        .mode-tabs button {
-          min-height: 35px;
-          border-radius: 13px;
-          background: #1b1b1b;
-          color: #ffd500;
-          border: 1px solid rgba(255, 213, 0, 0.18);
-          font-size: 10px;
-        }
-
-        .mode-tabs button.selected {
-          background: #ffd500;
-          color: #140000;
-          box-shadow: 0 0 18px rgba(255, 213, 0, 0.25);
-        }
-
-        .smart-fire {
-          width: calc(100% - 26px);
-          min-height: 50px;
-          margin: 8px 13px 13px;
-          border-radius: 17px;
-          color: #130000;
-          background: linear-gradient(180deg, #ffd500, #ff8a00);
-          box-shadow:
-            0 6px 0 #6b1c00,
-            0 0 25px rgba(255, 213, 0, 0.2);
-          font-size: 12px;
-        }
-
-        .pads {
-          display: grid;
-          grid-template-columns: repeat(2, 1fr);
-          gap: 8px;
-          padding: 0 13px 13px;
-        }
-
         .pad {
-          min-height: 58px;
+          min-height: 56px;
+          border: 0;
           border-radius: 16px;
-          color: #130000;
-          box-shadow: 0 5px 0 #681900;
+          box-shadow: 0 5px 0 rgba(0, 0, 0, 0.42);
         }
 
         .pad small {
@@ -1496,114 +1339,99 @@ export default function OwnerControlPanelPage() {
           font-size: 12px;
         }
 
-        .pad.yellow {
-          background: #ffd500;
+        .yellow { background: #ff4b4b; color: #fff; }
+        .red { background: #9b0000; color: #fff; }
+        .green { background: #00ff76; color: #00170b; }
+        .blue { background: #00d1ff; color: #001014; }
+        .purple { background: #7d1fff; color: #fff; }
+        .orange { background: #ff4f00; color: #fff; }
+
+        .mode-display {
+          padding: 18px;
         }
 
-        .pad.red {
-          background: #ff1b1b;
+        .mode-display h3 {
+          margin: 0;
+          color: #ff3b3b;
+          font-size: 34px;
+          line-height: 1;
+        }
+
+        .mode-display p {
+          color: #ffd7d7;
+          line-height: 1.45;
+        }
+
+        .mode-display button {
+          width: 100%;
+          min-height: 46px;
+          border: 0;
+          border-radius: 14px;
+          background: linear-gradient(180deg, #b00000, #3b0000);
           color: #fff;
+          font-weight: 950;
+          text-transform: uppercase;
+          cursor: pointer;
         }
 
-        .pad.green {
-          background: #00ff76;
+        .meter {
+          border-top: 1px solid rgba(180, 0, 0, 0.35);
         }
 
-        .pad.blue {
-          background: #00d1ff;
-        }
-
-        .pad.purple {
-          background: #9d4dff;
-          color: #fff;
-        }
-
-        .pad.orange {
-          background: #ff8a00;
-        }
-
-        .vu {
-          min-height: 100px;
-          display: flex;
-          align-items: end;
-          gap: 5px;
+        .meter-bars {
+          height: 120px;
           padding: 14px;
         }
 
-        .vu i {
+        .meter-bars i {
           flex: 1;
           min-width: 7px;
-          height: 20%;
+          height: 22%;
           border-radius: 999px 999px 0 0;
-          background: linear-gradient(#ff1b1b, #ffd500);
+          background: linear-gradient(#ff1b1b, #570000);
           opacity: 0.35;
         }
 
-        .vu.active i {
+        .meter-bars.active i {
           opacity: 1;
-          animation: meter 0.8s infinite ease-in-out;
         }
 
-        .vu i:nth-child(2) {
-          animation-delay: 0.1s;
+        .footer-dock {
+          margin-top: 16px;
         }
 
-        .vu i:nth-child(3) {
-          animation-delay: 0.2s;
+        .footer-grid {
+          display: grid;
+          grid-template-columns: repeat(10, 1fr);
+          gap: 9px;
+          padding: 13px;
         }
 
-        .vu i:nth-child(4) {
-          animation-delay: 0.3s;
+        .footer-tool {
+          min-height: 64px;
+          border: 0;
+          border-radius: 16px;
+          display: grid;
+          place-items: center;
+          text-align: center;
+          box-shadow: 0 5px 0 rgba(0, 0, 0, 0.45);
         }
 
-        .vu i:nth-child(5) {
-          animation-delay: 0.4s;
-        }
-
-        .vu i:nth-child(6) {
-          animation-delay: 0.5s;
-        }
-
-        .vu i:nth-child(7) {
-          animation-delay: 0.15s;
-        }
-
-        .vu i:nth-child(8) {
-          animation-delay: 0.25s;
-        }
-
-        .vu i:nth-child(9) {
-          animation-delay: 0.35s;
-        }
-
-        .vu i:nth-child(10) {
-          animation-delay: 0.45s;
-        }
-
-        .signal-row {
-          display: flex;
-          justify-content: space-between;
-          margin: 6px 14px;
-          padding: 9px 0;
-          border-top: 1px solid rgba(255, 213, 0, 0.12);
-        }
-
-        .signal-row span {
-          color: #ffeeb0;
+        .footer-tool strong {
+          display: block;
           font-size: 12px;
         }
 
-        .signal-row b {
-          color: #ffd500;
-          font-size: 12px;
+        .footer-tool span {
+          display: block;
+          margin-top: 3px;
+          font-size: 9px;
+          line-height: 1.2;
+          text-transform: none;
+          opacity: 0.86;
         }
 
-        .deck-buttons button:hover,
-        .studio-btn:hover,
-        .small-action-grid button:hover,
-        .mode-tabs button:hover,
-        .pad:hover,
-        .smart-fire:hover {
+        button:hover {
           transform: translateY(-2px);
           filter: brightness(1.08);
         }
@@ -1614,18 +1442,8 @@ export default function OwnerControlPanelPage() {
           }
         }
 
-        @keyframes ticker {
-          from {
-            transform: translateX(100%);
-          }
-          to {
-            transform: translateX(-100%);
-          }
-        }
-
         @keyframes meter {
-          0%,
-          100% {
+          0%, 100% {
             height: 24%;
           }
           50% {
@@ -1634,25 +1452,29 @@ export default function OwnerControlPanelPage() {
         }
 
         @media (max-width: 1500px) {
-          .status-grid {
+          .status-row {
             grid-template-columns: repeat(3, 1fr);
           }
 
-          .studio-layout {
+          .main-studio {
             grid-template-columns: 1fr;
           }
 
-          .turntable-board {
+          .turntable-stage {
             grid-template-columns: 1fr;
           }
 
           .deck,
-          .broadcast-section {
+          .broadcast-center {
             min-height: auto;
           }
 
-          .central-log-row {
+          .log-row {
             grid-template-columns: repeat(2, 1fr);
+          }
+
+          .footer-grid {
+            grid-template-columns: repeat(5, 1fr);
           }
         }
 
@@ -1675,21 +1497,23 @@ export default function OwnerControlPanelPage() {
             width: 100%;
           }
 
-          .status-grid,
-          .central-log-row,
-          .mode-lamps,
-          .pads {
+          .status-row,
+          .log-row,
+          .lamp-grid,
+          .hero-pad-grid {
             grid-template-columns: 1fr;
           }
 
           .broadcast-buttons,
-          .small-action-grid,
-          .mode-tabs {
+          .mode-buttons,
+          .hero-tabs,
+          .display-switches,
+          .footer-grid {
             grid-template-columns: repeat(2, 1fr);
           }
 
-          .slider-bank.compact {
-            grid-template-columns: repeat(13, 46px);
+          .slider-bank {
+            grid-template-columns: repeat(11, 46px);
           }
         }
       `}</style>
@@ -1700,15 +1524,15 @@ export default function OwnerControlPanelPage() {
 function StatusCard({
   label,
   value,
-  color,
+  tone,
 }: {
   label: string;
   value: string;
-  color: "green" | "red" | "yellow" | "orange";
+  tone: "green" | "red" | "yellow" | "orange";
 }) {
   return (
     <div className="status-card">
-      <span className={`status-light ${color}`} />
+      <span className={`status-light ${tone}`} />
       <small>{label}</small>
       <strong>{value}</strong>
     </div>
@@ -1726,20 +1550,21 @@ function PanelHeading({ left, right }: { left: string; right: string }) {
 
 function Turntable({
   title,
-  mode,
-  active,
   label,
+  state,
 }: {
   title: string;
-  mode: DeckMode;
-  active: boolean;
   label: string;
+  state: BroadcastState;
 }) {
+  const deckClass =
+    state === "live" ? "deck live" : state === "cue" ? "deck cue" : "deck";
+
   return (
-    <div className={active ? "deck active" : "deck"}>
+    <div className={deckClass}>
       <div className="deck-head">
         <strong>{title}</strong>
-        <span>{mode.toUpperCase()}</span>
+        <span>{state === "live" ? "SPINNING" : state === "cue" ? "CUED" : "READY"}</span>
       </div>
 
       <div className="platter-wrap">
@@ -1750,7 +1575,20 @@ function Turntable({
 
       <div className="deck-label">
         <b>{label}</b>
-        <span>{active ? "real turntable spinning" : "ready to cue"}</span>
+        <span>
+          {state === "live"
+            ? "turntable spinning live"
+            : state === "cue"
+              ? "slow cue spin"
+              : "ready"}
+        </span>
+      </div>
+
+      <div className="deck-wheel-sliders">
+        <DeckWheelSlider label="Pitch" defaultValue={52} />
+        <DeckWheelSlider label="Trim" defaultValue={62} />
+        <DeckWheelSlider label="Brake" defaultValue={36} />
+        <DeckWheelSlider label="Scratch" defaultValue={48} />
       </div>
 
       <div className="deck-buttons">
@@ -1758,6 +1596,22 @@ function Turntable({
         <button type="button">Sync</button>
         <button type="button">Load</button>
       </div>
+    </div>
+  );
+}
+
+function DeckWheelSlider({
+  label,
+  defaultValue,
+}: {
+  label: string;
+  defaultValue: number;
+}) {
+  return (
+    <div className="deck-wheel-slider">
+      <label>{label}</label>
+      <input type="range" min="0" max="100" defaultValue={defaultValue} />
+      <span>{defaultValue}%</span>
     </div>
   );
 }
