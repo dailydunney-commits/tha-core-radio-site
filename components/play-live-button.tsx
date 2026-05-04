@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useRadio } from "@/components/radio-provider";
 
@@ -7,22 +7,8 @@ export default function PlayLiveButton() {
 
   return (
     <button
-      type="button"
       onClick={toggle}
-      style={{
-        border: isPlaying ? "1px solid #ff1744" : "1px solid #00ff88",
-        borderRadius: 999,
-        background: isPlaying
-          ? "linear-gradient(180deg,#b00020,#43000c)"
-          : "linear-gradient(180deg,#00c853,#003d14)",
-        color: "#fff",
-        padding: "12px 18px",
-        fontWeight: 1000,
-        cursor: "pointer",
-        boxShadow: isPlaying
-          ? "0 0 18px rgba(255,23,68,.45)"
-          : "0 0 18px rgba(0,255,120,.45)",
-      }}
+      className="rounded-2xl bg-red-700 px-5 py-4 text-center font-black text-white hover:bg-red-800"
     >
       {isPlaying ? "Pause Live" : "Play Live"}
     </button>
