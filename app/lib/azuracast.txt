@@ -1,1 +1,56 @@
-export const AZURACAST_API_KEY = 3dba543a4cbda0c6:cfac30cf13c8b524fb0407457f148ae4                     
+export type RadioAction = "skip" | "restart" | "start" | "stop";
+
+export function getAzuraConfig() {
+  const baseUrl = process.env.AZURACAST_BASE_URL;
+  const stationId = process.env.AZURACAST_STATION_ID;
+  const stationShortcode = process.env.AZURACAST_STATION_SHORTCODE;
+  const apiKey = process.env.AZURACAST_API_KEY;
+
+  return {
+    baseUrl: baseUrl?.replace(/\/$/, ""),
+    stationId,
+    stationShortcode,
+    apiKey,
+  };
+}
+
+export function requireAzuraConfig() {
+  const config = getAzuraConfig();
+
+  if (!config.baseUrl) {
+    throw new Error("Missing AZURACAST_BASE_URL");
+  }
+
+  if (!config.stationId) {
+    throw new Error("Missing AZURACAST_STATION_ID");
+  }
+
+  if (!config.apiKey) {
+    throw new Error("Missing AZURACAST_API_KEY");
+  }
+
+  return config;
+}
+
+export function getAzuraActionUrl(action: RadioAction) {
+  const { baseUrl, stationId } = requireAzuraConfig();
+  return `${baseUrl}/api/station/${stationId}/backend/${action}`;
+}
+
+export function getAzuraNowPlayingUrl() {
+  const { baseUrl, stationId, stationShortcode } = getAzuraConfig();
+
+  if (!baseUrl) {
+    throw new Error("Missing AZURACAST_BASE_URL");
+  }
+
+  if (stationShortcode) {
+    return `${baseUrl}/api/nowplaying_static/${stationShortcode}.json`;
+  }
+
+  if (stationId) {
+    return `${baseUrl}/api/nowplaying/${stationId}`;
+  }
+
+  throw new Error("Missing AZURACAST_STATION_SHORTCODE or AZURACAST_STATION_ID");
+}                

@@ -1,0 +1,17 @@
+// app/schedule/page.tsx
+import OwnerToolPage from "@/components/owner-tool-page";
+
+export default function SchedulePage() {
+  return (
+    <OwnerToolPage
+      badge="Tha Core Schedule"
+      title="Show Schedule"
+      subtitle="Control radio program lineup, AutoDJ schedule, live shows, and special broadcasts."
+      cards={[
+        { title: "Daily Lineup", text: "Plan shows across the week." },
+        { title: "AutoDJ Schedule", text: "Future connection point for playlist scheduling." },
+        { title: "Live Shows", text: "Control live DJ sessions, interviews, and events." },
+      ]}
+    />
+  );
+}

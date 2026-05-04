@@ -4,6 +4,7 @@ import { useMemo, useRef, useState } from "react";
 
 type BroadcastState = "off" | "cue" | "live" | "paused";
 type PadMode = "JINGLES" | "DROPS" | "COM" | "ADS" | "SMARTDJ" | "AUTODJ" | "LIVEDJ";
+type DjMode = "AUTODJ" | "SMARTDJ" | "LIVEDJ";
 type PadColor = "yellow" | "red" | "green" | "blue" | "purple" | "orange";
 
 type Pad = {
@@ -21,6 +22,7 @@ type LogItem = {
 
 type FooterTool = {
   label: string;
+  href: string;
   note: string;
   color: PadColor;
 };
@@ -29,15 +31,7 @@ const STREAM_URL =
   process.env.NEXT_PUBLIC_STREAM_URL ||
   "http://thacoreonlinerad.com/listen/tha-core-online/radio.mp3";
 
-const padModes: PadMode[] = [
-  "JINGLES",
-  "DROPS",
-  "COM",
-  "ADS",
-  "SMARTDJ",
-  "AUTODJ",
-  "LIVEDJ",
-];
+const padModes: PadMode[] = ["JINGLES", "DROPS", "COM", "ADS", "SMARTDJ", "AUTODJ", "LIVEDJ"];
 
 const pads: Pad[] = [
   { label: "Station ID", mode: "JINGLES", message: "Tha Core official station ID fired.", color: "yellow" },
@@ -87,16 +81,16 @@ const pads: Pad[] = [
 ];
 
 const footerTools: FooterTool[] = [
-  { label: "Blog", note: "Blog page shortcut ready", color: "yellow" },
-  { label: "News", note: "News desk shortcut ready", color: "red" },
-  { label: "Weather", note: "Weather reader shortcut ready", color: "blue" },
-  { label: "Store", note: "Store shortcut ready", color: "green" },
-  { label: "Community", note: "Community page shortcut ready", color: "purple" },
-  { label: "Chat", note: "Community chat shortcut ready", color: "orange" },
-  { label: "Upload", note: "Upload center shortcut ready", color: "yellow" },
-  { label: "Requests", note: "Song request shortcut ready", color: "green" },
-  { label: "Schedule", note: "Show schedule shortcut ready", color: "blue" },
-  { label: "Promos", note: "Promo tools shortcut ready", color: "red" },
+  { label: "Blog", href: "/blog", note: "Blog page shortcut ready", color: "yellow" },
+  { label: "News", href: "/news", note: "News desk shortcut ready", color: "red" },
+  { label: "Weather", href: "/weather", note: "Weather reader shortcut ready", color: "blue" },
+  { label: "Store", href: "/store", note: "Store shortcut ready", color: "green" },
+  { label: "Community", href: "/community", note: "Community page shortcut ready", color: "purple" },
+  { label: "Chat", href: "/chat", note: "Community chat shortcut ready", color: "orange" },
+  { label: "Upload", href: "/upload", note: "Upload center shortcut ready", color: "yellow" },
+  { label: "Requests", href: "/requests", note: "Song request shortcut ready", color: "green" },
+  { label: "Schedule", href: "/schedule", note: "Show schedule shortcut ready", color: "blue" },
+  { label: "Promos", href: "/promos", note: "Promo tools shortcut ready", color: "red" },
 ];
 
 export default function OwnerControlPanelPage() {
@@ -113,7 +107,7 @@ export default function OwnerControlPanelPage() {
 
   const [screenTitle, setScreenTitle] = useState("STUDIO READY");
   const [screenText, setScreenText] = useState(
-    "Control panel ready. Main Play / Pause controls the full broadcast monitor. All smart one-click buttons are now in the hero display."
+    "Control panel ready. Use the all-in-one smart switch above the hero buttons to choose AutoDJ, SmartDJ, or LiveDJ."
   );
 
   const [volume, setVolume] = useState(72);
@@ -133,13 +127,15 @@ export default function OwnerControlPanelPage() {
     {
       id: 1,
       time: "Now",
-      message: "Jet black / blood red studio version loaded.",
+      message: "All-in-one smart DJ switch loaded in hero page.",
     },
   ]);
 
   const isLive = broadcast === "live";
   const isCue = broadcast === "cue";
   const visiblePads = pads.filter((pad) => pad.mode === selectedMode);
+
+  const currentDjMode: DjMode = smartDj ? "SMARTDJ" : liveDj ? "LIVEDJ" : "AUTODJ";
 
   const broadcastLabel = useMemo(() => {
     if (broadcast === "live" && liveDj) return "LIVE DJ ON AIR";
@@ -167,18 +163,118 @@ export default function OwnerControlPanelPage() {
 
   function setMainVolume(value: number) {
     setVolume(value);
-    if (audioRef.current) audioRef.current.volume = value / 100;
+
+    if (audioRef.current) {
+      audioRef.current.volume = value / 100;
+    }
+  }
+
+  function setDjMode(mode: DjMode) {
+    const nextAutoDj = mode === "AUTODJ";
+    const nextSmartDj = mode === "SMARTDJ";
+    const nextLiveDj = mode === "LIVEDJ";
+
+    setAutoDj(nextAutoDj);
+    setSmartDj(nextSmartDj);
+    setLiveDj(nextLiveDj);
+    setMicLive(nextLiveDj);
+    setSelectedMode(mode);
+
+    setScreenTitle(`${mode} ACTIVE`);
+
+    if (mode === "AUTODJ") {
+      setScreenText("AutoDJ is active. Playlist flow and automatic rotation are selected.");
+      addLog("All-in-one smart switch changed to AutoDJ.");
+    }
+
+    if (mode === "SMARTDJ") {
+      setScreenText("SmartDJ is active. Smart jingles, drops, ads, and talk timing are selected.");
+      addLog("All-in-one smart switch changed to SmartDJ.");
+    }
+
+    if (mode === "LIVEDJ") {
+      setScreenText("LiveDJ is active. Manual DJ control and mic channel are armed.");
+      addLog("All-in-one smart switch changed to LiveDJ.");
+    }
+  }
+
+  async function callRadioAction(action: "skip" | "restart" | "start" | "stop") {
+    setScreenTitle(`${action.toUpperCase()} SENT`);
+    setScreenText(`Sending ${action} command to radio backend...`);
+    addLog(`${action.toUpperCase()} command sending.`);
+
+    try {
+      const response = await fetch("/api/radio/action", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ action }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data?.ok) {
+        setScreenTitle(`${action.toUpperCase()} FAILED`);
+        setScreenText(data?.error || `Could not complete ${action}. Check AzuraCast settings.`);
+        addLog(`${action.toUpperCase()} failed.`);
+        return;
+      }
+
+      setScreenTitle(`${action.toUpperCase()} COMPLETE`);
+      setScreenText(data?.message || `${action} command completed.`);
+      addLog(`${action.toUpperCase()} completed.`);
+    } catch {
+      setScreenTitle(`${action.toUpperCase()} ERROR`);
+      setScreenText("Could not reach the radio action API route.");
+      addLog(`${action.toUpperCase()} API error.`);
+    }
+  }
+
+  async function refreshNowPlaying() {
+    try {
+      setScreenTitle("NOW PLAYING");
+      setScreenText("Loading current song from radio backend...");
+      addLog("Now-playing refresh started.");
+
+      const response = await fetch("/api/radio/now-playing", {
+        cache: "no-store",
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data?.ok) {
+        setScreenTitle("NOW PLAYING ERROR");
+        setScreenText(data?.error || "Could not load now-playing data.");
+        addLog("Now-playing refresh failed.");
+        return;
+      }
+
+      const text = data?.nowPlaying?.text || "Unknown song";
+      const listeners = data?.listeners?.current ?? 0;
+
+      setScreenTitle("NOW PLAYING");
+      setScreenText(`${text} • ${listeners} listeners`);
+      addLog(`Now playing loaded: ${text}`);
+    } catch {
+      setScreenTitle("NOW PLAYING ERROR");
+      setScreenText("Could not reach now-playing API route.");
+      addLog("Now-playing API error.");
+    }
   }
 
   function cueBroadcast() {
     setBroadcast("cue");
     setScreenTitle("BROADCAST CUED");
-    setScreenText("Broadcast is cued. Turntables slow spin. Hit main Play / Pause to start the full broadcast monitor.");
+    setScreenText(
+      "Broadcast is cued. Turntables slow spin. Hit main Play / Pause to start the full broadcast monitor."
+    );
     addLog("Broadcast cued.");
   }
 
   async function playPauseBroadcast() {
     const audio = audioRef.current;
+
     if (!audio) return;
 
     if (broadcast === "live") {
@@ -193,6 +289,7 @@ export default function OwnerControlPanelPage() {
     try {
       audio.volume = volume / 100;
       audio.muted = !monitorOn;
+
       await audio.play();
 
       setBroadcast("live");
@@ -211,6 +308,7 @@ export default function OwnerControlPanelPage() {
 
     if (audio) {
       audio.pause();
+
       try {
         audio.currentTime = 0;
       } catch {
@@ -226,9 +324,7 @@ export default function OwnerControlPanelPage() {
   }
 
   function skipNext() {
-    setScreenTitle("SKIP NEXT");
-    setScreenText("Skip Next pressed. Ready to wire into AzuraCast skip API.");
-    addLog("Skip Next pressed.");
+    callRadioAction("skip");
   }
 
   function studioSkip() {
@@ -240,7 +336,10 @@ export default function OwnerControlPanelPage() {
   function toggleMonitor() {
     setMonitorOn((current) => {
       const next = !current;
-      if (audioRef.current) audioRef.current.muted = !next;
+
+      if (audioRef.current) {
+        audioRef.current.muted = !next;
+      }
 
       setScreenTitle(next ? "MONITOR ON" : "MONITOR MUTED");
       setScreenText(
@@ -259,24 +358,9 @@ export default function OwnerControlPanelPage() {
     setScreenTitle(`${pad.mode} FIRED`);
     setScreenText(pad.message);
 
-    if (pad.mode === "SMARTDJ") {
-      setSmartDj(true);
-      setAutoDj(false);
-      setLiveDj(false);
-    }
-
-    if (pad.mode === "AUTODJ") {
-      setAutoDj(true);
-      setSmartDj(false);
-      setLiveDj(false);
-    }
-
-    if (pad.mode === "LIVEDJ") {
-      setLiveDj(true);
-      setAutoDj(false);
-      setSmartDj(false);
-      setMicLive(true);
-    }
+    if (pad.mode === "SMARTDJ") setDjMode("SMARTDJ");
+    if (pad.mode === "AUTODJ") setDjMode("AUTODJ");
+    if (pad.mode === "LIVEDJ") setDjMode("LIVEDJ");
 
     addLog(`${pad.mode}: ${pad.label}`);
   }
@@ -304,9 +388,9 @@ export default function OwnerControlPanelPage() {
             <p className="eyebrow">THA CORE ONLINE RADIO</p>
             <h1>Studio Control Panel</h1>
             <p className="subtitle">
-              Jet black and blood red studio layout with bigger cam, all smart one-click
-              buttons in the hero display, extra sliders under each turntable wheel, jingle
-              display, commercial display, and full broadcast Play / Pause.
+              Jet black and blood red studio layout with all-in-one AutoDJ / SmartDJ / LiveDJ switch,
+              bigger cam, all smart one-click buttons in the hero display, deck wheel sliders, now-playing
+              refresh, skip API call, and full broadcast Play / Pause monitor control.
             </p>
           </div>
 
@@ -328,6 +412,7 @@ export default function OwnerControlPanelPage() {
 
         <section className="central-log">
           <PanelHeading left="Central Control Log" right="Above Studio" />
+
           <div className="log-row">
             {logs.slice(0, 4).map((log) => (
               <div key={log.id} className="log-card">
@@ -356,12 +441,42 @@ export default function OwnerControlPanelPage() {
             </div>
 
             <div className="hero-smart-area">
-              <PanelHeading left="Hero Smart One Click Buttons" right={selectedMode} />
+              <PanelHeading left="All-In-One Smart Switch" right={currentDjMode} />
+
+              <div className="smart-mode-switch">
+                <button
+                  type="button"
+                  onClick={() => setDjMode("AUTODJ")}
+                  className={currentDjMode === "AUTODJ" ? "active auto" : "auto"}
+                >
+                  <span>AutoDJ</span>
+                  <b>Playlist</b>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setDjMode("SMARTDJ")}
+                  className={currentDjMode === "SMARTDJ" ? "active smart" : "smart"}
+                >
+                  <span>SmartDJ</span>
+                  <b>Smart Flow</b>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setDjMode("LIVEDJ")}
+                  className={currentDjMode === "LIVEDJ" ? "active live" : "live"}
+                >
+                  <span>LiveDJ</span>
+                  <b>Mic / Manual</b>
+                </button>
+              </div>
 
               <div className="display-switches">
                 <button type="button" onClick={() => selectDisplay("JINGLES", "Jingles")} className="display-btn blood">
                   Jingles Display
                 </button>
+
                 <button type="button" onClick={() => selectDisplay("COM", "Commercial")} className="display-btn dark">
                   Commercial Display
                 </button>
@@ -402,6 +517,7 @@ export default function OwnerControlPanelPage() {
             <section className="broadcast-center">
               <div className="cam-box">
                 <PanelHeading left="Studio Cam" right={micLive ? "MIC LIVE" : "READY"} />
+
                 <div className="cam-view">
                   <div className={isLive ? "cam-bars active" : "cam-bars"}>
                     <i />
@@ -412,15 +528,12 @@ export default function OwnerControlPanelPage() {
                     <i />
                     <i />
                   </div>
+
                   <p>Camera / video call / live studio window</p>
                 </div>
               </div>
 
-              <button
-                type="button"
-                onClick={playPauseBroadcast}
-                className={isLive ? "main-play active" : "main-play"}
-              >
+              <button type="button" onClick={playPauseBroadcast} className={isLive ? "main-play active" : "main-play"}>
                 <span>MAIN BROADCAST</span>
                 <b>{isLive ? "PAUSE ALL" : "PLAY ALL"}</b>
               </button>
@@ -448,43 +561,11 @@ export default function OwnerControlPanelPage() {
                 <button type="button" onClick={() => selectDisplay("DROPS", "Drops")}>Drops</button>
                 <button type="button" onClick={() => selectDisplay("COM", "Commercial")}>Com</button>
                 <button type="button" onClick={() => selectDisplay("ADS", "Ads")}>Ads</button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSmartDj(true);
-                    setAutoDj(false);
-                    setLiveDj(false);
-                    selectDisplay("SMARTDJ", "SmartDJ");
-                  }}
-                >
-                  SmartDJ
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setAutoDj(true);
-                    setSmartDj(false);
-                    setLiveDj(false);
-                    selectDisplay("AUTODJ", "AutoDJ");
-                  }}
-                >
-                  AutoDJ
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setLiveDj(true);
-                    setAutoDj(false);
-                    setSmartDj(false);
-                    setMicLive(true);
-                    selectDisplay("LIVEDJ", "LiveDJ");
-                  }}
-                >
-                  LiveDJ
-                </button>
-                <button type="button" onClick={() => firePad(visiblePads[0] || pads[0])}>
-                  Smart Fire
-                </button>
+                <button type="button" onClick={() => setDjMode("SMARTDJ")}>SmartDJ</button>
+                <button type="button" onClick={() => setDjMode("AUTODJ")}>AutoDJ</button>
+                <button type="button" onClick={() => setDjMode("LIVEDJ")}>LiveDJ</button>
+                <button type="button" onClick={() => firePad(visiblePads[0] || pads[0])}>Smart Fire</button>
+                <button type="button" onClick={refreshNowPlaying}>Now Playing</button>
               </div>
 
               <div className="crossfader">
@@ -521,8 +602,9 @@ export default function OwnerControlPanelPage() {
             <PanelHeading left="Studio Meter / Mode Display" right={selectedMode} />
 
             <div className="mode-display">
-              <h3>{selectedMode}</h3>
-              <p>All smart one-click buttons are now loaded in the hero page display.</p>
+              <h3>{currentDjMode}</h3>
+              <p>All-in-one smart switch controls AutoDJ, SmartDJ, and LiveDJ from the hero page.</p>
+
               <button type="button" onClick={() => firePad(visiblePads[0] || pads[0])}>
                 Fire First {selectedMode}
               </button>
@@ -530,6 +612,7 @@ export default function OwnerControlPanelPage() {
 
             <div className="meter">
               <PanelHeading left="Studio Meter" right={isLive ? "Moving" : "Idle"} />
+
               <div className={isLive ? "meter-bars active" : "meter-bars"}>
                 <i />
                 <i />
@@ -547,18 +630,22 @@ export default function OwnerControlPanelPage() {
         </section>
 
         <footer className="footer-dock panel">
-          <PanelHeading left="Footer Control Dock" right="Blog • News • Weather • Store • Community • Chat • Upload" />
+          <PanelHeading
+            left="Footer Control Dock"
+            right="Blog • News • Weather • Store • Community • Chat • Upload"
+          />
+
           <div className="footer-grid">
             {footerTools.map((tool) => (
-              <button
+              <a
                 key={tool.label}
-                type="button"
+                href={tool.href}
                 onClick={() => selectTool(tool)}
                 className={`footer-tool ${tool.color}`}
               >
                 <strong>{tool.label}</strong>
                 <span>{tool.note}</span>
-              </button>
+              </a>
             ))}
           </div>
         </footer>
@@ -581,7 +668,13 @@ export default function OwnerControlPanelPage() {
             radial-gradient(circle at top left, rgba(155, 0, 0, 0.35), transparent 28%),
             radial-gradient(circle at top right, rgba(95, 0, 0, 0.44), transparent 32%),
             linear-gradient(135deg, #000000 0%, #070000 38%, #160000 68%, #000000 100%);
-          font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+          font-family:
+            Inter,
+            system-ui,
+            -apple-system,
+            BlinkMacSystemFont,
+            "Segoe UI",
+            sans-serif;
         }
 
         .shell {
@@ -702,10 +795,21 @@ export default function OwnerControlPanelPage() {
           box-shadow: 0 0 18px currentColor;
         }
 
-        .status-light.green { color: #00ff76; }
-        .status-light.red { color: #ff1b1b; }
-        .status-light.yellow { color: #ff3b3b; }
-        .status-light.orange { color: #ff4f00; }
+        .status-light.green {
+          color: #00ff76;
+        }
+
+        .status-light.red {
+          color: #ff1b1b;
+        }
+
+        .status-light.yellow {
+          color: #ff3b3b;
+        }
+
+        .status-light.orange {
+          color: #ff4f00;
+        }
 
         .status-card small {
           display: block;
@@ -857,13 +961,82 @@ export default function OwnerControlPanelPage() {
           font-weight: 950;
         }
 
-        .lamp.on.orange { background: #ff4f00; color: #fff; box-shadow: 0 0 15px rgba(255, 79, 0, 0.55); }
-        .lamp.on.green { background: #00ff76; color: #00170b; box-shadow: 0 0 15px rgba(0, 255, 118, 0.55); }
-        .lamp.on.red { background: #a40000; color: #fff; box-shadow: 0 0 15px rgba(255, 0, 0, 0.55); }
-        .lamp.on.yellow { background: #ff1b1b; color: #fff; box-shadow: 0 0 15px rgba(255, 27, 27, 0.55); }
+        .lamp.on.orange {
+          background: #ff4f00;
+          color: #fff;
+          box-shadow: 0 0 15px rgba(255, 79, 0, 0.55);
+        }
+
+        .lamp.on.green {
+          background: #00ff76;
+          color: #00170b;
+          box-shadow: 0 0 15px rgba(0, 255, 118, 0.55);
+        }
+
+        .lamp.on.red {
+          background: #a40000;
+          color: #fff;
+          box-shadow: 0 0 15px rgba(255, 0, 0, 0.55);
+        }
+
+        .lamp.on.yellow {
+          background: #ff1b1b;
+          color: #fff;
+          box-shadow: 0 0 15px rgba(255, 27, 27, 0.55);
+        }
 
         .hero-smart-area {
           border-top: 1px solid rgba(180, 0, 0, 0.4);
+        }
+
+        .smart-mode-switch {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 8px;
+          padding: 12px 12px 0;
+        }
+
+        .smart-mode-switch button {
+          min-height: 62px;
+          border: 0;
+          border-radius: 16px;
+          background: linear-gradient(180deg, #111, #000);
+          color: #ff7a7a;
+          border: 1px solid rgba(180, 0, 0, 0.4);
+          cursor: pointer;
+          text-transform: uppercase;
+          font-weight: 950;
+          box-shadow: 0 5px 0 rgba(0, 0, 0, 0.45);
+        }
+
+        .smart-mode-switch button span {
+          display: block;
+          font-size: 13px;
+        }
+
+        .smart-mode-switch button b {
+          display: block;
+          margin-top: 4px;
+          font-size: 10px;
+          color: #ffd7d7;
+        }
+
+        .smart-mode-switch button.active.auto {
+          background: linear-gradient(180deg, #ff4f00, #5b1700);
+          color: #fff;
+          box-shadow: 0 0 22px rgba(255, 79, 0, 0.35), 0 5px 0 #050000;
+        }
+
+        .smart-mode-switch button.active.smart {
+          background: linear-gradient(180deg, #ff1b1b, #5b0000);
+          color: #fff;
+          box-shadow: 0 0 22px rgba(255, 0, 0, 0.42), 0 5px 0 #050000;
+        }
+
+        .smart-mode-switch button.active.live {
+          background: linear-gradient(180deg, #00ff76, #004b23);
+          color: #00170b;
+          box-shadow: 0 0 22px rgba(0, 255, 118, 0.32), 0 5px 0 #050000;
         }
 
         .display-switches {
@@ -1125,7 +1298,10 @@ export default function OwnerControlPanelPage() {
           cursor: pointer;
           font-weight: 950;
           text-transform: uppercase;
-          transition: transform 0.2s ease, filter 0.2s ease, box-shadow 0.2s ease;
+          transition:
+            transform 0.2s ease,
+            filter 0.2s ease,
+            box-shadow 0.2s ease;
         }
 
         .deck-buttons button {
@@ -1204,12 +1380,16 @@ export default function OwnerControlPanelPage() {
           border-radius: 20px;
           color: #fff;
           background: linear-gradient(180deg, #b00000, #3a0000);
-          box-shadow: 0 7px 0 #050000, 0 0 28px rgba(180, 0, 0, 0.3);
+          box-shadow:
+            0 7px 0 #050000,
+            0 0 28px rgba(180, 0, 0, 0.3);
         }
 
         .main-play.active {
           background: linear-gradient(180deg, #ff1b1b, #650000);
-          box-shadow: 0 7px 0 #050000, 0 0 35px rgba(255, 0, 0, 0.45);
+          box-shadow:
+            0 7px 0 #050000,
+            0 0 35px rgba(255, 0, 0, 0.45);
         }
 
         .main-play span {
@@ -1339,12 +1519,35 @@ export default function OwnerControlPanelPage() {
           font-size: 12px;
         }
 
-        .yellow { background: #ff4b4b; color: #fff; }
-        .red { background: #9b0000; color: #fff; }
-        .green { background: #00ff76; color: #00170b; }
-        .blue { background: #00d1ff; color: #001014; }
-        .purple { background: #7d1fff; color: #fff; }
-        .orange { background: #ff4f00; color: #fff; }
+        .yellow {
+          background: #ff4b4b;
+          color: #fff;
+        }
+
+        .red {
+          background: #9b0000;
+          color: #fff;
+        }
+
+        .green {
+          background: #00ff76;
+          color: #00170b;
+        }
+
+        .blue {
+          background: #00d1ff;
+          color: #001014;
+        }
+
+        .purple {
+          background: #7d1fff;
+          color: #fff;
+        }
+
+        .orange {
+          background: #ff4f00;
+          color: #fff;
+        }
 
         .mode-display {
           padding: 18px;
@@ -1414,6 +1617,7 @@ export default function OwnerControlPanelPage() {
           display: grid;
           place-items: center;
           text-align: center;
+          text-decoration: none;
           box-shadow: 0 5px 0 rgba(0, 0, 0, 0.45);
         }
 
@@ -1431,7 +1635,8 @@ export default function OwnerControlPanelPage() {
           opacity: 0.86;
         }
 
-        button:hover {
+        button:hover,
+        .footer-tool:hover {
           transform: translateY(-2px);
           filter: brightness(1.08);
         }
@@ -1443,9 +1648,11 @@ export default function OwnerControlPanelPage() {
         }
 
         @keyframes meter {
-          0%, 100% {
+          0%,
+          100% {
             height: 24%;
           }
+
           50% {
             height: 96%;
           }
@@ -1500,7 +1707,8 @@ export default function OwnerControlPanelPage() {
           .status-row,
           .log-row,
           .lamp-grid,
-          .hero-pad-grid {
+          .hero-pad-grid,
+          .smart-mode-switch {
             grid-template-columns: 1fr;
           }
 

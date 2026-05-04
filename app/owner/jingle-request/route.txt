@@ -1,0 +1,25 @@
+import { NextResponse } from "next/server";
+
+export async function POST(request: Request) {
+  try {
+    const body = await request.json();
+
+    console.log("Tha Core audio request:", body);
+
+    return NextResponse.json({
+      ok: true,
+      message: "Audio request received",
+      request: body,
+    });
+  } catch (error) {
+    console.error("Jingle request error:", error);
+
+    return NextResponse.json(
+      {
+        ok: false,
+        message: "Could not process audio request",
+      },
+      { status: 500 }
+    );
+  }
+}

@@ -1,0 +1,74 @@
+import { NextRequest, NextResponse } from "next/server";
+import { getAzuraActionUrl, requireAzuraConfig, type RadioAction } from "@/lib/azuracast";
+
+export const dynamic = "force-dynamic";
+
+const allowedActions: RadioAction[] = ["skip", "restart", "start", "stop"];
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json().catch(() => ({}));
+    const action = body?.action as RadioAction | undefined;
+
+    if (!action || !allowedActions.includes(action)) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "Invalid radio action.",
+          allowedActions,
+        },
+        { status: 400 }
+      );
+    }
+
+    const { apiKey } = requireAzuraConfig();
+    const url = getAzuraActionUrl(action);
+
+    const response = await fetch(url, {
+      method: "POST",
+      cache: "no-store",
+      headers: {
+        Accept: "application/json",
+        Authorization: `Bearer ${apiKey}`,
+        "X-API-Key": apiKey,
+      },
+    });
+
+    const text = await response.text();
+
+    let data: unknown = null;
+    try {
+      data = text ? JSON.parse(text) : null;
+    } catch {
+      data = text;
+    }
+
+    if (!response.ok) {
+      return NextResponse.json(
+        {
+          ok: false,
+          action,
+          status: response.status,
+          error: "AzuraCast action failed.",
+          details: data,
+        },
+        { status: response.status }
+      );
+    }
+
+    return NextResponse.json({
+      ok: true,
+      action,
+      message: `Radio action completed: ${action}`,
+      details: data,
+    });
+  } catch (error) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: error instanceof Error ? error.message : "Unknown radio action error.",
+      },
+      { status: 500 }
+    );
+  }
+}

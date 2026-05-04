@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
-import { RadioProvider } from "@/components/radio-provider";
-import GlobalRadioPlayer from "@/components/global-radio-player";
+import RootShell from "@/components/root-shell";
 
 export const metadata: Metadata = {
   title: "Tha Core Online Radio",
@@ -33,13 +32,7 @@ export default function RootLayout({
           minHeight: "100vh",
         }}
       >
-        <RadioProvider>
-          <div style={{ minHeight: "100vh", paddingBottom: 130 }}>
-            {children}
-          </div>
-
-          <GlobalRadioPlayer />
-        </RadioProvider>
+        <RootShell>{children}</RootShell>
       </body>
     </html>
   );
