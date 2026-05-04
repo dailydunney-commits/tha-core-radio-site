@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type BroadcastState = "off" | "cue" | "live" | "paused";
 type PadMode = "JINGLES" | "DROPS" | "COM" | "ADS" | "SMARTDJ" | "AUTODJ" | "LIVEDJ";
@@ -92,9 +92,10 @@ const footerTools: FooterTool[] = [
   { label: "Blog", href: "/blog", note: "Blog page shortcut ready", color: "yellow" },
   { label: "News", href: "/news", note: "News desk shortcut ready", color: "red" },
   { label: "Weather", href: "/weather", note: "Weather reader shortcut ready", color: "blue" },
+  { label: "Time Reader", href: "/time", note: "Time reader shortcut ready", color: "purple" },
+  { label: "Cash Pot", href: "/cashpot", note: "Cash Pot / lotto shortcut ready", color: "green" },
   { label: "Store", href: "/store", note: "Store shortcut ready", color: "green" },
-  { label: "Community", href: "/community", note: "Community page shortcut ready", color: "purple" },
-  { label: "Chat", href: "/chat", note: "Community chat shortcut ready", color: "orange" },
+  { label: "Community Chat", href: "/chat", note: "Community and chat shortcut ready", color: "orange" },
   { label: "Upload", href: "/upload", note: "Upload center shortcut ready", color: "yellow" },
   { label: "Requests", href: "/requests", note: "Song request shortcut ready", color: "green" },
   { label: "Schedule", href: "/schedule", note: "Show schedule shortcut ready", color: "blue" },
@@ -115,12 +116,13 @@ export default function OwnerControlPanelPage() {
 
   const [screenTitle, setScreenTitle] = useState("STUDIO READY");
   const [screenText, setScreenText] = useState(
-    "Control panel ready. Use the all-in-one smart switch above the hero buttons to choose AutoDJ, SmartDJ, or LiveDJ."
+    "Control panel ready. Now Playing auto-updates. Jingles, drops, commercials, and ads are wired to the broadcast pad bridge."
   );
 
-  const [nowPlayingText, setNowPlayingText] = useState("Click refresh to load current song.");
-  const [listenerText, setListenerText] = useState("Listeners waiting...");
+  const [nowPlayingText, setNowPlayingText] = useState("Loading current song...");
+  const [listenerText, setListenerText] = useState("Checking listeners...");
   const [stationText, setStationText] = useState("Tha Core Online Radio");
+  const [lastUpdatedText, setLastUpdatedText] = useState("Auto refresh active");
 
   const [volume, setVolume] = useState(72);
   const [monitorVol, setMonitorVol] = useState(65);
@@ -134,12 +136,16 @@ export default function OwnerControlPanelPage() {
   const [delay, setDelay] = useState(12);
   const [echo, setEcho] = useState(18);
   const [crossfade, setCrossfade] = useState(50);
+  const [deckAGain, setDeckAGain] = useState(72);
+  const [deckBGain, setDeckBGain] = useState(72);
+  const [adBed, setAdBed] = useState(38);
+  const [jingleBed, setJingleBed] = useState(48);
 
   const [logs, setLogs] = useState<LogItem[]>([
     {
       id: 1,
       time: "Now",
-      message: "Latest studio panel loaded with broadcast pad bridge.",
+      message: "Latest studio panel loaded with auto now-playing and filled deck controls.",
     },
   ]);
 
@@ -178,6 +184,10 @@ export default function OwnerControlPanelPage() {
       .replace(/&/g, "and")
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-+|-+$/g, "");
+  }
+
+  function getPad(label: string) {
+    return pads.find((pad) => pad.label === label) || pads[0];
   }
 
   function setMainVolume(value: number) {
@@ -243,6 +253,7 @@ export default function OwnerControlPanelPage() {
       setScreenTitle(`${action.toUpperCase()} COMPLETE`);
       setScreenText(data?.message || `${action} command completed.`);
       addLog(`${action.toUpperCase()} completed.`);
+      refreshNowPlaying();
     } catch {
       setScreenTitle(`${action.toUpperCase()} ERROR`);
       setScreenText("Could not reach the radio action API route.");
@@ -278,6 +289,7 @@ export default function OwnerControlPanelPage() {
       setScreenTitle(`${pad.mode} LIVE SENT`);
       setScreenText(data?.message || `${pad.label} sent to AzuraCast.`);
       addLog(`${pad.label} sent to AzuraCast broadcast.`);
+      refreshNowPlaying();
     } catch {
       setScreenTitle(`${pad.mode} ERROR`);
       setScreenText("Could not reach the pad broadcast API route.");
@@ -287,10 +299,6 @@ export default function OwnerControlPanelPage() {
 
   async function refreshNowPlaying() {
     try {
-      setScreenTitle("NOW PLAYING");
-      setScreenText("Loading current song from radio backend...");
-      addLog("Now-playing refresh started.");
-
       const response = await fetch("/api/radio/now-playing", {
         cache: "no-store",
       });
@@ -298,40 +306,44 @@ export default function OwnerControlPanelPage() {
       const data = await response.json();
 
       if (!response.ok || !data?.ok) {
-        setScreenTitle("NOW PLAYING ERROR");
-        setScreenText(data?.error || "Could not load now-playing data.");
         setNowPlayingText("Now-playing failed to load.");
         setListenerText("Check API route.");
-        addLog("Now-playing refresh failed.");
+        setLastUpdatedText(`Failed ${stamp()}`);
+        addLog("Auto now-playing refresh failed.");
         return;
       }
 
       const text = data?.nowPlaying?.text || "Unknown song";
       const listeners = data?.listeners?.current ?? 0;
+      const unique = data?.listeners?.unique ?? 0;
       const station = data?.station?.name || "Tha Core Online Radio";
 
       setNowPlayingText(text);
-      setListenerText(`${listeners} listeners online`);
+      setListenerText(`${listeners} current • ${unique} unique`);
       setStationText(station);
-
-      setScreenTitle("NOW PLAYING");
-      setScreenText(`${text} • ${listeners} listeners`);
-      addLog(`Now playing loaded: ${text}`);
+      setLastUpdatedText(`Updated ${stamp()}`);
     } catch {
-      setScreenTitle("NOW PLAYING ERROR");
-      setScreenText("Could not reach now-playing API route.");
       setNowPlayingText("Could not reach now-playing API.");
       setListenerText("API error.");
+      setLastUpdatedText(`Error ${stamp()}`);
       addLog("Now-playing API error.");
     }
   }
 
+  useEffect(() => {
+    refreshNowPlaying();
+
+    const timer = window.setInterval(() => {
+      refreshNowPlaying();
+    }, 20000);
+
+    return () => window.clearInterval(timer);
+  }, []);
+
   function cueBroadcast() {
     setBroadcast("cue");
     setScreenTitle("BROADCAST CUED");
-    setScreenText(
-      "Broadcast is cued. Turntables slow spin. Hit main Play / Pause to start the full broadcast monitor."
-    );
+    setScreenText("Broadcast is cued. Turntables slow spin. Hit main Play / Pause to start the full broadcast monitor.");
     addLog("Broadcast cued.");
   }
 
@@ -416,6 +428,19 @@ export default function OwnerControlPanelPage() {
     });
   }
 
+  function effectPunch(type: "reverb" | "delay" | "echo" | "bass" | "ad" | "jingle") {
+    if (type === "reverb") setReverb((value) => Math.min(value + 12, 100));
+    if (type === "delay") setDelay((value) => Math.min(value + 12, 100));
+    if (type === "echo") setEcho((value) => Math.min(value + 12, 100));
+    if (type === "bass") setBass((value) => Math.min(value + 10, 100));
+    if (type === "ad") setAdBed((value) => Math.min(value + 10, 100));
+    if (type === "jingle") setJingleBed((value) => Math.min(value + 10, 100));
+
+    setScreenTitle("EFFECT ADJUSTED");
+    setScreenText(`${type.toUpperCase()} control adjusted from the main broadcast section.`);
+    addLog(`${type.toUpperCase()} adjusted.`);
+  }
+
   function firePad(pad: Pad) {
     setSelectedMode(pad.mode);
     setScreenTitle(`${pad.mode} FIRED`);
@@ -443,6 +468,24 @@ export default function OwnerControlPanelPage() {
     addLog(`${tool.label} footer dock selected.`);
   }
 
+  const deckAQuickPads = [
+    getPad("Station ID"),
+    getPad("Big Intro"),
+    getPad("DJ Drop"),
+    getPad("Com Break"),
+    getPad("Store Ad"),
+    getPad("Sponsor Ad"),
+  ];
+
+  const deckBQuickPads = [
+    getPad("Back To Back"),
+    getPad("Pull Up"),
+    getPad("Radio Promo"),
+    getPad("Music Promo"),
+    getPad("Smart Jingle"),
+    getPad("Auto Next"),
+  ];
+
   return (
     <main className="control-page">
       <audio ref={audioRef} src={STREAM_URL} preload="none" />
@@ -453,9 +496,9 @@ export default function OwnerControlPanelPage() {
             <p className="eyebrow">THA CORE ONLINE RADIO</p>
             <h1>Studio Control Panel</h1>
             <p className="subtitle">
-              Jet black and blood red studio layout with live now-playing status above hero,
-              all-in-one AutoDJ / SmartDJ / LiveDJ switch, bigger cam, hero smart buttons,
-              deck wheel sliders, broadcast pad bridge, skip API call, and broadcast monitor.
+              Jet black and blood red studio layout with live auto-updating now-playing status,
+              all-in-one AutoDJ / SmartDJ / LiveDJ switch, filled broadcast controls, deck quick
+              pads, jingles, drops, commercials, ads, sliders, and radio API buttons.
             </p>
           </div>
 
@@ -468,10 +511,10 @@ export default function OwnerControlPanelPage() {
 
         <section className="status-row">
           <StatusCard label="Broadcast" value={broadcastLabel} tone={isLive ? "green" : isCue ? "yellow" : "red"} />
-          <StatusCard label="AutoDJ" value={autoDj ? "ACTIVE" : "OFF"} tone={autoDj ? "orange" : "red"} />
-          <StatusCard label="SmartDJ" value={smartDj ? "ACTIVE" : "READY"} tone={smartDj ? "green" : "yellow"} />
-          <StatusCard label="LiveDJ" value={liveDj ? "LIVE" : "STANDBY"} tone={liveDj ? "green" : "yellow"} />
-          <StatusCard label="Mic" value={micLive ? "ARMED" : "MUTED"} tone={micLive ? "green" : "red"} />
+          <StatusCard label="AutoDJ" value={autoDj ? "ACTIVE" : "OFF"} tone={autoDj ? "yellow" : "red"} />
+          <StatusCard label="SmartDJ" value={smartDj ? "ACTIVE" : "OFF"} tone={smartDj ? "blue" : "red"} />
+          <StatusCard label="LiveDJ" value={liveDj ? "LIVE" : "OFF"} tone={liveDj ? "green" : "red"} />
+          <StatusCard label="Mic" value={micLive ? "ARMED" : "MUTED"} tone={micLive ? "purple" : "red"} />
           <StatusCard label="Monitor" value={monitorOn ? "ON" : "MUTED"} tone={monitorOn ? "green" : "red"} />
         </section>
 
@@ -495,7 +538,7 @@ export default function OwnerControlPanelPage() {
           </div>
 
           <div>
-            <span>Live Status</span>
+            <span>Listeners</span>
             <strong>{listenerText}</strong>
           </div>
 
@@ -505,7 +548,7 @@ export default function OwnerControlPanelPage() {
           </div>
 
           <button type="button" onClick={refreshNowPlaying}>
-            Refresh Now Playing
+            Refresh • {lastUpdatedText}
           </button>
         </section>
 
@@ -519,10 +562,10 @@ export default function OwnerControlPanelPage() {
               <p>{screenText}</p>
 
               <div className="lamp-grid">
-                <span className={autoDj ? "lamp on orange" : "lamp"}>AUTODJ</span>
-                <span className={smartDj ? "lamp on green" : "lamp"}>SMARTDJ</span>
-                <span className={liveDj ? "lamp on red" : "lamp"}>LIVEDJ</span>
-                <span className={micLive ? "lamp on yellow" : "lamp"}>MIC</span>
+                <span className={autoDj ? "lamp on yellow" : "lamp"}>AUTODJ</span>
+                <span className={smartDj ? "lamp on blue" : "lamp"}>SMARTDJ</span>
+                <span className={liveDj ? "lamp on green" : "lamp"}>LIVEDJ</span>
+                <span className={micLive ? "lamp on purple" : "lamp"}>MIC</span>
               </div>
             </div>
 
@@ -598,7 +641,16 @@ export default function OwnerControlPanelPage() {
           </section>
 
           <section className="turntable-stage">
-            <Turntable title="DECK A" label="MAIN BROADCAST" state={broadcast} />
+            <Turntable
+              title="DECK A"
+              label="MAIN BROADCAST"
+              state={broadcast}
+              quickPads={deckAQuickPads}
+              onPad={firePad}
+              onCue={cueBroadcast}
+              onSync={studioSkip}
+              onLoad={() => selectDisplay("JINGLES", "Deck A")}
+            />
 
             <section className="broadcast-center">
               <div className="cam-box">
@@ -642,6 +694,15 @@ export default function OwnerControlPanelPage() {
                 </button>
               </div>
 
+              <div className="center-pad-bank">
+                <button type="button" onClick={() => firePad(getPad("Station ID"))}>Station ID</button>
+                <button type="button" onClick={() => firePad(getPad("DJ Drop"))}>DJ Drop</button>
+                <button type="button" onClick={() => firePad(getPad("Com Break"))}>Com Break</button>
+                <button type="button" onClick={() => firePad(getPad("Store Ad"))}>Store Ad</button>
+                <button type="button" onClick={() => firePad(getPad("Sponsor Ad"))}>Sponsor Ad</button>
+                <button type="button" onClick={() => firePad(getPad("Music Promo"))}>Music Promo</button>
+              </div>
+
               <div className="mode-buttons">
                 <button type="button" onClick={() => selectDisplay("JINGLES", "Jingles")}>Jingles</button>
                 <button type="button" onClick={() => selectDisplay("DROPS", "Drops")}>Drops</button>
@@ -652,6 +713,15 @@ export default function OwnerControlPanelPage() {
                 <button type="button" onClick={() => setDjMode("LIVEDJ")}>LiveDJ</button>
                 <button type="button" onClick={() => firePad(visiblePads[0] || pads[0])}>Smart Fire</button>
                 <button type="button" onClick={refreshNowPlaying}>Now Playing</button>
+              </div>
+
+              <div className="effect-buttons">
+                <button type="button" onClick={() => effectPunch("reverb")}>Reverb +</button>
+                <button type="button" onClick={() => effectPunch("delay")}>Delay +</button>
+                <button type="button" onClick={() => effectPunch("echo")}>Echo +</button>
+                <button type="button" onClick={() => effectPunch("bass")}>Bass +</button>
+                <button type="button" onClick={() => effectPunch("ad")}>Ad Bed +</button>
+                <button type="button" onClick={() => effectPunch("jingle")}>Jingle Bed +</button>
               </div>
 
               <div className="crossfader">
@@ -678,10 +748,23 @@ export default function OwnerControlPanelPage() {
                 <ControlSlider label="Rev" value={reverb} setValue={setReverb} />
                 <ControlSlider label="Delay" value={delay} setValue={setDelay} />
                 <ControlSlider label="Echo" value={echo} setValue={setEcho} />
+                <ControlSlider label="Deck A" value={deckAGain} setValue={setDeckAGain} />
+                <ControlSlider label="Deck B" value={deckBGain} setValue={setDeckBGain} />
+                <ControlSlider label="Ads" value={adBed} setValue={setAdBed} />
+                <ControlSlider label="Jing" value={jingleBed} setValue={setJingleBed} />
               </div>
             </section>
 
-            <Turntable title="DECK B" label="AUTODJ / JINGLES" state={broadcast} />
+            <Turntable
+              title="DECK B"
+              label="AUTODJ / JINGLES"
+              state={broadcast}
+              quickPads={deckBQuickPads}
+              onPad={firePad}
+              onCue={cueBroadcast}
+              onSync={studioSkip}
+              onLoad={() => selectDisplay("ADS", "Deck B")}
+            />
           </section>
 
           <section className="right-pads panel">
@@ -711,6 +794,13 @@ export default function OwnerControlPanelPage() {
                 <i />
                 <i />
               </div>
+            </div>
+
+            <div className="side-fill-buttons">
+              <button type="button" onClick={() => callRadioAction("restart")}>Restart Backend</button>
+              <button type="button" onClick={() => callRadioAction("start")}>Start Backend</button>
+              <button type="button" onClick={() => callRadioAction("stop")}>Stop Backend</button>
+              <button type="button" onClick={refreshNowPlaying}>Refresh Status</button>
             </div>
           </section>
         </section>
@@ -1076,11 +1166,23 @@ export default function OwnerControlPanelPage() {
           box-shadow: 0 0 22px rgba(0, 255, 118, 0.32), 0 5px 0 #050000;
         }
 
-        .display-switches {
+        .display-switches,
+        .center-pad-bank,
+        .effect-buttons,
+        .side-fill-buttons {
           display: grid;
-          grid-template-columns: 1fr 1fr;
+          grid-template-columns: repeat(2, 1fr);
           gap: 8px;
+          padding: 10px;
+          border-radius: 18px;
+          background: rgba(255, 0, 0, 0.035);
+          border: 1px solid rgba(180, 0, 0, 0.18);
+        }
+
+        .display-switches {
           padding: 12px 12px 0;
+          border: 0;
+          background: transparent;
         }
 
         .display-btn {
@@ -1103,7 +1205,10 @@ export default function OwnerControlPanelPage() {
           padding: 12px;
         }
 
-        .hero-tabs button {
+        .hero-tabs button,
+        .center-pad-bank button,
+        .effect-buttons button,
+        .side-fill-buttons button {
           min-height: 35px;
           border-radius: 12px;
           background: #090909;
@@ -1113,6 +1218,13 @@ export default function OwnerControlPanelPage() {
           cursor: pointer;
           font-weight: 950;
           text-transform: uppercase;
+        }
+
+        .center-pad-bank button,
+        .effect-buttons button {
+          min-height: 38px;
+          color: #fff;
+          background: linear-gradient(180deg, #a40000, #330000);
         }
 
         .hero-tabs button.active {
@@ -1143,7 +1255,7 @@ export default function OwnerControlPanelPage() {
 
         .deck {
           position: relative;
-          min-height: 690px;
+          min-height: 760px;
           padding: 18px;
           overflow: hidden;
           border-radius: 32px;
@@ -1162,7 +1274,7 @@ export default function OwnerControlPanelPage() {
           aspect-ratio: 1 / 1;
           display: grid;
           place-items: center;
-          margin: 44px auto 18px;
+          margin: 34px auto 18px;
         }
 
         .platter {
@@ -1228,7 +1340,7 @@ export default function OwnerControlPanelPage() {
         .deck-wheel-sliders {
           display: grid;
           gap: 8px;
-          margin: 18px 0 14px;
+          margin: 15px 0 12px;
           padding: 12px;
           border-radius: 18px;
           background: rgba(255, 0, 0, 0.045);
@@ -1246,16 +1358,22 @@ export default function OwnerControlPanelPage() {
         .deck-wheel-slider input { width: 100%; accent-color: #ff1b1b; }
         .deck-wheel-slider span { color: #fff; font-size: 10px; font-weight: 950; text-align: right; }
 
-        .deck-buttons {
+        .deck-buttons,
+        .deck-quick-pads {
           display: grid;
           grid-template-columns: repeat(3, 1fr);
           gap: 8px;
-          margin-top: 16px;
+          margin-top: 12px;
+        }
+
+        .deck-quick-pads {
+          grid-template-columns: repeat(2, 1fr);
         }
 
         button { font-family: inherit; }
 
         .deck-buttons button,
+        .deck-quick-pads button,
         .btn,
         .mode-buttons button,
         .pad,
@@ -1268,7 +1386,8 @@ export default function OwnerControlPanelPage() {
           transition: transform 0.2s ease, filter 0.2s ease, box-shadow 0.2s ease;
         }
 
-        .deck-buttons button {
+        .deck-buttons button,
+        .deck-quick-pads button {
           min-height: 42px;
           border: 0;
           border-radius: 14px;
@@ -1278,8 +1397,15 @@ export default function OwnerControlPanelPage() {
           font-size: 11px;
         }
 
+        .deck-quick-pads button {
+          min-height: 44px;
+          background: linear-gradient(180deg, #181818, #000);
+          border: 1px solid rgba(190, 0, 0, 0.5);
+          color: #ff5959;
+        }
+
         .broadcast-center {
-          min-height: 690px;
+          min-height: 760px;
           display: flex;
           flex-direction: column;
           gap: 10px;
@@ -1297,7 +1423,7 @@ export default function OwnerControlPanelPage() {
         }
 
         .cam-view {
-          min-height: 165px;
+          min-height: 148px;
           display: grid;
           place-items: center;
           text-align: center;
@@ -1314,7 +1440,7 @@ export default function OwnerControlPanelPage() {
           gap: 6px;
         }
 
-        .cam-bars { height: 76px; }
+        .cam-bars { height: 70px; }
 
         .cam-bars i {
           width: 11px;
@@ -1392,9 +1518,9 @@ export default function OwnerControlPanelPage() {
 
         .slider-bank {
           display: grid;
-          grid-template-columns: repeat(11, minmax(42px, 1fr));
+          grid-template-columns: repeat(15, minmax(34px, 1fr));
           gap: 5px;
-          min-height: 210px;
+          min-height: 200px;
           padding: 7px;
           overflow-x: auto;
           border-radius: 18px;
@@ -1424,7 +1550,7 @@ export default function OwnerControlPanelPage() {
           writing-mode: bt-lr;
           -webkit-appearance: slider-vertical;
           width: 25px;
-          height: 132px;
+          height: 122px;
           accent-color: #ff1b1b;
         }
 
@@ -1477,6 +1603,11 @@ export default function OwnerControlPanelPage() {
 
         .meter-bars.active i { opacity: 1; }
 
+        .side-fill-buttons {
+          margin: 14px;
+          grid-template-columns: 1fr;
+        }
+
         .footer-dock { margin-top: 16px; }
 
         .footer-grid {
@@ -1506,6 +1637,176 @@ export default function OwnerControlPanelPage() {
           filter: brightness(1.08);
         }
 
+        /* BIGGER TEXT + REQUESTED STATUS COLORS */
+        .control-page {
+          font-size: 18px;
+        }
+
+        .subtitle {
+          font-size: 18px;
+          line-height: 1.65;
+        }
+
+        .status-card {
+          min-height: 104px;
+          padding: 18px;
+        }
+
+        .status-card small {
+          font-size: 13px;
+        }
+
+        .status-card strong {
+          font-size: 24px;
+        }
+
+        .status-light.yellow {
+          color: #ffd000;
+        }
+
+        .status-light.blue {
+          color: #00d1ff;
+        }
+
+        .status-light.purple {
+          color: #a855ff;
+        }
+
+        .panel-heading span {
+          font-size: 14px;
+        }
+
+        .panel-heading b {
+          font-size: 13px;
+        }
+
+        .screen h2 {
+          font-size: clamp(32px, 3.2vw, 52px);
+        }
+
+        .screen p {
+          font-size: 19px;
+        }
+
+        .now-playing-bar span {
+          font-size: 13px;
+        }
+
+        .now-playing-bar strong {
+          font-size: 20px;
+        }
+
+        .now-playing-bar button {
+          font-size: 14px;
+        }
+
+        .lamp {
+          min-height: 48px;
+          font-size: 14px;
+        }
+
+        .lamp.on.yellow {
+          background: #ffd000;
+          color: #170b00;
+          box-shadow: 0 0 18px rgba(255, 208, 0, 0.65);
+        }
+
+        .lamp.on.blue {
+          background: #00d1ff;
+          color: #001014;
+          box-shadow: 0 0 18px rgba(0, 209, 255, 0.65);
+        }
+
+        .lamp.on.green {
+          background: #00ff76;
+          color: #00170b;
+          box-shadow: 0 0 18px rgba(0, 255, 118, 0.65);
+        }
+
+        .lamp.on.purple {
+          background: #a855ff;
+          color: #fff;
+          box-shadow: 0 0 18px rgba(168, 85, 255, 0.65);
+        }
+
+        .smart-mode-switch button span {
+          font-size: 17px;
+        }
+
+        .smart-mode-switch button b {
+          font-size: 13px;
+        }
+
+        .hero-tabs button,
+        .mode-buttons button,
+        .center-pad-bank button,
+        .effect-buttons button,
+        .side-fill-buttons button {
+          font-size: 13px;
+        }
+
+        .pad small {
+          font-size: 11px;
+        }
+
+        .pad strong {
+          font-size: 16px;
+        }
+
+        .deck-head strong {
+          font-size: 28px;
+        }
+
+        .deck-head span {
+          font-size: 14px;
+        }
+
+        .deck-label b {
+          font-size: 24px;
+        }
+
+        .deck-label span {
+          font-size: 13px;
+        }
+
+        .deck-buttons button,
+        .deck-quick-pads button,
+        .btn {
+          font-size: 13px;
+        }
+
+        .control-slider label {
+          font-size: 10px;
+        }
+
+        .control-slider strong {
+          font-size: 11px;
+        }
+
+        .deck-wheel-slider label,
+        .deck-wheel-slider span {
+          font-size: 12px;
+        }
+
+        .mode-display h3 {
+          font-size: 42px;
+        }
+
+        .mode-display p {
+          font-size: 18px;
+        }
+
+        .footer-grid {
+          grid-template-columns: repeat(11, minmax(110px, 1fr));
+        }
+
+        .footer-tool strong {
+          font-size: 15px;
+        }
+
+        .footer-tool span {
+          font-size: 12px;
+        }
         @keyframes spin {
           to { transform: rotate(360deg); }
         }
@@ -1545,12 +1846,14 @@ export default function OwnerControlPanelPage() {
           .mode-buttons,
           .hero-tabs,
           .display-switches,
-          .footer-grid {
+          .footer-grid,
+          .center-pad-bank,
+          .effect-buttons {
             grid-template-columns: repeat(2, 1fr);
           }
 
           .slider-bank {
-            grid-template-columns: repeat(11, 46px);
+            grid-template-columns: repeat(15, 42px);
           }
         }
       `}</style>
@@ -1565,7 +1868,7 @@ function StatusCard({
 }: {
   label: string;
   value: string;
-  tone: "green" | "red" | "yellow" | "orange";
+  tone: "green" | "red" | "yellow" | "orange" | "blue" | "purple";
 }) {
   return (
     <div className="status-card">
@@ -1589,10 +1892,20 @@ function Turntable({
   title,
   label,
   state,
+  quickPads,
+  onPad,
+  onCue,
+  onSync,
+  onLoad,
 }: {
   title: string;
   label: string;
   state: BroadcastState;
+  quickPads: Pad[];
+  onPad: (pad: Pad) => void;
+  onCue: () => void;
+  onSync: () => void;
+  onLoad: () => void;
 }) {
   const deckClass =
     state === "live" ? "deck live" : state === "cue" ? "deck cue" : "deck";
@@ -1626,12 +1939,22 @@ function Turntable({
         <DeckWheelSlider label="Trim" defaultValue={62} />
         <DeckWheelSlider label="Brake" defaultValue={36} />
         <DeckWheelSlider label="Scratch" defaultValue={48} />
+        <DeckWheelSlider label="Torque" defaultValue={66} />
+        <DeckWheelSlider label="Level" defaultValue={72} />
       </div>
 
       <div className="deck-buttons">
-        <button type="button">Cue</button>
-        <button type="button">Sync</button>
-        <button type="button">Load</button>
+        <button type="button" onClick={onCue}>Cue</button>
+        <button type="button" onClick={onSync}>Sync</button>
+        <button type="button" onClick={onLoad}>Load</button>
+      </div>
+
+      <div className="deck-quick-pads">
+        {quickPads.map((pad) => (
+          <button key={`${title}-${pad.label}`} type="button" onClick={() => onPad(pad)}>
+            {pad.label}
+          </button>
+        ))}
       </div>
     </div>
   );
@@ -1644,11 +1967,19 @@ function DeckWheelSlider({
   label: string;
   defaultValue: number;
 }) {
+  const [value, setValue] = useState(defaultValue);
+
   return (
     <div className="deck-wheel-slider">
       <label>{label}</label>
-      <input type="range" min="0" max="100" defaultValue={defaultValue} />
-      <span>{defaultValue}%</span>
+      <input
+        type="range"
+        min="0"
+        max="100"
+        value={value}
+        onChange={(event) => setValue(Number(event.target.value))}
+      />
+      <span>{value}%</span>
     </div>
   );
 }
