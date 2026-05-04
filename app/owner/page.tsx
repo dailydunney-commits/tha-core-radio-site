@@ -68,7 +68,6 @@ export default function OwnerControlPanel() {
   const [adminKey, setAdminKey] = useState("");
 
   const [monitorPlaying, setMonitorPlaying] = useState(false);
-  const [broadcastPlaying, setBroadcastPlaying] = useState(false);
   const [smartDjOn, setSmartDjOn] = useState(true);
   const [autoDjOn, setAutoDjOn] = useState(true);
   const [liveDjArmed, setLiveDjArmed] = useState(false);
@@ -93,7 +92,7 @@ export default function OwnerControlPanel() {
   const [crossfade, setCrossfade] = useState(50);
 
   const [lastAction, setLastAction] = useState(
-    "Owner command center ready. Visitor homepage untouched."
+    "Owner command center ready. Skip is real. Monitor is safe. Visitor homepage untouched."
   );
 
   const stationOnline = Boolean(status?.isOnAir);
@@ -164,7 +163,7 @@ export default function OwnerControlPanel() {
       if (monitorPlaying) {
         audio.pause();
         setMonitorPlaying(false);
-        setLastAction("Monitor paused inside owner panel.");
+        setLastAction("Owner live monitor paused. Listener broadcast was not touched.");
         return;
       }
 
@@ -175,7 +174,7 @@ export default function OwnerControlPanel() {
       await audio.play();
 
       setMonitorPlaying(true);
-      setLastAction("Monitor playing live Tha Core stream inside owner panel.");
+      setLastAction("Owner live monitor playing. This lets you hear the station inside the panel.");
     } catch {
       setMonitorPlaying(false);
       setLastAction("Monitor failed. Check browser audio permission or stream.");
@@ -201,7 +200,7 @@ export default function OwnerControlPanel() {
         body: JSON.stringify({ command }),
       });
 
-      let data: { ok?: boolean; message?: string } = {};
+      let data: { ok?: boolean; message?: string; warning?: string } = {};
 
       try {
         data = await response.json();
@@ -214,7 +213,7 @@ export default function OwnerControlPanel() {
         return;
       }
 
-      setLastAction(successMessage);
+      setLastAction(data?.warning ? `${successMessage} ${data.warning}` : successMessage);
       await loadStatus();
     } catch (error) {
       setLastAction(
@@ -225,21 +224,12 @@ export default function OwnerControlPanel() {
     }
   }
 
-  async function toggleBroadcastPlayPause() {
-    const nextPlaying = !broadcastPlaying;
-
-    setBroadcastPlaying(nextPlaying);
-
-    await sendRadioCommand(
-      nextPlaying ? "broadcast_play" : "broadcast_pause",
-      nextPlaying
-        ? "Broadcast play command sent."
-        : "Broadcast pause command sent."
-    );
+  async function skipSong() {
+    await sendRadioCommand("skip", "Skip command sent to AzuraCast.");
   }
 
-  async function skipSong() {
-    await sendRadioCommand("skip", "Skip command sent successfully.");
+  async function restartAutoDj() {
+    await sendRadioCommand("backend_restart", "AutoDJ/backend restart command sent.");
   }
 
   function runAllInOneSmart() {
@@ -253,11 +243,11 @@ export default function OwnerControlPanel() {
     setReverb(24);
     setDelay(30);
     setLastAction(
-      "All-In-One Smart mode armed: Smart DJ ON, AutoDJ ON, Live DJ armed, jingles/ads/commercial levels prepared."
+      "All-In-One Smart armed: Smart DJ ON, AutoDJ ON, Live DJ armed, jingle/ads/commercial/effects levels prepared."
     );
   }
 
-  function handlePad(label: string) {
+  async function handlePad(label: string) {
     if (label === "All-In-One Smart") {
       runAllInOneSmart();
       return;
@@ -278,6 +268,26 @@ export default function OwnerControlPanel() {
     if (label === "Live DJ") {
       setLiveDjArmed((value) => !value);
       setLastAction(`Live DJ mode ${liveDjArmed ? "disarmed" : "armed"}.`);
+      return;
+    }
+
+    if (label === "Jingles") {
+      await sendRadioCommand("jingles", "Jingle request sent to AzuraCast.");
+      return;
+    }
+
+    if (label === "Ads") {
+      await sendRadioCommand("ads", "Ad request sent to AzuraCast.");
+      return;
+    }
+
+    if (label === "Commercial") {
+      await sendRadioCommand("commercial", "Commercial request sent to AzuraCast.");
+      return;
+    }
+
+    if (label === "Birthday Shout") {
+      await sendRadioCommand("birthday", "Birthday shoutout request sent to AzuraCast.");
       return;
     }
 
@@ -374,7 +384,7 @@ export default function OwnerControlPanel() {
             <span style={styles.recordingLight} />
             <p style={styles.cameraTitle}>Studio Feed Ready</p>
             <p style={styles.muted}>
-              Camera/call-in section moved above the hero page.
+              Camera/call-in section is above the hero page.
             </p>
           </div>
 
@@ -403,9 +413,9 @@ export default function OwnerControlPanel() {
               <p style={styles.kicker}>THA CORE OWNER CONTROL PANEL</p>
               <h1 style={styles.title}>Red & Black Smart DJ Board</h1>
               <p style={styles.subtitle}>
-                Big turntables, broadcast play/pause, All-In-One Smart, Smart
-                DJ, AutoDJ, Live DJ, jingles, ads, commercials, compact yellow
-                sliders, and full effects control.
+                Big turntables, safe Play Monitor button, real Skip command,
+                AutoDJ restart, All-In-One Smart, Smart DJ, AutoDJ, Live DJ,
+                jingles, ads, commercials, compact yellow sliders, and effects.
               </p>
             </div>
 
@@ -433,26 +443,13 @@ export default function OwnerControlPanel() {
             </div>
           </div>
 
-          <section style={styles.broadcastBar}>
-            <button
-              type="button"
-              onClick={toggleBroadcastPlayPause}
-              disabled={commandLoading}
-              style={styles.broadcastPlayButton}
-            >
-              {commandLoading
-                ? "Sending..."
-                : broadcastPlaying
-                  ? "Pause Broadcast"
-                  : "Play Broadcast"}
-            </button>
-
+          <section style={styles.controlBar}>
             <button
               type="button"
               onClick={toggleMonitor}
-              style={styles.monitorButton}
+              style={styles.broadcastPlayButton}
             >
-              {monitorPlaying ? "Pause Monitor" : "Play Monitor"}
+              {monitorPlaying ? "Pause Live Monitor" : "Play Live Monitor"}
             </button>
 
             <button
@@ -461,7 +458,16 @@ export default function OwnerControlPanel() {
               disabled={commandLoading}
               style={styles.skipButtonTop}
             >
-              Skip Song
+              {commandLoading ? "Sending..." : "Skip Song"}
+            </button>
+
+            <button
+              type="button"
+              onClick={restartAutoDj}
+              disabled={commandLoading}
+              style={styles.restartButton}
+            >
+              Restart AutoDJ
             </button>
 
             <label style={styles.adminHeroLabel}>
@@ -555,7 +561,7 @@ export default function OwnerControlPanel() {
               type="button"
               onClick={() =>
                 setLastAction(
-                  "Broadcast Play/Pause uses /api/control/radio-command with command broadcast_play or broadcast_pause."
+                  "Skip is confirmed working through AzuraCast. Broadcast start returned 500 from Azura, so Play/Pause is owner monitor only until backend start is inspected."
                 )
               }
               style={styles.darkButton}
@@ -1036,10 +1042,10 @@ const styles: Record<string, CSSProperties> = {
     fontWeight: 1000,
   },
 
-  broadcastBar: {
+  controlBar: {
     marginTop: "26px",
     display: "grid",
-    gridTemplateColumns: "220px 190px 160px 1fr",
+    gridTemplateColumns: "230px 150px 170px 1fr",
     gap: "12px",
     alignItems: "end",
     borderRadius: "24px",
@@ -1059,21 +1065,21 @@ const styles: Record<string, CSSProperties> = {
     cursor: "pointer",
   },
 
-  monitorButton: {
-    border: "1px solid rgba(255,212,0,0.65)",
-    borderRadius: "18px",
-    background: "linear-gradient(135deg, #ffd400, #b8860b)",
-    color: "#170000",
-    padding: "18px",
-    fontWeight: 1000,
-    cursor: "pointer",
-  },
-
   skipButtonTop: {
     border: 0,
     borderRadius: "18px",
     background: "linear-gradient(135deg, #9d0000, #ff3131)",
     color: "#fff",
+    padding: "18px",
+    fontWeight: 1000,
+    cursor: "pointer",
+  },
+
+  restartButton: {
+    border: "1px solid rgba(255,212,0,0.65)",
+    borderRadius: "18px",
+    background: "linear-gradient(135deg, #ffd400, #b8860b)",
+    color: "#170000",
     padding: "18px",
     fontWeight: 1000,
     cursor: "pointer",
