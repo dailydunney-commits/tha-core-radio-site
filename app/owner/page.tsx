@@ -104,6 +104,7 @@ const footerTools: FooterTool[] = [
 
 export default function OwnerControlPanelPage() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const overlayAudioRef = useRef<HTMLAudioElement | null>(null);
 
   const [broadcast, setBroadcast] = useState<BroadcastState>("off");
   const [selectedMode, setSelectedMode] = useState<PadMode>("JINGLES");
@@ -489,6 +490,7 @@ export default function OwnerControlPanelPage() {
   return (
     <main className="control-page">
       <audio ref={audioRef} src={STREAM_URL} preload="none" />
+      <audio ref={overlayAudioRef} preload="auto" />
 
       <section className="shell">
         <header className="topbar">
@@ -2007,3 +2009,4 @@ function ControlSlider({
     </div>
   );
 }
+
