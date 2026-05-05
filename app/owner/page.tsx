@@ -104,7 +104,6 @@ const footerTools: FooterTool[] = [
 
 export default function OwnerControlPanelPage() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const overlayAudioRef = useRef<HTMLAudioElement | null>(null);
 
   const [broadcast, setBroadcast] = useState<BroadcastState>("off");
   const [selectedMode, setSelectedMode] = useState<PadMode>("JINGLES");
@@ -174,7 +173,7 @@ export default function OwnerControlPanelPage() {
 
   function addLog(message: string) {
     setLogs((current) => [
-      { id: Date.now(), time: stamp(), message },
+      { id: Date.now() + Math.floor(Math.random() * 1000000), time: stamp(), message },
       ...current.slice(0, 5),
     ]);
   }
@@ -490,7 +489,6 @@ export default function OwnerControlPanelPage() {
   return (
     <main className="control-page">
       <audio ref={audioRef} src={STREAM_URL} preload="none" />
-      <audio ref={overlayAudioRef} preload="auto" />
 
       <section className="shell">
         <header className="topbar">
@@ -524,8 +522,8 @@ export default function OwnerControlPanelPage() {
           <PanelHeading left="Central Control Log" right="Above Studio" />
 
           <div className="log-row">
-            {logs.slice(0, 4).map((log) => (
-              <div key={log.id} className="log-card">
+            {logs.slice(0, 4).map((log, index) => (
+              <div key={`${log.id}-${index}`} className="log-card">
                 <span>{log.time}</span>
                 <p>{log.message}</p>
               </div>
@@ -2009,4 +2007,5 @@ function ControlSlider({
     </div>
   );
 }
+
 
