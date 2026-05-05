@@ -104,6 +104,7 @@ const footerTools: FooterTool[] = [
 
 export default function OwnerControlPanelPage() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const overlayAudioRef = useRef<HTMLAudioElement | null>(null);
 
   const [broadcast, setBroadcast] = useState<BroadcastState>("off");
   const [selectedMode, setSelectedMode] = useState<PadMode>("JINGLES");
@@ -442,6 +443,56 @@ export default function OwnerControlPanelPage() {
   }
 
   function firePad(pad: Pad) {
+    if (pad.label === "Station ID") {
+      const stream = audioRef.current;
+      const normalVolume = volume / 100;
+
+      if (stream) {
+        stream.volume = Math.max(0, normalVolume * 0.38);
+      }
+
+      const overlay = new Audio("/overlays/station-id.mp3");
+      overlay.volume = 0.9;
+
+      overlay.onended = () => {
+        if (stream) {
+          stream.volume = normalVolume;
+        }
+
+        setScreenTitle("STATION ID COMPLETE");
+        setScreenText("Station ID finished. Music volume restored.");
+        addLog("Station ID overlay finished.");
+      };
+
+      overlay.onerror = () => {
+        if (stream) {
+          stream.volume = normalVolume;
+        }
+
+        setScreenTitle("STATION ID FILE ERROR");
+        setScreenText("Could not load public/overlays/station-id.mp3.");
+        addLog("Station ID overlay file error.");
+      };
+
+      void overlay
+        .play()
+        .then(() => {
+          setScreenTitle("STATION ID OVERLAY");
+          setScreenText("Station ID is playing over the music. Music is ducked underneath.");
+          addLog("Station ID overlay playing over music.");
+        })
+        .catch(() => {
+          if (stream) {
+            stream.volume = normalVolume;
+          }
+
+          setScreenTitle("OVERLAY BLOCKED");
+          setScreenText("Station ID could not play. Click Play All first, then Station ID.");
+          addLog("Station ID overlay blocked.");
+        });
+
+      return;
+    }
     setSelectedMode(pad.mode);
     setScreenTitle(`${pad.mode} FIRED`);
     setScreenText(pad.message);
@@ -489,6 +540,7 @@ export default function OwnerControlPanelPage() {
   return (
     <main className="control-page">
       <audio ref={audioRef} src={STREAM_URL} preload="none" />
+      <audio ref={overlayAudioRef} preload="auto" />
 
       <section className="shell">
         <header className="topbar">
@@ -2007,5 +2059,7 @@ function ControlSlider({
     </div>
   );
 }
+
+
 
 
