@@ -423,14 +423,22 @@ export default function OwnerControlPanelPage() {
     setSelectedMode("SMARTDJ");
 
     try {
-      const response = await fetch("/api/smartdj/command", {
+      const isPlaylistCommand =
+        /\b(build|make|compile)\b/i.test(smartDjCommandText) &&
+        /\b(playlist|set)\b/i.test(smartDjCommandText);
+
+      const response = await fetch(
+        isPlaylistCommand ? "/api/smartdj/build-playlist" : "/api/smartdj/command",
+        {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text: smartDjCommandText }),
-      });
+        }
+      );
 
       const data = await response.json();
       const selected = data?.smartdj?.selected;
+      const playlist = data?.smartdj?.playlist;
       const message = data?.smartdj?.message || data?.error || "SmartDJ command finished.";
 
       if (!selected) {
@@ -2262,7 +2270,7 @@ function ControlSlider({
     }
 
     setLoaded(true);
-  }, [storageKey, setValue]);
+  }, [storageKey]);
 
   useEffect(() => {
     if (!loaded) return;
@@ -2274,7 +2282,7 @@ function ControlSlider({
     } catch {
       // ignore storage errors
     }
-  }, [loaded, localValue, setValue, storageKey]);
+  }, [loaded, localValue, storageKey]);
 
   return (
     <div className="control-slider">
@@ -2294,5 +2302,7 @@ function ControlSlider({
     </div>
   );
 }
+
+
 
 
