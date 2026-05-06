@@ -112,6 +112,46 @@ export default function OwnerControlPanelPage() {
   const [autoDj, setAutoDj] = useState(true);
   const [smartDj, setSmartDj] = useState(false);
   const [liveDj, setLiveDj] = useState(false);
+
+  const DJ_MODE_MEMORY_KEY = "tha-core-owner-dj-mode-v1";
+
+  useEffect(() => {
+    try {
+      const savedMode = window.localStorage.getItem(DJ_MODE_MEMORY_KEY);
+
+      if (savedMode === "AUTODJ") {
+        setAutoDj(true);
+        setSmartDj(false);
+        setLiveDj(false);
+        setSelectedMode("AUTODJ");
+      }
+
+      if (savedMode === "SMARTDJ") {
+        setAutoDj(false);
+        setSmartDj(true);
+        setLiveDj(false);
+        setSelectedMode("SMARTDJ");
+      }
+
+      if (savedMode === "LIVEDJ") {
+        setAutoDj(false);
+        setSmartDj(false);
+        setLiveDj(true);
+        setSelectedMode("LIVEDJ");
+      }
+    } catch {
+      // Ignore browser storage errors.
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      const currentMode = smartDj ? "SMARTDJ" : liveDj ? "LIVEDJ" : "AUTODJ";
+      window.localStorage.setItem(DJ_MODE_MEMORY_KEY, currentMode);
+    } catch {
+      // Ignore browser storage errors.
+    }
+  }, [autoDj, smartDj, liveDj]);
   const [micLive, setMicLive] = useState(false);
   const [monitorOn, setMonitorOn] = useState(true);
 
@@ -2019,7 +2059,24 @@ function DeckWheelSlider({
   label: string;
   defaultValue: number;
 }) {
-  const [value, setValue] = useState(defaultValue);
+  const storageKey = `tha-core-deck-slider-${label}-${defaultValue}`;
+
+  const [value, setValue] = useState(() => {
+    if (typeof window === "undefined") return defaultValue;
+
+    const saved = window.localStorage.getItem(storageKey);
+    const savedNumber = saved === null ? NaN : Number(saved);
+
+    return Number.isNaN(savedNumber) ? defaultValue : savedNumber;
+  });
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(storageKey, String(value));
+    } catch {
+      // ignore
+    }
+  }, [storageKey, value]);
 
   return (
     <div className="deck-wheel-slider">
@@ -2045,6 +2102,27 @@ function ControlSlider({
   value: number;
   setValue: (value: number) => void;
 }) {
+  const storageKey = `tha-core-owner-slider-${label}`;
+
+  const [localValue, setLocalValue] = useState(() => {
+    if (typeof window === "undefined") return value;
+
+    const saved = window.localStorage.getItem(storageKey);
+    const savedNumber = saved === null ? NaN : Number(saved);
+
+    return Number.isNaN(savedNumber) ? value : savedNumber;
+  });
+
+  useEffect(() => {
+    setValue(localValue);
+
+    try {
+      window.localStorage.setItem(storageKey, String(localValue));
+    } catch {
+      // ignore storage errors
+    }
+  }, [localValue, setValue, storageKey]);
+
   return (
     <div className="control-slider">
       <label>{label}</label>
@@ -2052,14 +2130,12 @@ function ControlSlider({
         type="range"
         min="0"
         max="100"
-        value={value}
-        onChange={(event) => setValue(Number(event.target.value))}
+        value={localValue}
+        onChange={(event) => setLocalValue(Number(event.target.value))}
       />
-      <strong>{value}%</strong>
+      <strong>{localValue}%</strong>
     </div>
   );
 }
-
-
 
 
