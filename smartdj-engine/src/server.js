@@ -105,7 +105,10 @@ function pickNextTrack() {
   const recentIds = new Set(history.slice(0, 3).map((item) => item.id));
   const choices = tracks.filter((track) => !recentIds.has(track.id));
   const pool = choices.length > 0 ? choices : tracks;
-  const selected = pool[Math.floor(Math.random() * pool.length)];
+  const blockedIds = new Set(history.slice(0, 3).map((item) => item.id));
+  const safePool = pool.filter((track) => !blockedIds.has(track.id));
+  const finalPool = safePool.length > 0 ? safePool : pool;
+  const selected = finalPool[Math.floor(Math.random() * finalPool.length)];
 
   return {
     ok: true,
@@ -179,3 +182,4 @@ app.post("/select-next", (req, res) => {
 app.listen(PORT, () => {
   console.log(`Tha Core SmartDJ Engine running on http://localhost:${PORT}`);
 });
+
