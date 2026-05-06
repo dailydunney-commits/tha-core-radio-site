@@ -108,6 +108,8 @@ export default function OwnerControlPanelPage() {
 
   const [broadcast, setBroadcast] = useState<BroadcastState>("off");
   const [selectedMode, setSelectedMode] = useState<PadMode>("JINGLES");
+  const [smartDjCommandText, setSmartDjCommandText] = useState("find and play mothers day song");
+  const [smartDjCommandResult, setSmartDjCommandResult] = useState("SmartDJ command ready.");
 
   const SELECTED_DISPLAY_MEMORY_KEY = "tha-core-owner-selected-display-v1";
 
@@ -410,6 +412,46 @@ export default function OwnerControlPanelPage() {
 
     return () => window.clearInterval(timer);
   }, []);
+
+  async function askOwnerSmartDjCommand() {
+    setScreenTitle("SMARTDJ COMMAND");
+    setScreenText("Sending command to SmartDJ...");
+    setSmartDjCommandResult("SmartDJ is thinking...");
+    setAutoDj(false);
+    setSmartDj(true);
+    setLiveDj(false);
+    setSelectedMode("SMARTDJ");
+
+    try {
+      const response = await fetch("/api/smartdj/command", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: smartDjCommandText }),
+      });
+
+      const data = await response.json();
+      const selected = data?.smartdj?.selected;
+      const message = data?.smartdj?.message || data?.error || "SmartDJ command finished.";
+
+      if (!selected) {
+        setScreenTitle("SMARTDJ ERROR");
+        setScreenText(message);
+        setSmartDjCommandResult(message);
+        return;
+      }
+
+      const trackText = selected.text || selected.filename || "Unknown track";
+      setScreenTitle("SMARTDJ FOUND TRACK");
+      setScreenText(trackText);
+      setSmartDjCommandResult(trackText);
+      addLog(`SmartDJ selected: ${trackText}`);
+    } catch {
+      const message = "SmartDJ Engine offline. Make sure localhost:5050 is running.";
+      setScreenTitle("SMARTDJ OFFLINE");
+      setScreenText(message);
+      setSmartDjCommandResult(message);
+    }
+  }
 
   function cueBroadcast() {
     setBroadcast("cue");
@@ -933,7 +975,20 @@ export default function OwnerControlPanelPage() {
             right="Blog • News • Weather • Store • Community • Chat • Upload"
           />
 
-          <div className="footer-grid">
+          <div className="footer-smartdj-command">
+              <strong>SMARTDJ COMMAND</strong>
+              <input
+                value={smartDjCommandText}
+                onChange={(event) => setSmartDjCommandText(event.target.value)}
+                placeholder="Tell SmartDJ what to find or play..."
+              />
+              <button type="button" onClick={askOwnerSmartDjCommand}>
+                Ask SmartDJ
+              </button>
+              <span>{smartDjCommandResult}</span>
+            </div>
+
+            <div className="footer-grid">
             {footerTools.map((tool) => (
               <a
                 key={tool.label}
@@ -1929,6 +1984,53 @@ export default function OwnerControlPanelPage() {
         .footer-tool span {
           font-size: 12px;
         }
+        /* FOOTER SMARTDJ COMMAND CSS */
+        .footer-smartdj-command {
+          display: grid;
+          grid-template-columns: 160px 1fr 140px;
+          gap: 10px;
+          align-items: center;
+          margin: 12px 0 14px;
+          padding: 12px;
+          border-radius: 18px;
+          background: rgba(0, 209, 255, 0.08);
+          border: 1px solid rgba(0, 209, 255, 0.35);
+        }
+
+        .footer-smartdj-command strong {
+          color: #00d1ff;
+          font-size: 13px;
+          font-weight: 950;
+          letter-spacing: 0.12em;
+        }
+
+        .footer-smartdj-command input {
+          min-height: 42px;
+          border-radius: 12px;
+          border: 1px solid rgba(255, 255, 255, 0.18);
+          padding: 0 12px;
+          font-size: 15px;
+          font-weight: 900;
+          color: #111;
+        }
+
+        .footer-smartdj-command button {
+          min-height: 42px;
+          border: 0;
+          border-radius: 12px;
+          background: linear-gradient(180deg, #00d1ff, #00677a);
+          color: #001014;
+          font-weight: 950;
+          text-transform: uppercase;
+          cursor: pointer;
+        }
+
+        .footer-smartdj-command span {
+          grid-column: 1 / -1;
+          color: #fff;
+          font-size: 13px;
+          font-weight: 800;
+        }
         @keyframes spin {
           to { transform: rotate(360deg); }
         }
@@ -2192,4 +2294,5 @@ function ControlSlider({
     </div>
   );
 }
+
 
