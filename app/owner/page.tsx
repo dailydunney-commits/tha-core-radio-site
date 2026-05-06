@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 
 type BroadcastState = "off" | "cue" | "live" | "paused";
 type PadMode = "JINGLES" | "DROPS" | "COM" | "ADS" | "SMARTDJ" | "AUTODJ" | "LIVEDJ";
@@ -522,7 +522,7 @@ export default function OwnerControlPanelPage() {
       }
 
       const overlay = new Audio("/overlays/station-id.mp3");
-      overlay.volume = 0.9;
+      overlay.volume = Math.max(0, Math.min(1, jingleBed / 100));
 
       overlay.onended = () => {
         if (stream) {
@@ -2089,22 +2089,29 @@ function DeckWheelSlider({
   label: string;
   defaultValue: number;
 }) {
-  const storageKey = `tha-core-deck-slider-${label}-${defaultValue}`;
+  const sliderInstanceId = useId();
+  const storageKey = `tha-core-deck-slider-${sliderInstanceId}-${label}-${defaultValue}`;
+  const [value, setValue] = useState(defaultValue);
 
-  const [value, setValue] = useState(() => {
-    if (typeof window === "undefined") return defaultValue;
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem(storageKey);
+      if (saved === null) return;
 
-    const saved = window.localStorage.getItem(storageKey);
-    const savedNumber = saved === null ? NaN : Number(saved);
-
-    return Number.isNaN(savedNumber) ? defaultValue : savedNumber;
-  });
+      const savedNumber = Number(saved);
+      if (!Number.isNaN(savedNumber)) {
+        setValue(savedNumber);
+      }
+    } catch {
+      // ignore storage errors
+    }
+  }, [storageKey]);
 
   useEffect(() => {
     try {
       window.localStorage.setItem(storageKey, String(value));
     } catch {
-      // ignore
+      // ignore storage errors
     }
   }, [storageKey, value]);
 
@@ -2133,17 +2140,31 @@ function ControlSlider({
   setValue: (value: number) => void;
 }) {
   const storageKey = `tha-core-owner-slider-${label}`;
-
-  const [localValue, setLocalValue] = useState(() => {
-    if (typeof window === "undefined") return value;
-
-    const saved = window.localStorage.getItem(storageKey);
-    const savedNumber = saved === null ? NaN : Number(saved);
-
-    return Number.isNaN(savedNumber) ? value : savedNumber;
-  });
+  const [localValue, setLocalValue] = useState(value);
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem(storageKey);
+
+      if (saved !== null) {
+        const savedNumber = Number(saved);
+
+        if (!Number.isNaN(savedNumber)) {
+          setLocalValue(savedNumber);
+          setValue(savedNumber);
+        }
+      }
+    } catch {
+      // ignore storage errors
+    }
+
+    setLoaded(true);
+  }, [storageKey, setValue]);
+
+  useEffect(() => {
+    if (!loaded) return;
+
     setValue(localValue);
 
     try {
@@ -2151,7 +2172,7 @@ function ControlSlider({
     } catch {
       // ignore storage errors
     }
-  }, [localValue, setValue, storageKey]);
+  }, [loaded, localValue, setValue, storageKey]);
 
   return (
     <div className="control-slider">
@@ -2161,12 +2182,14 @@ function ControlSlider({
         min="0"
         max="100"
         value={localValue}
-        onChange={(event) => setLocalValue(Number(event.target.value))}
+        onChange={(event) => {
+          const nextValue = Number(event.target.value);
+          setLocalValue(nextValue);
+          setValue(nextValue);
+        }}
       />
       <strong>{localValue}%</strong>
     </div>
   );
 }
-
-
 
