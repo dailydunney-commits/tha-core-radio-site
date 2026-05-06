@@ -15,20 +15,20 @@ export async function GET() {
       },
     });
 
-    const data = await response.json().catch(() => null);
+    const data = await response.json();
 
     return NextResponse.json({
-      ok: response.ok,
+      ok: true,
       source: SMARTDJ_ENGINE_URL,
       smartdj: data,
     });
-  } catch {
+  } catch (error) {
     return NextResponse.json(
       {
         ok: false,
-        error: "Could not reach SmartDJ history. Make sure SmartDJ is running on localhost:5050.",
+        error: error instanceof Error ? error.message : "SmartDJ history bridge failed.",
       },
-      { status: 500 }
+      { status: 200 }
     );
   }
 }

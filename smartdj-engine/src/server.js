@@ -269,9 +269,70 @@ app.post("/command", (req, res) => {
   });
 });
 
+
+app.post("/ask", (req, res) => {
+  const question = String(req.body?.question || "").trim();
+  const lower = question.toLowerCase();
+  const tracks = getTracks();
+  const history = readHistory();
+
+  if (!question) {
+    return res.status(400).json({
+      ok: false,
+      error: "Ask SmartDJ a music question."
+    });
+  }
+
+  if (lower.includes("history") || lower.includes("played before") || lower.includes("last played")) {
+    return res.json({
+      ok: true,
+      question,
+      answer: history.length
+        ? `The last track SmartDJ selected was: ${history[0].text || history[0].filename}.`
+        : "SmartDJ has no play history yet.",
+      history: history.slice(0, 5)
+    });
+  }
+
+  if (lower.includes("how many") || lower.includes("songs") || lower.includes("tracks")) {
+    return res.json({
+      ok: true,
+      question,
+      answer: `SmartDJ can currently see ${tracks.length} test tracks in the music folder.`,
+      tracks: tracks.slice(0, 10)
+    });
+  }
+
+  const matchedTracks = tracks.filter((track) => {
+    const haystack = `${track.artist} ${track.title} ${track.filename} ${track.text}`.toLowerCase();
+    return lower
+      .split(/\s+/)
+      .filter((word) => word.length > 2)
+      .some((word) => haystack.includes(word));
+  });
+
+  if (matchedTracks.length > 0) {
+    return res.json({
+      ok: true,
+      question,
+      answer: `I found ${matchedTracks.length} matching track(s). Best match: ${matchedTracks[0].text}.`,
+      matches: matchedTracks.slice(0, 10)
+    });
+  }
+
+  return res.json({
+    ok: true,
+    question,
+    answer:
+      "SmartDJ Ask Mode is active. Right now I can answer from your local music folder and play history. Next we connect deeper music knowledge so I can answer artist, genre, riddim, and music culture questions.",
+    next:
+      "Ask things like: how many songs do I have, what played last, find mothers day, find bounty killer, or what tracks are in the folder."
+  });
+});
 app.listen(PORT, () => {
   console.log(`Tha Core SmartDJ Engine running on http://localhost:${PORT}`);
 });
+
 
 
 
