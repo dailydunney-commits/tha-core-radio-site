@@ -41,3 +41,13 @@ yarn-error.log*
 next-env.d.ts
 
 .vercel
+
+smartdj-engine/node_modules/
+
+smartdj-engine/package-lock.json
+
+smartdj-engine/node_modules/
+
+smartdj-engine/.env
+
+smartdj-engine/package-lock.json
