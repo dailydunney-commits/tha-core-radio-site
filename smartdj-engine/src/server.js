@@ -396,9 +396,64 @@ app.post("/build-playlist", (req, res) => {
     playlist
   });
 });
+
+app.get("/latest-playlist", (req, res) => {
+  const playlistFolder = path.join(ROOT, "data", "playlists");
+
+  if (!fs.existsSync(playlistFolder)) {
+    return res.json({
+      ok: false,
+      message: "No playlist folder found yet.",
+      playlists: []
+    });
+  }
+
+  const files = fs
+    .readdirSync(playlistFolder)
+    .filter((file) => file.endsWith(".json"))
+    .map((file) => {
+      const fullPath = path.join(playlistFolder, file);
+      const stats = fs.statSync(fullPath);
+
+      return {
+        file,
+        fullPath,
+        updatedAt: stats.mtimeMs
+      };
+    })
+    .sort((a, b) => b.updatedAt - a.updatedAt);
+
+  if (files.length === 0) {
+    return res.json({
+      ok: false,
+      message: "No SmartDJ playlists saved yet.",
+      playlists: []
+    });
+  }
+
+  const latestFile = files[0];
+
+  try {
+    const playlist = JSON.parse(fs.readFileSync(latestFile.fullPath, "utf8"));
+
+    return res.json({
+      ok: true,
+      message: `Latest SmartDJ playlist loaded: ${playlist.name || latestFile.file}`,
+      file: latestFile.file,
+      playlist
+    });
+  } catch {
+    return res.json({
+      ok: false,
+      message: "Latest playlist file could not be read.",
+      file: latestFile.file
+    });
+  }
+});
 app.listen(PORT, () => {
   console.log(`Tha Core SmartDJ Engine running on http://localhost:${PORT}`);
 });
+
 
 
 
