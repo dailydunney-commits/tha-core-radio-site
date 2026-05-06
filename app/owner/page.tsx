@@ -109,6 +109,36 @@ export default function OwnerControlPanelPage() {
   const [broadcast, setBroadcast] = useState<BroadcastState>("off");
   const [selectedMode, setSelectedMode] = useState<PadMode>("JINGLES");
 
+  const SELECTED_DISPLAY_MEMORY_KEY = "tha-core-owner-selected-display-v1";
+
+  useEffect(() => {
+    try {
+      const savedDisplay = window.localStorage.getItem(SELECTED_DISPLAY_MEMORY_KEY);
+
+      if (
+        savedDisplay === "JINGLES" ||
+        savedDisplay === "DROPS" ||
+        savedDisplay === "COM" ||
+        savedDisplay === "ADS" ||
+        savedDisplay === "SMARTDJ" ||
+        savedDisplay === "AUTODJ" ||
+        savedDisplay === "LIVEDJ"
+      ) {
+        setSelectedMode(savedDisplay);
+      }
+    } catch {
+      // ignore storage errors
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(SELECTED_DISPLAY_MEMORY_KEY, selectedMode);
+    } catch {
+      // ignore storage errors
+    }
+  }, [selectedMode]);
+
   const [autoDj, setAutoDj] = useState(true);
   const [smartDj, setSmartDj] = useState(false);
   const [liveDj, setLiveDj] = useState(false);
@@ -2137,5 +2167,6 @@ function ControlSlider({
     </div>
   );
 }
+
 
 
