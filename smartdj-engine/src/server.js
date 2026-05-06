@@ -329,9 +329,77 @@ app.post("/ask", (req, res) => {
       "Ask things like: how many songs do I have, what played last, find mothers day, find bounty killer, or what tracks are in the folder."
   });
 });
+
+app.post("/build-playlist", (req, res) => {
+  const text = String(req.body?.text || "build smartdj playlist").toLowerCase().trim();
+  const tracks = getTracks();
+
+  if (tracks.length === 0) {
+    return res.json({
+      ok: false,
+      message: "SmartDJ could not build a playlist because no tracks were found."
+    });
+  }
+
+  const stopWords = new Set(["build", "make", "compile", "playlist", "set", "songs", "tracks", "music", "a", "the", "me", "for", "and"]);
+  const words = text
+    .replace(/mother's/g, "mothers")
+    .replace(/[^a-z0-9 ]+/g, " ")
+    .split(/\s+/)
+    .filter(Boolean)
+    .filter((word) => !stopWords.has(word));
+
+  const ranked = tracks
+    .map((track) => {
+      const haystack = `${track.artist} ${track.title} ${track.filename} ${track.text}`.toLowerCase();
+
+      let score = 0;
+
+      for (const word of words) {
+        if (haystack.includes(word)) score += 25;
+      }
+
+      return {
+        ...track,
+        smartDjPlaylistScore: score
+      };
+    })
+    .sort((a, b) => b.smartDjPlaylistScore - a.smartDjPlaylistScore);
+
+  const matching = ranked.filter((track) => track.smartDjPlaylistScore > 0);
+  const selectedTracks = (matching.length > 0 ? matching : ranked).slice(0, 12);
+
+  const playlistSlug = text
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "") || "smartdj-playlist";
+
+  const playlist = {
+    ok: true,
+    name: text,
+    slug: playlistSlug,
+    createdAt: new Date().toISOString(),
+    searchedWords: words,
+    count: selectedTracks.length,
+    tracks: selectedTracks
+  };
+
+  const playlistFolder = path.join(ROOT, "data", "playlists");
+  fs.mkdirSync(playlistFolder, { recursive: true });
+
+  const playlistFile = path.join(playlistFolder, `${playlistSlug}.json`);
+  fs.writeFileSync(playlistFile, JSON.stringify(playlist, null, 2), "utf8");
+
+  return res.json({
+    ok: true,
+    message: `SmartDJ built playlist: ${text}`,
+    playlistFile,
+    playlist
+  });
+});
 app.listen(PORT, () => {
   console.log(`Tha Core SmartDJ Engine running on http://localhost:${PORT}`);
 });
+
 
 
 
