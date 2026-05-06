@@ -103,16 +103,31 @@ function pickNextTrack() {
   }
 
   const recentIds = new Set(history.slice(0, 3).map((item) => item.id));
-  const choices = tracks.filter((track) => !recentIds.has(track.id));
-  const pool = choices.length > 0 ? choices : tracks;
-  const blockedIds = new Set(history.slice(0, 3).map((item) => item.id));
-  const safePool = pool.filter((track) => !blockedIds.has(track.id));
-  const finalPool = safePool.length > 0 ? safePool : pool;
-  const selected = finalPool[Math.floor(Math.random() * finalPool.length)];
+  const recentArtists = new Set(
+    history.slice(0, 3).map((item) => String(item.artist || "").toLowerCase())
+  );
+
+  const safeChoices = tracks.filter((track) => {
+    const sameSong = recentIds.has(track.id);
+    const sameArtist = recentArtists.has(String(track.artist || "").toLowerCase());
+
+    return !sameSong && !sameArtist;
+  });
+
+  const fallbackChoices = tracks.filter((track) => !recentIds.has(track.id));
+
+  const pool =
+    safeChoices.length > 0
+      ? safeChoices
+      : fallbackChoices.length > 0
+        ? fallbackChoices
+        : tracks;
+
+  const selected = pool[Math.floor(Math.random() * pool.length)];
 
   return {
     ok: true,
-    message: "SmartDJ picked a next track.",
+    message: "SmartDJ picked a next track while avoiding recent songs and recent artists.",
     selected,
     recentHistory: history.slice(0, 5)
   };
@@ -179,7 +194,86 @@ app.post("/select-next", (req, res) => {
   });
 });
 
+
+app.post("/command", (req, res) => {
+  const text = String(req.body?.text || "").toLowerCase().trim();
+  const tracks = getTracks();
+  const history = readHistory();
+
+  if (!text) {
+    return res.status(400).json({
+      ok: false,
+      error: "Missing SmartDJ command text."
+    });
+  }
+
+  const words = text
+    .replace(/mother's/g, "mothers")
+    .replace(/[^a-z0-9 ]+/g, " ")
+    .split(/\s+/)
+    .filter(Boolean)
+    .filter((word) => !["find", "play", "song", "track", "music", "a", "the", "me", "for"].includes(word));
+
+  const recentIds = new Set(history.slice(0, 3).map((item) => item.id));
+
+  const ranked = tracks
+    .map((track) => {
+      const haystack = `${track.artist} ${track.title} ${track.filename} ${track.text}`.toLowerCase();
+
+      let score = 0;
+
+      for (const word of words) {
+        if (haystack.includes(word)) score += 25;
+      }
+
+      if (recentIds.has(track.id)) score -= 40;
+
+      return {
+        ...track,
+        smartDjCommandScore: score
+      };
+    })
+    .filter((track) => track.smartDjCommandScore > 0)
+    .sort((a, b) => b.smartDjCommandScore - a.smartDjCommandScore);
+
+  if (ranked.length === 0) {
+    return res.json({
+      ok: false,
+      command: text,
+      message: "SmartDJ could not find a matching track yet.",
+      help: "Add a matching MP3 to smartdj-engine/music. Example filename: Artist - Mothers Day Song.mp3",
+      searchedWords: words
+    });
+  }
+
+  const selected = ranked[0];
+
+  const newHistory = [
+    {
+      ...selected,
+      requestedByCommand: text,
+      playedAt: new Date().toISOString()
+    },
+    ...history
+  ].slice(0, 50);
+
+  writeHistory(newHistory);
+
+  res.json({
+    ok: true,
+    command: text,
+    message: `SmartDJ found and selected: ${selected.text}`,
+    selected,
+    alternatives: ranked.slice(1, 5),
+    history: newHistory.slice(0, 10)
+  });
+});
+
 app.listen(PORT, () => {
   console.log(`Tha Core SmartDJ Engine running on http://localhost:${PORT}`);
 });
+
+
+
+
 
