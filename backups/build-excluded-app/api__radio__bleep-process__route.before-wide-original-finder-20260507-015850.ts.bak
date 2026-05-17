@@ -1,0 +1,393 @@
+﻿import { NextRequest, NextResponse } from "next/server";
+
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
+type BleepJobTrack = {
+  id?: string;
+  title?: string;
+  artist?: string;
+  source?: string;
+  reason?: string;
+  path?: string;
+  audioUrl?: string;
+  url?: string;
+  streamUrl?: string;
+  rawUrl?: string;
+};
+
+type BleepJob = {
+  id: string;
+  createdAt?: string;
+  updatedAt?: string;
+  status?: string;
+  source?: string;
+  track?: BleepJobTrack;
+  message?: string;
+  originalAttached?: boolean;
+  processorStatus?: string;
+  processedCopyUrl?: string;
+};
+
+function getJobs(): BleepJob[] {
+  const store = (globalThis as any).__THA_CORE_GLOBAL_BLEEP_JOBS__;
+
+  if (!Array.isArray(store)) {
+    (globalThis as any).__THA_CORE_GLOBAL_BLEEP_JOBS__ = [];
+  }
+
+  return (globalThis as any).__THA_CORE_GLOBAL_BLEEP_JOBS__;
+}
+
+function saveJobs(jobs: BleepJob[]) {
+  (globalThis as any).__THA_CORE_GLOBAL_BLEEP_JOBS__ = jobs.slice(0, 50);
+  return (globalThis as any).__THA_CORE_GLOBAL_BLEEP_JOBS__ as BleepJob[];
+}
+
+function getAzuraBaseUrl(): string {
+  return (
+    process.env.AZURACAST_BASE_URL ||
+    process.env.NEXT_PUBLIC_AZURACAST_BASE_URL ||
+    "http://thacoreonlinerad.com"
+  ).replace(/\/+$/, "");
+}
+
+function getAzuraStationId(): string {
+  return (
+    process.env.AZURACAST_STATION_ID ||
+    process.env.NEXT_PUBLIC_AZURACAST_STATION_ID ||
+    "1"
+  );
+}
+
+function normalize(value: unknown): string {
+  return String(value ?? "")
+    .toLowerCase()
+    .replace(/[^\w\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function toAbsoluteUrl(value: unknown): string {
+  if (typeof value !== "string" || !value.trim()) return "";
+
+  const raw = value.trim();
+
+  if (raw.startsWith("http://") || raw.startsWith("https://")) return raw;
+  if (raw.startsWith("/")) return `${getAzuraBaseUrl()}${raw}`;
+
+  return "";
+}
+
+function getAnyString(...values: unknown[]): string {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim()) return value.trim();
+    if (typeof value === "number") return String(value);
+  }
+
+  return "";
+}
+
+function extractAudioUrl(item: any): string {
+  const direct = getAnyString(
+    item?.audioUrl,
+    item?.streamUrl,
+    item?.url,
+    item?.download_url,
+    item?.play_url,
+    item?.links?.download,
+    item?.links?.play,
+    item?.links?.self,
+    item?.media?.download_url,
+    item?.media?.play_url
+  );
+
+  return toAbsoluteUrl(direct);
+}
+
+function mediaText(item: any): string {
+  return normalize(
+    [
+      item?.title,
+      item?.artist,
+      item?.name,
+      item?.path,
+      item?.song?.title,
+      item?.song?.artist,
+      item?.media?.title,
+      item?.media?.artist,
+      item?.media_file,
+      item?.extra_metadata?.artist,
+      item?.extra_metadata?.title,
+    ]
+      .filter(Boolean)
+      .join(" ")
+  );
+}
+
+function jobSearchWords(job: BleepJob) {
+  const title = normalize(job.track?.title);
+  const artist = normalize(job.track?.artist);
+  const text = `${artist} ${title}`;
+
+  if (text.includes("mother")) {
+    return ["mother", "baby mother", "mothers", "mothers day"];
+  }
+
+  return text
+    .split(" ")
+    .filter((word) => word.length >= 3)
+    .slice(0, 4);
+}
+
+function buildQueries(job: BleepJob) {
+  const title = normalize(job.track?.title);
+  const artist = normalize(job.track?.artist);
+  const words = jobSearchWords(job);
+
+  const queries = [
+    `${artist} ${title}`.trim(),
+    title,
+    ...words,
+  ].filter(Boolean);
+
+  return Array.from(new Set(queries));
+}
+
+function scoreItem(item: any, words: string[]) {
+  const text = mediaText(item);
+  let score = 0;
+
+  for (const word of words) {
+    if (word && text.includes(word)) score += 10;
+  }
+
+  if (text.includes("mother")) score += 10;
+  if (text.includes("clean")) score += 2;
+  if (text.includes("radio")) score += 2;
+
+  return score;
+}
+
+async function fetchJsonFast(url: string, apiKey: string) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 2500);
+
+  try {
+    const headers: HeadersInit = {
+      Accept: "application/json",
+    };
+
+    if (apiKey) {
+      headers["X-API-Key"] = apiKey;
+    }
+
+    const response = await fetch(url, {
+      method: "GET",
+      headers,
+      cache: "no-store",
+      signal: controller.signal,
+    });
+
+    if (!response.ok) return null;
+
+    return response.json();
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function extractList(payload: any): any[] {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.rows)) return payload.rows;
+  if (Array.isArray(payload?.items)) return payload.items;
+  if (Array.isArray(payload?.data)) return payload.data;
+  if (Array.isArray(payload?.records)) return payload.records;
+  if (Array.isArray(payload?.files)) return payload.files;
+
+  return [];
+}
+
+function normalizeMediaItem(item: any): BleepJobTrack {
+  const artist = getAnyString(
+    item?.artist,
+    item?.song?.artist,
+    item?.media?.artist,
+    item?.extra_metadata?.artist,
+    "AzuraCast"
+  );
+
+  const title = getAnyString(
+    item?.title,
+    item?.song?.title,
+    item?.media?.title,
+    item?.extra_metadata?.title,
+    item?.name,
+    item?.path,
+    "AzuraCast Track"
+  );
+
+  const rawUrl = extractAudioUrl(item);
+  const proxied = rawUrl ? `/api/smartdj/audio?src=${encodeURIComponent(rawUrl)}` : "";
+
+  return {
+    id: String(item?.id ?? item?.unique_id ?? item?.media_id ?? `azuracast-original-${Date.now()}`),
+    artist,
+    title,
+    source: "AzuraCast Original Audio",
+    reason: "Original track attached for bleep-copy processing.",
+    audioUrl: proxied,
+    url: proxied,
+    streamUrl: proxied,
+    rawUrl,
+  };
+}
+
+async function findOriginalTrack(job: BleepJob): Promise<BleepJobTrack | null> {
+  const apiKey = process.env.AZURACAST_API_KEY || "";
+  const baseUrl = getAzuraBaseUrl();
+  const stationId = getAzuraStationId();
+  const queries = buildQueries(job);
+  const words = jobSearchWords(job);
+
+  const urls = queries.flatMap((query) => [
+    `${baseUrl}/api/station/${stationId}/files?search=${encodeURIComponent(query)}`,
+    `${baseUrl}/api/station/${stationId}/files?query=${encodeURIComponent(query)}`,
+  ]);
+
+  const settled = await Promise.allSettled(urls.map((url) => fetchJsonFast(url, apiKey)));
+  const collected = new Map<string, any>();
+
+  for (const result of settled) {
+    if (result.status !== "fulfilled") continue;
+
+    const list = extractList(result.value);
+
+    for (const item of list) {
+      const key = String(
+        item?.id ??
+          item?.unique_id ??
+          item?.media_id ??
+          item?.path ??
+          JSON.stringify(item)
+      );
+
+      if (!collected.has(key)) collected.set(key, item);
+    }
+  }
+
+  const ranked = Array.from(collected.values())
+    .map((item) => ({
+      item,
+      score: scoreItem(item, words),
+    }))
+    .filter((entry) => entry.score > 0)
+    .sort((a, b) => b.score - a.score);
+
+  if (ranked.length === 0) return null;
+
+  return normalizeMediaItem(ranked[0].item);
+}
+
+export async function GET() {
+  return NextResponse.json(
+    {
+      ok: true,
+      route: "/api/radio/bleep-process",
+      message: "Bleep processor connector online.",
+      mode: "attach_original_then_process",
+    },
+    {
+      headers: {
+        "Cache-Control": "no-store",
+      },
+    }
+  );
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json().catch(() => null);
+    const id = String(body?.id ?? body?.job?.id ?? "");
+    const incomingJob = body?.job as BleepJob | undefined;
+
+    const jobs = getJobs();
+    const existingJob = jobs.find((job) => job.id === id);
+    const job = existingJob ?? incomingJob;
+
+    if (!job?.id) {
+      return NextResponse.json(
+        {
+          ok: false,
+          message: "Missing bleep job.",
+        },
+        { status: 400 }
+      );
+    }
+
+    const originalTrack = await findOriginalTrack(job);
+
+    const nextJobs = jobs.map((item) => {
+      if (item.id !== job.id) return item;
+
+      if (!originalTrack) {
+        return {
+          ...item,
+          updatedAt: new Date().toISOString(),
+          status: "READY_FOR_BLEEP_PROCESSING",
+          originalAttached: false,
+          processorStatus: "ORIGINAL_AUDIO_NOT_FOUND",
+          message:
+            "CREATE BLEEPED COPY REQUESTED - original AzuraCast audio was not found yet. Upload/attach the source audio before processing.",
+        };
+      }
+
+      return {
+        ...item,
+        updatedAt: new Date().toISOString(),
+        status: "READY_FOR_BLEEP_PROCESSING",
+        track: originalTrack,
+        originalAttached: true,
+        processorStatus: "ORIGINAL_AUDIO_ATTACHED",
+        processedCopyUrl: "",
+        message:
+          "ORIGINAL AUDIO ATTACHED - ready for real bleep processor to create a clean/bleeped copy before broadcast.",
+      };
+    });
+
+    const savedJobs = saveJobs(nextJobs);
+
+    const updatedJob = savedJobs.find((item) => item.id === job.id) ?? null;
+
+    return NextResponse.json(
+      {
+        ok: true,
+        job: updatedJob,
+        jobs: savedJobs,
+        originalFound: Boolean(originalTrack),
+        originalTrack,
+        message: originalTrack
+          ? "Original audio attached. Ready for bleep processor."
+          : "Original audio not found yet. Source audio required before bleep processing.",
+      },
+      {
+        headers: {
+          "Cache-Control": "no-store",
+        },
+      }
+    );
+  } catch (error) {
+    return NextResponse.json(
+      {
+        ok: false,
+        message:
+          error instanceof Error
+            ? error.message
+            : "Bleep processing route failed.",
+      },
+      { status: 500 }
+    );
+  }
+}

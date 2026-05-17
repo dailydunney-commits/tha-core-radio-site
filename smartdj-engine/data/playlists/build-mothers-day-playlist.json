@@ -1,8 +1,8 @@
 {
   "ok": true,
-  "name": "build  mothers day playlist",
+  "name": "build mothers day playlist",
   "slug": "build-mothers-day-playlist",
-  "createdAt": "2026-05-06T18:17:58.983Z",
+  "createdAt": "2026-05-06T20:12:31.357Z",
   "searchedWords": [
     "mothers",
     "day"
@@ -18,7 +18,7 @@
       "relativePath": "Test Artist - Mothers Day Song.mp3",
       "fullPath": "C:\\Projects\\tha-core-radio-site\\smartdj-engine\\music\\Test Artist - Mothers Day Song.mp3",
       "ext": ".mp3",
-      "scannedAt": "2026-05-06T18:17:58.983Z",
+      "scannedAt": "2026-05-06T20:12:31.356Z",
       "smartDjPlaylistScore": 50
     }
   ]

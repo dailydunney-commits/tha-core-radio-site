@@ -1,0 +1,77 @@
+{
+  "ok": true,
+  "route": "/api/autodj/gated-next",
+  "cursor": 0,
+  "lastDecision": "ALLOW_PROCESSED_CLEAN_AUDIO",
+  "lastApprovedTrack": {
+    "id": "autodj-test-safe-clean-copy",
+    "title": "AutoDJ Test Clean Copy",
+    "artist": "Tha Core",
+    "source": "AutoDJ gated-next fallback",
+    "reason": "Global Audio Gate approved processed/clean/bleeped audio.",
+    "genre": "",
+    "mood": "",
+    "path": "",
+    "rawUrl": "/audio/smartdj/test-bleeped-clean.mp3",
+    "audioUrl": "/audio/smartdj/test-bleeped-clean.mp3",
+    "url": "/audio/smartdj/test-bleeped-clean.mp3",
+    "streamUrl": "/audio/smartdj/test-bleeped-clean.mp3",
+    "processedAudioUrl": "/audio/smartdj/test-bleeped-clean.mp3",
+    "bleepedAudioUrl": "/audio/smartdj/test-bleeped-clean.mp3",
+    "cleanAudioUrl": "/audio/smartdj/test-bleeped-clean.mp3",
+    "radioSafeAudioUrl": "/audio/smartdj/test-bleeped-clean.mp3",
+    "safeAudioUrl": "/audio/smartdj/test-bleeped-clean.mp3"
+  },
+  "lastBlockedTrack": null,
+  "history": [
+    {
+      "id": "autodj-test-safe-clean-copy",
+      "title": "AutoDJ Test Clean Copy",
+      "artist": "Tha Core",
+      "decision": "ALLOW_PROCESSED_CLEAN_AUDIO",
+      "allowed": true,
+      "timestamp": "2026-05-17T07:14:57.595Z"
+    },
+    {
+      "id": "autodj-test-safe-clean-copy",
+      "title": "AutoDJ Test Clean Copy",
+      "artist": "Tha Core",
+      "decision": "ALLOW_PROCESSED_CLEAN_AUDIO",
+      "allowed": true,
+      "timestamp": "2026-05-17T07:14:54.004Z"
+    },
+    {
+      "id": "autodj-test-safe-clean-copy",
+      "title": "AutoDJ Test Clean Copy",
+      "artist": "Tha Core",
+      "decision": "ALLOW_PROCESSED_CLEAN_AUDIO",
+      "allowed": true,
+      "timestamp": "2026-05-17T07:14:02.006Z"
+    },
+    {
+      "id": "autodj-dirty-block-test",
+      "title": "Dirty Explicit Test",
+      "artist": "Tha Core",
+      "decision": "ALL_CANDIDATES_HELD",
+      "allowed": false,
+      "timestamp": "2026-05-09T05:06:48.103Z"
+    },
+    {
+      "id": "autodj-test-safe-clean-copy",
+      "title": "AutoDJ Test Clean Copy",
+      "artist": "Tha Core",
+      "decision": "ALLOW_PROCESSED_CLEAN_AUDIO",
+      "allowed": true,
+      "timestamp": "2026-05-09T05:06:37.997Z"
+    },
+    {
+      "id": "autodj-test-safe-clean-copy",
+      "title": "AutoDJ Test Clean Copy",
+      "artist": "Tha Core",
+      "decision": "ALLOW_PROCESSED_AUDIO",
+      "allowed": true,
+      "timestamp": "2026-05-09T00:07:25.742Z"
+    }
+  ],
+  "updatedAt": "2026-05-17T07:14:57.595Z"
+}

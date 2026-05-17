@@ -1,0 +1,1610 @@
+===== SMARTDJ DEEP DIVE REPORT =====
+Generated: 05/08/2026 15:04:59
+
+===== API FILE TREE =====
+
+FullName                                       
+--------                                       
+C:\Projects\tha-core-radio-site\app\api\admi...
+C:\Projects\tha-core-radio-site\app\api\auto...
+C:\Projects\tha-core-radio-site\app\api\auto...
+C:\Projects\tha-core-radio-site\app\api\auto...
+C:\Projects\tha-core-radio-site\app\api\auto...
+C:\Projects\tha-core-radio-site\app\api\auto...
+C:\Projects\tha-core-radio-site\app\api\auto...
+C:\Projects\tha-core-radio-site\app\api\auto...
+C:\Projects\tha-core-radio-site\app\api\auto...
+C:\Projects\tha-core-radio-site\app\api\azur...
+C:\Projects\tha-core-radio-site\app\api\azur...
+C:\Projects\tha-core-radio-site\app\api\blog...
+C:\Projects\tha-core-radio-site\app\api\cash...
+C:\Projects\tha-core-radio-site\app\api\chat...
+C:\Projects\tha-core-radio-site\app\api\chat...
+C:\Projects\tha-core-radio-site\app\api\chat...
+C:\Projects\tha-core-radio-site\app\api\chat...
+C:\Projects\tha-core-radio-site\app\api\chat...
+C:\Projects\tha-core-radio-site\app\api\chat...
+C:\Projects\tha-core-radio-site\app\api\chat...
+C:\Projects\tha-core-radio-site\app\api\cont...
+C:\Projects\tha-core-radio-site\app\api\dele...
+C:\Projects\tha-core-radio-site\app\api\lott...
+C:\Projects\tha-core-radio-site\app\api\news...
+C:\Projects\tha-core-radio-site\app\api\now-...
+C:\Projects\tha-core-radio-site\app\api\radi...
+C:\Projects\tha-core-radio-site\app\api\radi...
+C:\Projects\tha-core-radio-site\app\api\radi...
+C:\Projects\tha-core-radio-site\app\api\radi...
+C:\Projects\tha-core-radio-site\app\api\radi...
+C:\Projects\tha-core-radio-site\app\api\radi...
+C:\Projects\tha-core-radio-site\app\api\radi...
+C:\Projects\tha-core-radio-site\app\api\radi...
+C:\Projects\tha-core-radio-site\app\api\radi...
+C:\Projects\tha-core-radio-site\app\api\radi...
+C:\Projects\tha-core-radio-site\app\api\radi...
+C:\Projects\tha-core-radio-site\app\api\radi...
+C:\Projects\tha-core-radio-site\app\api\radi...
+C:\Projects\tha-core-radio-site\app\api\radi...
+C:\Projects\tha-core-radio-site\app\api\radi...
+C:\Projects\tha-core-radio-site\app\api\radi...
+C:\Projects\tha-core-radio-site\app\api\radi...
+C:\Projects\tha-core-radio-site\app\api\radi...
+C:\Projects\tha-core-radio-site\app\api\radi...
+C:\Projects\tha-core-radio-site\app\api\radi...
+C:\Projects\tha-core-radio-site\app\api\radi...
+C:\Projects\tha-core-radio-site\app\api\radi...
+C:\Projects\tha-core-radio-site\app\api\radi...
+C:\Projects\tha-core-radio-site\app\api\radi...
+C:\Projects\tha-core-radio-site\app\api\radi...
+C:\Projects\tha-core-radio-site\app\api\radi...
+C:\Projects\tha-core-radio-site\app\api\radi...
+C:\Projects\tha-core-radio-site\app\api\radi...
+C:\Projects\tha-core-radio-site\app\api\radi...
+C:\Projects\tha-core-radio-site\app\api\radi...
+C:\Projects\tha-core-radio-site\app\api\radi...
+C:\Projects\tha-core-radio-site\app\api\radi...
+C:\Projects\tha-core-radio-site\app\api\radi...
+C:\Projects\tha-core-radio-site\app\api\radi...
+C:\Projects\tha-core-radio-site\app\api\radi...
+C:\Projects\tha-core-radio-site\app\api\smar...
+C:\Projects\tha-core-radio-site\app\api\smar...
+C:\Projects\tha-core-radio-site\app\api\smar...
+C:\Projects\tha-core-radio-site\app\api\smar...
+C:\Projects\tha-core-radio-site\app\api\smar...
+C:\Projects\tha-core-radio-site\app\api\smar...
+C:\Projects\tha-core-radio-site\app\api\smar...
+C:\Projects\tha-core-radio-site\app\api\smar...
+C:\Projects\tha-core-radio-site\app\api\smar...
+C:\Projects\tha-core-radio-site\app\api\smar...
+C:\Projects\tha-core-radio-site\app\api\smar...
+C:\Projects\tha-core-radio-site\app\api\smar...
+C:\Projects\tha-core-radio-site\app\api\smar...
+C:\Projects\tha-core-radio-site\app\api\smar...
+C:\Projects\tha-core-radio-site\app\api\smar...
+C:\Projects\tha-core-radio-site\app\api\smar...
+C:\Projects\tha-core-radio-site\app\api\smar...
+C:\Projects\tha-core-radio-site\app\api\smar...
+C:\Projects\tha-core-radio-site\app\api\smar...
+C:\Projects\tha-core-radio-site\app\api\smar...
+C:\Projects\tha-core-radio-site\app\api\smar...
+C:\Projects\tha-core-radio-site\app\api\smar...
+C:\Projects\tha-core-radio-site\app\api\smar...
+C:\Projects\tha-core-radio-site\app\api\smar...
+C:\Projects\tha-core-radio-site\app\api\smar...
+C:\Projects\tha-core-radio-site\app\api\smar...
+C:\Projects\tha-core-radio-site\app\api\smar...
+C:\Projects\tha-core-radio-site\app\api\smar...
+C:\Projects\tha-core-radio-site\app\api\stat...
+C:\Projects\tha-core-radio-site\app\api\stri...
+C:\Projects\tha-core-radio-site\app\api\time...
+C:\Projects\tha-core-radio-site\app\api\weat...
+
+
+
+
+===== SMARTDJ STATE FILE =====
+{
+  "ok": true,
+  "command": "money",
+  "intent": "find_play_song",
+  "target": "money",
+  "message": "SmartDJ returned 1 result(s). No clean version found, so 1 bleep job was created for money.",
+  "reply": "SmartDJ returned 1 result(s). No clean version found, so 1 bleep job was created for money.",
+  "statusText": "SmartDJ returned 1 result(s). Bleep job created for money.",
+  "action": "create_bleep_job",
+  "targetPanel": "smartdj_queue",
+  "playlistTitle": "",
+  "playlist": [],
+  "lastPlaylist": [],
+  "timestamp": "2026-05-08T18:53:49.126Z",
+  "resultCount": 1,
+  "resultLabel": "SmartDJ returned 1 result(s)."
+}
+
+===== SMARTDJ COMMAND ROUTE CLEAN / BLEEP / PLAYLIST LOGIC =====
+
+  app\api\smartdj\command\route.ts:9:  id: 
+string;
+  app\api\smartdj\command\route.ts:10:  title: 
+string;
+  app\api\smartdj\command\route.ts:11:  
+artist: string;
+  app\api\smartdj\command\route.ts:12:  
+source: string;
+  app\api\smartdj\command\route.ts:13:  
+reason: string;
+> app\api\smartdj\command\route.ts:14:  
+audioUrl: string;
+  app\api\smartdj\command\route.ts:15:  url: 
+string;
+  app\api\smartdj\command\route.ts:16:  
+streamUrl: string;
+  app\api\smartdj\command\route.ts:17:  
+rawUrl?: string;
+  app\api\smartdj\command\route.ts:18:};
+  app\api\smartdj\command\route.ts:19:
+  app\api\smartdj\command\route.ts:20:type 
+SmartDJState = {
+  app\api\smartdj\command\route.ts:21:  ok: 
+boolean;
+  app\api\smartdj\command\route.ts:22:  
+command: string;
+  app\api\smartdj\command\route.ts:23:  
+intent: string;
+  app\api\smartdj\command\route.ts:24:  
+target: string;
+  app\api\smartdj\command\route.ts:25:  
+message: string;
+  app\api\smartdj\command\route.ts:26:  reply: 
+string;
+  app\api\smartdj\command\route.ts:27:  
+statusText: string;
+  app\api\smartdj\command\route.ts:28:  
+action: string;
+> app\api\smartdj\command\route.ts:29:  
+targetPanel: string;
+> app\api\smartdj\command\route.ts:30:  
+playlistTitle: string;
+> app\api\smartdj\command\route.ts:31:  
+playlist: SmartDJTrack[];
+> app\api\smartdj\command\route.ts:32:  
+lastPlaylist: SmartDJTrack[];
+  app\api\smartdj\command\route.ts:33:  
+timestamp: string;
+> app\api\smartdj\command\route.ts:34:  
+resultCount: number;
+  app\api\smartdj\command\route.ts:35:  
+resultLabel: string;
+  app\api\smartdj\command\route.ts:36:};
+  app\api\smartdj\command\route.ts:37:
+  app\api\smartdj\command\route.ts:38:declare 
+global {
+  app\api\smartdj\command\route.ts:39:  var 
+__THA_CORE_SMARTDJ_STATE__: SmartDJState | 
+undefined;
+  app\api\smartdj\command\route.ts:40:}
+  app\api\smartdj\command\route.ts:41:
+  app\api\smartdj\command\route.ts:42:function 
+getAzuraBaseUrl(): string {
+  app\api\smartdj\command\route.ts:43:  return 
+(
+  app\api\smartdj\command\route.ts:44:    
+process.env.AZURACAST_BASE_URL ||
+  app\api\smartdj\command\route.ts:53:    
+process.env.NEXT_PUBLIC_AZURACAST_STATION_ID ||
+  app\api\smartdj\command\route.ts:54:    "1"
+  app\api\smartdj\command\route.ts:55:  );
+  app\api\smartdj\command\route.ts:56:}
+  app\api\smartdj\command\route.ts:57:
+> app\api\smartdj\command\route.ts:58:function 
+proxyAudioUrl(rawUrl: string): string {
+  app\api\smartdj\command\route.ts:59:  if 
+(!rawUrl) return "";
+  app\api\smartdj\command\route.ts:60:  return 
+`/api/smartdj/audio?src=${encodeURIComponent(ra
+wUrl)}`;
+  app\api\smartdj\command\route.ts:61:}
+  app\api\smartdj\command\route.ts:62:
+  app\api\smartdj\command\route.ts:63:function 
+blankState(): SmartDJState {
+  app\api\smartdj\command\route.ts:64:  return 
+{
+  app\api\smartdj\command\route.ts:65:    ok: 
+true,
+  app\api\smartdj\command\route.ts:66:    
+command: "",
+  app\api\smartdj\command\route.ts:67:    
+intent: "idle",
+  app\api\smartdj\command\route.ts:68:    
+target: "",
+  app\api\smartdj\command\route.ts:69:    
+message: "SmartDJ command ready.",
+  app\api\smartdj\command\route.ts:70:    
+reply: "SmartDJ command ready.",
+  app\api\smartdj\command\route.ts:71:    
+statusText: "SmartDJ command ready.",
+  app\api\smartdj\command\route.ts:72:    
+action: "idle",
+> app\api\smartdj\command\route.ts:73:    
+targetPanel: "smartdj",
+> app\api\smartdj\command\route.ts:74:    
+playlistTitle: "",
+> app\api\smartdj\command\route.ts:75:    
+playlist: [],
+> app\api\smartdj\command\route.ts:76:    
+lastPlaylist: [],
+  app\api\smartdj\command\route.ts:77:    
+timestamp: new Date().toISOString(),
+> app\api\smartdj\command\route.ts:78:    
+resultCount: 0,
+  app\api\smartdj\command\route.ts:79:    
+resultLabel: "SmartDJ returned 0 result(s).",
+  app\api\smartdj\command\route.ts:80:  };
+  app\api\smartdj\command\route.ts:81:}
+  app\api\smartdj\command\route.ts:82:
+  app\api\smartdj\command\route.ts:83:const 
+SMARTDJ_STATE_FILE = join(process.cwd(), 
+".data", "smartdj-state.json");
+  app\api\smartdj\command\route.ts:84:
+  app\api\smartdj\command\route.ts:85:function 
+loadSavedState(): SmartDJState | null {
+  app\api\smartdj\command\route.ts:86:  try {
+  app\api\smartdj\command\route.ts:87:    if 
+(!existsSync(SMARTDJ_STATE_FILE)) return null;
+  app\api\smartdj\command\route.ts:88:
+  app\api\smartdj\command\route.ts:89:    
+const raw = readFileSync(SMARTDJ_STATE_FILE, 
+"utf8");
+  app\api\smartdj\command\route.ts:90:    
+const parsed = JSON.parse(raw) as SmartDJState;
+  app\api\smartdj\command\route.ts:91:
+  app\api\smartdj\command\route.ts:92:    if 
+(!parsed || typeof parsed !== "object") return 
+null;
+> app\api\smartdj\command\route.ts:93:    if 
+(!Array.isArray(parsed.playlist)) 
+parsed.playlist = [];
+> app\api\smartdj\command\route.ts:94:    if 
+(!Array.isArray(parsed.lastPlaylist)) 
+parsed.lastPlaylist = [];
+  app\api\smartdj\command\route.ts:95:
+  app\api\smartdj\command\route.ts:96:    
+return parsed;
+  app\api\smartdj\command\route.ts:97:  } 
+catch {
+  app\api\smartdj\command\route.ts:98:    
+return null;
+  app\api\smartdj\command\route.ts:99:  }
+  app\api\smartdj\command\route.ts:100:}
+  app\api\smartdj\command\route.ts:101:
+> 
+app\api\smartdj\command\route.ts:102:function 
+saveState(state: SmartDJState) {
+  app\api\smartdj\command\route.ts:103:  try {
+  app\api\smartdj\command\route.ts:104:    
+mkdirSync(join(process.cwd(), ".data"), { 
+recursive: true });
+  app\api\smartdj\command\route.ts:105:    
+writeFileSync(SMARTDJ_STATE_FILE, 
+JSON.stringify(state, null, 2), "utf8");
+  app\api\smartdj\command\route.ts:106:  } 
+catch {
+  app\api\smartdj\command\route.ts:107:    // 
+Keep SmartDJ working even if local file save 
+fails.
+  app\api\smartdj\command\route.ts:108:  }
+  app\api\smartdj\command\route.ts:109:}
+  app\api\smartdj\command\route.ts:110:
+> 
+app\api\smartdj\command\route.ts:111:function 
+setState(state: SmartDJState): SmartDJState {
+  app\api\smartdj\command\route.ts:112:  
+globalThis.__THA_CORE_SMARTDJ_STATE__ = state;
+> app\api\smartdj\command\route.ts:113:  
+saveState(state);
+  app\api\smartdj\command\route.ts:114:  
+return state;
+  app\api\smartdj\command\route.ts:115:}
+  
+app\api\smartdj\command\route.ts:116:function 
+getState(): SmartDJState {
+  app\api\smartdj\command\route.ts:117:  if 
+(!globalThis.__THA_CORE_SMARTDJ_STATE__) {
+  app\api\smartdj\command\route.ts:118:    
+globalThis.__THA_CORE_SMARTDJ_STATE__ = 
+loadSavedState() || blankState();
+  app\api\smartdj\command\route.ts:119:  }
+  app\api\smartdj\command\route.ts:120:
+  app\api\smartdj\command\route.ts:121:  
+return globalThis.__THA_CORE_SMARTDJ_STATE__;
+  app\api\smartdj\command\route.ts:122:}
+  app\api\smartdj\command\route.ts:123:
+> 
+app\api\smartdj\command\route.ts:124:function 
+cleanCommand(value: unknown): string {
+  app\api\smartdj\command\route.ts:125:  if 
+(typeof value !== "string") return "";
+  app\api\smartdj\command\route.ts:126:  
+return value.replace(/\s+/g, " 
+").trim().slice(0, 260);
+  app\api\smartdj\command\route.ts:127:}
+  app\api\smartdj\command\route.ts:128:
+  
+app\api\smartdj\command\route.ts:129:function 
+normalize(value: unknown): string {
+  app\api\smartdj\command\route.ts:130:  
+return String(value ?? "")
+  app\api\smartdj\command\route.ts:131:    
+.toLowerCase()
+  app\api\smartdj\command\route.ts:132:    
+.replace(/[^\w\s]/g, " ")
+  app\api\smartdj\command\route.ts:133:    
+.replace(/\s+/g, " ")
+  app\api\smartdj\command\route.ts:134:    
+.trim();
+  app\api\smartdj\command\route.ts:141:  if 
+(text.includes("dancehall")) return 
+"dancehall";
+  app\api\smartdj\command\route.ts:142:  if 
+(text.includes("reggae")) return "reggae";
+  app\api\smartdj\command\route.ts:143:  if 
+(text.includes("rnb") || text.includes("r b")) 
+return "rnb";
+  app\api\smartdj\command\route.ts:144:  if 
+(text.includes("hip hop") || 
+text.includes("hiphop")) return "hip hop";
+  app\api\smartdj\command\route.ts:145:
+> app\api\smartdj\command\route.ts:146:  const 
+cleaned = command
+  app\api\smartdj\command\route.ts:147:    
+.replace(/find/gi, "")
+  app\api\smartdj\command\route.ts:148:    
+.replace(/play/gi, "")
+  app\api\smartdj\command\route.ts:149:    
+.replace(/build/gi, "")
+> app\api\smartdj\command\route.ts:150:    
+.replace(/playlist/gi, "")
+  app\api\smartdj\command\route.ts:151:    
+.replace(/song/gi, "")
+  app\api\smartdj\command\route.ts:152:    
+.replace(/songs/gi, "")
+  app\api\smartdj\command\route.ts:153:    
+.replace(/and/gi, "")
+  app\api\smartdj\command\route.ts:154:    
+.replace(/\s+/g, " ")
+  app\api\smartdj\command\route.ts:155:    
+.trim();
+  app\api\smartdj\command\route.ts:156:
+> app\api\smartdj\command\route.ts:157:  
+return cleaned || "music";
+  app\api\smartdj\command\route.ts:158:}
+  app\api\smartdj\command\route.ts:159:
+  
+app\api\smartdj\command\route.ts:160:function 
+getDisplayTarget(command: string): string {
+  app\api\smartdj\command\route.ts:161:  const 
+text = normalize(command);
+  app\api\smartdj\command\route.ts:162:
+  app\api\smartdj\command\route.ts:163:  if 
+(text.includes("mother")) return "Mothers Day 
+Song";
+  app\api\smartdj\command\route.ts:164:  if 
+(text.includes("dancehall")) return "Dancehall 
+Song";
+  app\api\smartdj\command\route.ts:165:  if 
+(text.includes("reggae")) return "Reggae Song";
+  app\api\smartdj\command\route.ts:166:  if 
+(text.includes("rnb") || text.includes("r b")) 
+return "RNB Song";
+  app\api\smartdj\command\route.ts:167:  if 
+(text.includes("hip hop") || 
+text.includes("hiphop")) return "Hip-Hop Song";
+  app\api\smartdj\command\route.ts:178:  const 
+text = normalize(command);
+  app\api\smartdj\command\route.ts:179:  const 
+target = getSearchTarget(command);
+  app\api\smartdj\command\route.ts:180:
+  app\api\smartdj\command\route.ts:181:  if 
+(text.includes("mother")) {
+  app\api\smartdj\command\route.ts:182:    
+return [
+> app\api\smartdj\command\route.ts:183:      
+"mother clean",
+  app\api\smartdj\command\route.ts:184:      
+"mother radio",
+  app\api\smartdj\command\route.ts:185:      
+"mother radio edit",
+> app\api\smartdj\command\route.ts:186:      
+"mothers clean",
+  app\api\smartdj\command\route.ts:187:      
+"mothers radio",
+> app\api\smartdj\command\route.ts:188:      
+"mothers day clean",
+  app\api\smartdj\command\route.ts:189:      
+"mothers day radio",
+> app\api\smartdj\command\route.ts:190:      
+"clean mother",
+  app\api\smartdj\command\route.ts:191:      
+"radio mother"
+  app\api\smartdj\command\route.ts:192:    ];
+  app\api\smartdj\command\route.ts:193:  }
+  app\api\smartdj\command\route.ts:194:
+  app\api\smartdj\command\route.ts:195:  
+return [
+> app\api\smartdj\command\route.ts:196:    
+`${target} clean`,
+  app\api\smartdj\command\route.ts:197:    
+`${target} radio`,
+  app\api\smartdj\command\route.ts:198:    
+`${target} radio edit`,
+> app\api\smartdj\command\route.ts:199:    
+`${target} clean radio`,
+  app\api\smartdj\command\route.ts:200:  ];
+  app\api\smartdj\command\route.ts:201:}
+  app\api\smartdj\command\route.ts:202:
+  
+app\api\smartdj\command\route.ts:203:function 
+getAnyString(...values: unknown[]): string {
+  app\api\smartdj\command\route.ts:204:  for 
+(const value of values) {
+  app\api\smartdj\command\route.ts:205:    if 
+(typeof value === "string" && value.trim()) 
+return value.trim();
+  app\api\smartdj\command\route.ts:206:    if 
+(typeof value === "number") return 
+String(value);
+  app\api\smartdj\command\route.ts:207:  }
+  app\api\smartdj\command\route.ts:208:
+  app\api\smartdj\command\route.ts:209:  
+return "";
+  app\api\smartdj\command\route.ts:218:  if 
+(raw.startsWith("/")) return 
+`${getAzuraBaseUrl()}${raw}`;
+  app\api\smartdj\command\route.ts:219:
+  app\api\smartdj\command\route.ts:220:  
+return "";
+  app\api\smartdj\command\route.ts:221:}
+  app\api\smartdj\command\route.ts:222:
+> 
+app\api\smartdj\command\route.ts:223:function 
+extractAudioUrl(item: any): string {
+  app\api\smartdj\command\route.ts:224:  const 
+direct = getAnyString(
+> app\api\smartdj\command\route.ts:225:    
+item?.audioUrl,
+  app\api\smartdj\command\route.ts:226:    
+item?.streamUrl,
+  app\api\smartdj\command\route.ts:227:    
+item?.url,
+  app\api\smartdj\command\route.ts:228:    
+item?.download_url,
+  app\api\smartdj\command\route.ts:229:    
+item?.play_url,
+  app\api\smartdj\command\route.ts:230:    
+item?.links?.download,
+  app\api\smartdj\command\route.ts:231:    
+item?.links?.play,
+  app\api\smartdj\command\route.ts:232:    
+item?.links?.self,
+  app\api\smartdj\command\route.ts:233:    
+item?.media?.download_url,
+  app\api\smartdj\command\route.ts:234:    
+item?.media?.play_url
+  app\api\smartdj\command\route.ts:235:  );
+  app\api\smartdj\command\route.ts:271:    
+.filter((word) => word.length >= 3);
+  app\api\smartdj\command\route.ts:272:
+  app\api\smartdj\command\route.ts:273:  
+return words.some((word) => 
+text.includes(word));
+  app\api\smartdj\command\route.ts:274:}
+  app\api\smartdj\command\route.ts:275:
+> 
+app\api\smartdj\command\route.ts:276:function 
+mediaIsDirty(item: any): boolean {
+  app\api\smartdj\command\route.ts:277:  const 
+text = mediaText(item);
+  app\api\smartdj\command\route.ts:278:
+  app\api\smartdj\command\route.ts:279:  
+return (
+> app\api\smartdj\command\route.ts:280:    
+text.includes("explicit") ||
+  app\api\smartdj\command\route.ts:281:    
+text.includes("uncensored") ||
+> app\api\smartdj\command\route.ts:282:    
+text.includes("dirty") ||
+> app\api\smartdj\command\route.ts:283:    
+text.includes("dirty version") ||
+  app\api\smartdj\command\route.ts:284:    
+text.includes("raw version") ||
+  app\api\smartdj\command\route.ts:285:    
+text.includes("parental advisory")
+  app\api\smartdj\command\route.ts:286:  );
+  app\api\smartdj\command\route.ts:287:}
+  app\api\smartdj\command\route.ts:288:
+> 
+app\api\smartdj\command\route.ts:289:function 
+mediaIsCleanRadio(item: any): boolean {
+  app\api\smartdj\command\route.ts:290:  const 
+text = mediaText(item);
+  app\api\smartdj\command\route.ts:291:
+> app\api\smartdj\command\route.ts:292:  if 
+(mediaIsDirty(item)) return false;
+  app\api\smartdj\command\route.ts:293:
+  app\api\smartdj\command\route.ts:294:  
+return (
+> app\api\smartdj\command\route.ts:295:    
+text.includes("clean") ||
+  app\api\smartdj\command\route.ts:296:    
+text.includes("radio") ||
+  app\api\smartdj\command\route.ts:297:    
+text.includes("radio edit") ||
+> app\api\smartdj\command\route.ts:298:    
+text.includes("clean version") ||
+> app\api\smartdj\command\route.ts:299:    
+text.includes("clean radio") ||
+  app\api\smartdj\command\route.ts:300:    
+text.includes("edited") ||
+  app\api\smartdj\command\route.ts:301:    
+text.includes("censored")
+  app\api\smartdj\command\route.ts:302:  );
+  app\api\smartdj\command\route.ts:303:}
+  app\api\smartdj\command\route.ts:304:
+  
+app\api\smartdj\command\route.ts:305:function 
+scoreMedia(item: any, queryWords: string[]): 
+number {
+  app\api\smartdj\command\route.ts:306:  const 
+text = mediaText(item);
+  app\api\smartdj\command\route.ts:307:  let 
+score = 0;
+  app\api\smartdj\command\route.ts:308:
+  app\api\smartdj\command\route.ts:309:  for 
+(const word of queryWords) {
+  app\api\smartdj\command\route.ts:310:    if 
+(word && text.includes(word)) score += 10;
+  app\api\smartdj\command\route.ts:311:  }
+  app\api\smartdj\command\route.ts:312:
+> app\api\smartdj\command\route.ts:313:  if 
+(text.includes("clean")) score += 6;
+  app\api\smartdj\command\route.ts:314:  if 
+(text.includes("radio edit")) score += 5;
+  app\api\smartdj\command\route.ts:315:  if 
+(text.includes("radio")) score += 3;
+  app\api\smartdj\command\route.ts:316:
+  app\api\smartdj\command\route.ts:317:  
+return score;
+  app\api\smartdj\command\route.ts:318:}
+  app\api\smartdj\command\route.ts:319:
+  
+app\api\smartdj\command\route.ts:320:function 
+normalizeMediaItem(item: any, index: number): 
+SmartDJTrack {
+  app\api\smartdj\command\route.ts:321:  const 
+artist = getAnyString(
+  app\api\smartdj\command\route.ts:322:    
+item?.artist,
+  app\api\smartdj\command\route.ts:323:    
+item?.song?.artist,
+  app\api\smartdj\command\route.ts:334:    
+item?.name,
+  app\api\smartdj\command\route.ts:335:    
+item?.path,
+  app\api\smartdj\command\route.ts:336:    
+`AzuraCast Track ${index + 1}`
+  app\api\smartdj\command\route.ts:337:  );
+  app\api\smartdj\command\route.ts:338:
+> app\api\smartdj\command\route.ts:339:  const 
+rawUrl = extractAudioUrl(item);
+> app\api\smartdj\command\route.ts:340:  const 
+playableUrl = rawUrl ? proxyAudioUrl(rawUrl) : 
+"";
+  app\api\smartdj\command\route.ts:341:
+  app\api\smartdj\command\route.ts:342:  
+return {
+  app\api\smartdj\command\route.ts:343:    id: 
+String(item?.id ?? item?.unique_id ?? 
+item?.media_id ?? `azuracast-track-${index + 
+1}`),
+  app\api\smartdj\command\route.ts:344:    
+artist,
+  app\api\smartdj\command\route.ts:345:    
+title,
+  app\api\smartdj\command\route.ts:346:    
+source: "AzuraCast Media Library",
+  app\api\smartdj\command\route.ts:347:    
+reason: rawUrl
+> app\api\smartdj\command\route.ts:348:      ? 
+"Clean/radio-safe track matched from 
+AzuraCast."
+> app\api\smartdj\command\route.ts:349:      : 
+"Matched clean/radio metadata, but no direct 
+audio URL was returned.",
+> app\api\smartdj\command\route.ts:350:    
+audioUrl: playableUrl,
+  app\api\smartdj\command\route.ts:351:    
+url: playableUrl,
+  app\api\smartdj\command\route.ts:352:    
+streamUrl: playableUrl,
+  app\api\smartdj\command\route.ts:353:    
+rawUrl,
+  app\api\smartdj\command\route.ts:354:  };
+  app\api\smartdj\command\route.ts:355:}
+  app\api\smartdj\command\route.ts:356:
+  app\api\smartdj\command\route.ts:357:async 
+function fetchJsonFast(url: string, apiKey: 
+string) {
+  app\api\smartdj\command\route.ts:358:  const 
+controller = new AbortController();
+  app\api\smartdj\command\route.ts:359:  const 
+timer = setTimeout(() => controller.abort(), 
+2500);
+  app\api\smartdj\command\route.ts:360:
+  app\api\smartdj\command\route.ts:387:  if 
+(Array.isArray(payload?.files)) return 
+payload.files;
+  app\api\smartdj\command\route.ts:388:
+  app\api\smartdj\command\route.ts:389:  
+return [];
+  app\api\smartdj\command\route.ts:390:}
+  app\api\smartdj\command\route.ts:391:
+> app\api\smartdj\command\route.ts:392:async 
+function searchAzuraCastCleanMedia(command: 
+string): Promise<SmartDJTrack[]> {
+  app\api\smartdj\command\route.ts:393:  const 
+apiKey = process.env.AZURACAST_API_KEY || "";
+  app\api\smartdj\command\route.ts:394:  const 
+baseUrl = getAzuraBaseUrl();
+  app\api\smartdj\command\route.ts:395:  const 
+stationId = getAzuraStationId();
+  app\api\smartdj\command\route.ts:396:  const 
+searchTarget = getSearchTarget(command);
+  app\api\smartdj\command\route.ts:397:  const 
+words = normalize(searchTarget).split(" 
+").filter(Boolean);
+  app\api\smartdj\command\route.ts:398:  const 
+queries = Array.from(new 
+Set(getAzuraSearchQueries(command)));
+  app\api\smartdj\command\route.ts:399:
+  app\api\smartdj\command\route.ts:400:  const 
+urls = queries.flatMap((query) => [
+  app\api\smartdj\command\route.ts:401:    `${b
+aseUrl}/api/station/${stationId}/files?search=$
+{encodeURIComponent(query)}`,
+  app\api\smartdj\command\route.ts:402:    `${b
+aseUrl}/api/station/${stationId}/files?query=${
+encodeURIComponent(query)}`,
+  app\api\smartdj\command\route.ts:428:  
+return allItems
+  app\api\smartdj\command\route.ts:429:    
+.map((item) => ({
+  app\api\smartdj\command\route.ts:430:      
+item,
+  app\api\smartdj\command\route.ts:431:      
+score: scoreMedia(item, words),
+  app\api\smartdj\command\route.ts:432:    }))
+> app\api\smartdj\command\route.ts:433:    
+.filter((entry) => 
+isStrictRequestMatch(entry.item, command) && 
+mediaIsCleanRadio(entry.item))
+  app\api\smartdj\command\route.ts:434:    
+.sort((a, b) => b.score - a.score)
+  app\api\smartdj\command\route.ts:435:    
+.slice(0, 20)
+  app\api\smartdj\command\route.ts:436:    
+.map((entry, index) => 
+normalizeMediaItem(entry.item, index));
+  app\api\smartdj\command\route.ts:437:}
+  app\api\smartdj\command\route.ts:438:
+  app\api\smartdj\command\route.ts:439:
+  app\api\smartdj\command\route.ts:440:async 
+function searchAzuraCastAnyMedia(command: 
+string): Promise<SmartDJTrack[]> {
+  app\api\smartdj\command\route.ts:441:  const 
+apiKey = process.env.AZURACAST_API_KEY || "";
+  app\api\smartdj\command\route.ts:442:  const 
+baseUrl = getAzuraBaseUrl();
+  app\api\smartdj\command\route.ts:443:  const 
+stationId = getAzuraStationId();
+  app\api\smartdj\command\route.ts:489:    
+.sort((a, b) => b.score - a.score)
+  app\api\smartdj\command\route.ts:490:    
+.slice(0, 5)
+  app\api\smartdj\command\route.ts:491:    
+.map((entry, index) => 
+normalizeMediaItem(entry.item, index));
+  app\api\smartdj\command\route.ts:492:}
+  app\api\smartdj\command\route.ts:493:
+> app\api\smartdj\command\route.ts:494:async 
+function createSmartDjBleepJob(command: 
+string, origin: string, originalTrack?: 
+SmartDJTrack | null) {
+  app\api\smartdj\command\route.ts:495:  const 
+target = extractSmartDjTarget(command);
+  app\api\smartdj\command\route.ts:496:
+  app\api\smartdj\command\route.ts:497:  const 
+trackForJob =
+  app\api\smartdj\command\route.ts:498:    
+originalTrack ?? {
+> app\api\smartdj\command\route.ts:499:      
+id: `smartdj-bleep-needed-${Date.now()}`,
+  app\api\smartdj\command\route.ts:500:      
+title: target,
+  app\api\smartdj\command\route.ts:501:      
+artist: "SmartDJ",
+  app\api\smartdj\command\route.ts:502:      
+source: "SmartDJ request",
+  app\api\smartdj\command\route.ts:503:      
+reason:
+> app\api\smartdj\command\route.ts:504:        
+"No clean/radio edit version was returned. 
+SmartDJ must find a clean version or create a 
+processed bleeped copy before broadcast.",
+> app\api\smartdj\command\route.ts:505:      
+audioUrl: "",
+  app\api\smartdj\command\route.ts:506:      
+url: "",
+  app\api\smartdj\command\route.ts:507:      
+streamUrl: "",
+  app\api\smartdj\command\route.ts:508:      
+rawUrl: "",
+  app\api\smartdj\command\route.ts:509:    };
+  app\api\smartdj\command\route.ts:510:
+> app\api\smartdj\command\route.ts:511:  const 
+response = await 
+fetch(`${origin}/api/radio/bleep-job`, {
+  app\api\smartdj\command\route.ts:512:    
+method: "POST",
+  app\api\smartdj\command\route.ts:513:    
+headers: {
+  app\api\smartdj\command\route.ts:514:      
+"Content-Type": "application/json",
+  app\api\smartdj\command\route.ts:515:    },
+  app\api\smartdj\command\route.ts:516:    
+cache: "no-store",
+  app\api\smartdj\command\route.ts:517:    
+body: JSON.stringify({
+  app\api\smartdj\command\route.ts:518:      
+source: "SMARTDJ",
+  app\api\smartdj\command\route.ts:519:      
+track: trackForJob,
+  app\api\smartdj\command\route.ts:520:    }),
+  app\api\smartdj\command\route.ts:521:  });
+  app\api\smartdj\command\route.ts:523:  
+return response.json().catch(() => null);
+  app\api\smartdj\command\route.ts:524:}
+  app\api\smartdj\command\route.ts:525:
+  
+app\api\smartdj\command\route.ts:526:function 
+buildStateFromTracks(command: string, tracks: 
+SmartDJTrack[]): SmartDJState {
+  app\api\smartdj\command\route.ts:527:  const 
+target = extractSmartDjTarget(command);
+> app\api\smartdj\command\route.ts:528:  const 
+playlistTitle = `build ${target.toLowerCase()} 
+playlist`;
+  app\api\smartdj\command\route.ts:529:
+  app\api\smartdj\command\route.ts:530:  
+return {
+  app\api\smartdj\command\route.ts:531:    ok: 
+true,
+  app\api\smartdj\command\route.ts:532:    
+command,
+> app\api\smartdj\command\route.ts:533:    
+intent: "find_play_song",
+  app\api\smartdj\command\route.ts:534:    
+target,
+  app\api\smartdj\command\route.ts:535:    
+message: `SmartDJ returned ${tracks.length} 
+result(s) for ${target}.`,
+  app\api\smartdj\command\route.ts:536:    
+reply: `SmartDJ returned ${tracks.length} 
+result(s) for ${target}.`,
+  app\api\smartdj\command\route.ts:537:    
+statusText: `SmartDJ returned ${tracks.length} 
+result(s) for ${target}.`,
+  app\api\smartdj\command\route.ts:538:    
+action: "prepare_song_queue",
+> app\api\smartdj\command\route.ts:539:    
+targetPanel: "smartdj_queue",
+> app\api\smartdj\command\route.ts:540:    
+playlistTitle,
+> app\api\smartdj\command\route.ts:541:    
+playlist: tracks,
+> app\api\smartdj\command\route.ts:542:    
+lastPlaylist: tracks,
+  app\api\smartdj\command\route.ts:543:    
+timestamp: new Date().toISOString(),
+> app\api\smartdj\command\route.ts:544:    
+resultCount: tracks.length,
+  app\api\smartdj\command\route.ts:545:    
+resultLabel: `SmartDJ returned 
+${tracks.length} result(s).`,
+  app\api\smartdj\command\route.ts:546:  };
+  app\api\smartdj\command\route.ts:547:}
+  app\api\smartdj\command\route.ts:548:
+  app\api\smartdj\command\route.ts:549:
+  
+app\api\smartdj\command\route.ts:550:function 
+extractSmartDjTarget(command: string): string {
+> app\api\smartdj\command\route.ts:551:  const 
+cleaned = String(command || 
+"").replace(/\s+/g, " ").trim();
+  app\api\smartdj\command\route.ts:552:
+  app\api\smartdj\command\route.ts:553:  
+return (
+> app\api\smartdj\command\route.ts:554:    
+cleaned
+  app\api\smartdj\command\route.ts:555:      
+.replace(/^smartdj\s*/i, "")
+  app\api\smartdj\command\route.ts:556:      
+.replace(/^dj\s*/i, "")
+  app\api\smartdj\command\route.ts:557:      
+.replace(/^find\s+and\s+play\s+/i, "")
+> app\api\smartdj\command\route.ts:558:      
+.replace(/^find\s+clean\s+/i, "")
+  app\api\smartdj\command\route.ts:559:      
+.replace(/^find\s+/i, "")
+  app\api\smartdj\command\route.ts:560:      
+.replace(/^search\s+for\s+/i, "")
+  app\api\smartdj\command\route.ts:561:      
+.replace(/^search\s+/i, "")
+  app\api\smartdj\command\route.ts:562:      
+.replace(/^play\s+/i, "")
+> app\api\smartdj\command\route.ts:563:      
+.trim() || cleaned
+  app\api\smartdj\command\route.ts:564:  );
+  app\api\smartdj\command\route.ts:565:}
+  app\api\smartdj\command\route.ts:566:
+> 
+app\api\smartdj\command\route.ts:567:function 
+buildBleepJobState(command: string): 
+SmartDJState {
+  app\api\smartdj\command\route.ts:568:  const 
+target = extractSmartDjTarget(command);
+  app\api\smartdj\command\route.ts:569:
+  app\api\smartdj\command\route.ts:570:  
+return {
+  app\api\smartdj\command\route.ts:571:    
+...blankState(),
+  app\api\smartdj\command\route.ts:572:    ok: 
+true,
+  app\api\smartdj\command\route.ts:573:    
+command,
+> app\api\smartdj\command\route.ts:574:    
+intent: "find_play_song",
+  app\api\smartdj\command\route.ts:575:    
+target,
+> app\api\smartdj\command\route.ts:576:    
+message: `SmartDJ returned 1 result(s). No 
+clean version found, so 1 bleep job was 
+created for ${target}.`,
+> app\api\smartdj\command\route.ts:577:    
+reply: `SmartDJ returned 1 result(s). No clean 
+version found, so 1 bleep job was created for 
+${target}.`,
+> app\api\smartdj\command\route.ts:578:    
+statusText: `SmartDJ returned 1 result(s). 
+Bleep job created for ${target}.`,
+> app\api\smartdj\command\route.ts:579:    
+action: "create_bleep_job",
+> app\api\smartdj\command\route.ts:580:    
+targetPanel: "smartdj_queue",
+> app\api\smartdj\command\route.ts:581:    
+playlistTitle: "",
+> app\api\smartdj\command\route.ts:582:    
+playlist: [],
+> app\api\smartdj\command\route.ts:583:    
+lastPlaylist: [],
+  app\api\smartdj\command\route.ts:584:    
+timestamp: new Date().toISOString(),
+> app\api\smartdj\command\route.ts:585:    
+resultCount: 1,
+  app\api\smartdj\command\route.ts:586:    
+resultLabel: "SmartDJ returned 1 result(s).",
+  app\api\smartdj\command\route.ts:587:  };
+  app\api\smartdj\command\route.ts:588:}
+  app\api\smartdj\command\route.ts:589:
+  app\api\smartdj\command\route.ts:590:export 
+async function GET() {
+  app\api\smartdj\command\route.ts:591:  const 
+state = getState();
+  app\api\smartdj\command\route.ts:592:
+  app\api\smartdj\command\route.ts:593:  
+return NextResponse.json(
+  app\api\smartdj\command\route.ts:594:    {
+  app\api\smartdj\command\route.ts:595:      
+...state,
+> app\api\smartdj\command\route.ts:596:      
+playlist: state.playlist ?? [],
+> app\api\smartdj\command\route.ts:597:      
+lastPlaylist: state.lastPlaylist ?? 
+state.playlist ?? [],
+  app\api\smartdj\command\route.ts:598:      
+lastResult: state,
+  app\api\smartdj\command\route.ts:599:    },
+  app\api\smartdj\command\route.ts:600:    {
+  app\api\smartdj\command\route.ts:601:      
+headers: {
+  app\api\smartdj\command\route.ts:602:        
+"Cache-Control": "no-store",
+  app\api\smartdj\command\route.ts:603:      },
+  app\api\smartdj\command\route.ts:604:    }
+  app\api\smartdj\command\route.ts:605:  );
+  app\api\smartdj\command\route.ts:606:}
+  app\api\smartdj\command\route.ts:607:
+  app\api\smartdj\command\route.ts:608:export 
+async function POST(request: NextRequest) {
+  app\api\smartdj\command\route.ts:609:  try {
+  app\api\smartdj\command\route.ts:610:    
+const body = await request.json().catch(() => 
+null);
+> app\api\smartdj\command\route.ts:611:    
+const command = cleanCommand(body?.command ?? 
+body?.prompt ?? body?.text);
+  app\api\smartdj\command\route.ts:612:
+  app\api\smartdj\command\route.ts:613:    if 
+(!command) {
+  app\api\smartdj\command\route.ts:614:      
+return NextResponse.json(
+  app\api\smartdj\command\route.ts:615:        
+{
+  app\api\smartdj\command\route.ts:616:        
+  ok: false,
+  app\api\smartdj\command\route.ts:617:        
+  message: "Missing SmartDJ command.",
+  app\api\smartdj\command\route.ts:618:        
+  reply: "Missing SmartDJ command.",
+> app\api\smartdj\command\route.ts:619:        
+  resultCount: 0,
+  app\api\smartdj\command\route.ts:620:        
+  resultLabel: "SmartDJ returned 0 result(s).",
+  app\api\smartdj\command\route.ts:621:        
+},
+  app\api\smartdj\command\route.ts:622:        
+{ status: 400 }
+  app\api\smartdj\command\route.ts:623:      );
+  app\api\smartdj\command\route.ts:624:    }
+  app\api\smartdj\command\route.ts:625:
+  app\api\smartdj\command\route.ts:626:    
+const text = normalize(command);
+  app\api\smartdj\command\route.ts:627:    
+const currentState = getState();
+  app\api\smartdj\command\route.ts:628:
+> app\api\smartdj\command\route.ts:629:    if 
+(text.includes("last playlist") || 
+text.includes("view playlist")) {
+  app\api\smartdj\command\route.ts:630:      
+const count =
+> app\api\smartdj\command\route.ts:631:        
+typeof currentState.resultCount === "number"
+> app\api\smartdj\command\route.ts:632:        
+  ? currentState.resultCount
+> app\api\smartdj\command\route.ts:633:        
+  : currentState.playlist.length;
+  app\api\smartdj\command\route.ts:634:
+  app\api\smartdj\command\route.ts:635:      
+return NextResponse.json(
+  app\api\smartdj\command\route.ts:636:        
+{
+  app\api\smartdj\command\route.ts:637:        
+  ...currentState,
+  app\api\smartdj\command\route.ts:638:        
+  message: `SmartDJ returned ${count} 
+result(s).`,
+  app\api\smartdj\command\route.ts:639:        
+  reply: `SmartDJ returned ${count} 
+result(s).`,
+> app\api\smartdj\command\route.ts:640:        
+  resultCount: count,
+  app\api\smartdj\command\route.ts:641:        
+  resultLabel: `SmartDJ returned ${count} 
+result(s).`,
+  app\api\smartdj\command\route.ts:642:        
+},
+  app\api\smartdj\command\route.ts:643:        
+{
+  app\api\smartdj\command\route.ts:644:        
+  headers: {
+  app\api\smartdj\command\route.ts:645:        
+    "Cache-Control": "no-store",
+  app\api\smartdj\command\route.ts:646:        
+  },
+  app\api\smartdj\command\route.ts:647:        
+}
+  app\api\smartdj\command\route.ts:648:      );
+  app\api\smartdj\command\route.ts:649:    }
+  app\api\smartdj\command\route.ts:650:
+  app\api\smartdj\command\route.ts:657:
+  app\api\smartdj\command\route.ts:658:    
+const sourceData = sourceRes
+  app\api\smartdj\command\route.ts:659:      ? 
+await sourceRes.json().catch(() => null)
+  app\api\smartdj\command\route.ts:660:      : 
+null;
+  app\api\smartdj\command\route.ts:661:
+> app\api\smartdj\command\route.ts:662:    
+const cleanTracks =
+  app\api\smartdj\command\route.ts:663:      
+Array.isArray(sourceData?.results) && 
+sourceData.results.length > 0
+  app\api\smartdj\command\route.ts:664:        
+? sourceData.results
+> app\api\smartdj\command\route.ts:665:        
+: await searchAzuraCastCleanMedia(smartTarget);
+  app\api\smartdj\command\route.ts:666:
+> app\api\smartdj\command\route.ts:667:    if 
+(cleanTracks.length > 0) {
+> app\api\smartdj\command\route.ts:668:      
+const nextState = buildStateFromTracks(extractS
+martDjTarget(command), cleanTracks);
+> app\api\smartdj\command\route.ts:669:      
+setState(nextState);
+  app\api\smartdj\command\route.ts:670:
+  app\api\smartdj\command\route.ts:671:      
+return NextResponse.json(nextState, {
+  app\api\smartdj\command\route.ts:672:        
+headers: {
+  app\api\smartdj\command\route.ts:673:        
+  "Cache-Control": "no-store",
+  app\api\smartdj\command\route.ts:674:        
+},
+  app\api\smartdj\command\route.ts:675:      
+});
+  app\api\smartdj\command\route.ts:676:    }
+  app\api\smartdj\command\route.ts:677:
+  app\api\smartdj\command\route.ts:678:    
+const originalMatches = await searchAzuraCastAn
+yMedia(extractSmartDjTarget(command));
+  app\api\smartdj\command\route.ts:679:    
+const originalTrack = originalMatches[0] ?? 
+null;
+> app\api\smartdj\command\route.ts:680:    
+await createSmartDjBleepJob(extractSmartDjTarge
+t(command), request.nextUrl.origin, 
+originalTrack).catch(() => null);
+  app\api\smartdj\command\route.ts:681:
+> app\api\smartdj\command\route.ts:682:    
+const nextState = buildBleepJobState(extractSma
+rtDjTarget(command));
+> app\api\smartdj\command\route.ts:683:    
+setState(nextState);
+  app\api\smartdj\command\route.ts:684:
+  app\api\smartdj\command\route.ts:685:    
+return NextResponse.json(nextState, {
+  app\api\smartdj\command\route.ts:686:      
+headers: {
+  app\api\smartdj\command\route.ts:687:        
+"Cache-Control": "no-store",
+  app\api\smartdj\command\route.ts:688:      },
+  app\api\smartdj\command\route.ts:689:    });
+  app\api\smartdj\command\route.ts:690:  } 
+catch (error) {
+  app\api\smartdj\command\route.ts:691:    
+const fallback = {
+  app\api\smartdj\command\route.ts:692:      
+...blankState(),
+  app\api\smartdj\command\route.ts:693:      
+ok: true,
+  app\api\smartdj\command\route.ts:694:      
+command: "SmartDJ fallback",
+> app\api\smartdj\command\route.ts:695:      
+intent: "find_play_song",
+  app\api\smartdj\command\route.ts:696:      
+target: "SmartDJ fallback",
+  app\api\smartdj\command\route.ts:697:      
+message:
+  app\api\smartdj\command\route.ts:698:        
+error instanceof Error
+  app\api\smartdj\command\route.ts:699:        
+  ? `SmartDJ search error: ${error.message}`
+  app\api\smartdj\command\route.ts:700:        
+  : "SmartDJ search error.",
+  app\api\smartdj\command\route.ts:701:      
+reply:
+  app\api\smartdj\command\route.ts:702:        
+error instanceof Error
+  app\api\smartdj\command\route.ts:703:        
+  ? `SmartDJ search error: ${error.message}`
+  app\api\smartdj\command\route.ts:704:        
+  : "SmartDJ search error.",
+  app\api\smartdj\command\route.ts:705:      
+statusText: "SmartDJ search error.",
+  app\api\smartdj\command\route.ts:706:      
+action: "smartdj_error",
+> app\api\smartdj\command\route.ts:707:      
+targetPanel: "smartdj_queue",
+> app\api\smartdj\command\route.ts:708:      
+playlist: [],
+> app\api\smartdj\command\route.ts:709:      
+lastPlaylist: [],
+> app\api\smartdj\command\route.ts:710:      
+resultCount: 0,
+  app\api\smartdj\command\route.ts:711:      
+resultLabel: "SmartDJ returned 0 result(s).",
+  app\api\smartdj\command\route.ts:712:      
+timestamp: new Date().toISOString(),
+  app\api\smartdj\command\route.ts:713:    };
+  app\api\smartdj\command\route.ts:714:
+> app\api\smartdj\command\route.ts:715:    
+setState(fallback);
+  app\api\smartdj\command\route.ts:716:
+  app\api\smartdj\command\route.ts:717:    
+return NextResponse.json(fallback, {
+  app\api\smartdj\command\route.ts:718:      
+headers: {
+  app\api\smartdj\command\route.ts:719:        
+"Cache-Control": "no-store",
+  app\api\smartdj\command\route.ts:720:      },
+  app\api\smartdj\command\route.ts:721:    });
+  app\api\smartdj\command\route.ts:722:  }
+  app\api\smartdj\command\route.ts:723:}
+  app\api\smartdj\command\route.ts:724:
+  app\api\smartdj\command\route.ts:725:
+
+
+
+
+===== SMARTDJ COMMAND ROUTE LINES 600-750 =====
+600:     {
+601:       headers: {
+602:         "Cache-Control": "no-store",
+603:       },
+604:     }
+605:   );
+606: }
+607: 
+608: export async function POST(request: NextRequest) {
+609:   try {
+610:     const body = await request.json().catch(() => null);
+611:     const command = cleanCommand(body?.command ?? body?.prompt ?? body?.text);
+612: 
+613:     if (!command) {
+614:       return NextResponse.json(
+615:         {
+616:           ok: false,
+617:           message: "Missing SmartDJ command.",
+618:           reply: "Missing SmartDJ command.",
+619:           resultCount: 0,
+620:           resultLabel: "SmartDJ returned 0 result(s).",
+621:         },
+622:         { status: 400 }
+623:       );
+624:     }
+625: 
+626:     const text = normalize(command);
+627:     const currentState = getState();
+628: 
+629:     if (text.includes("last playlist") || text.includes("view playlist")) {
+630:       const count =
+631:         typeof currentState.resultCount === "number"
+632:           ? currentState.resultCount
+633:           : currentState.playlist.length;
+634: 
+635:       return NextResponse.json(
+636:         {
+637:           ...currentState,
+638:           message: `SmartDJ returned ${count} result(s).`,
+639:           reply: `SmartDJ returned ${count} result(s).`,
+640:           resultCount: count,
+641:           resultLabel: `SmartDJ returned ${count} result(s).`,
+642:         },
+643:         {
+644:           headers: {
+645:             "Cache-Control": "no-store",
+646:           },
+647:         }
+648:       );
+649:     }
+650: 
+651:     const smartTarget = extractSmartDjTarget(command);
+652: 
+653:     const sourceRes = await fetch(
+654:       `${request.nextUrl.origin}/api/radio/azura-source-search?query=${encodeURIComponent(smartTarget)}`,
+655:       { method: "POST", cache: "no-store" }
+656:     ).catch(() => null);
+657: 
+658:     const sourceData = sourceRes
+659:       ? await sourceRes.json().catch(() => null)
+660:       : null;
+661: 
+662:     const cleanTracks =
+663:       Array.isArray(sourceData?.results) && sourceData.results.length > 0
+664:         ? sourceData.results
+665:         : await searchAzuraCastCleanMedia(smartTarget);
+666: 
+667:     if (cleanTracks.length > 0) {
+668:       const nextState = buildStateFromTracks(extractSmartDjTarget(command), cleanTracks);
+669:       setState(nextState);
+670: 
+671:       return NextResponse.json(nextState, {
+672:         headers: {
+673:           "Cache-Control": "no-store",
+674:         },
+675:       });
+676:     }
+677: 
+678:     const originalMatches = await searchAzuraCastAnyMedia(extractSmartDjTarget(command));
+679:     const originalTrack = originalMatches[0] ?? null;
+680:     await createSmartDjBleepJob(extractSmartDjTarget(command), request.nextUrl.origin, originalTrack).catch(() => null);
+681: 
+682:     const nextState = buildBleepJobState(extractSmartDjTarget(command));
+683:     setState(nextState);
+684: 
+685:     return NextResponse.json(nextState, {
+686:       headers: {
+687:         "Cache-Control": "no-store",
+688:       },
+689:     });
+690:   } catch (error) {
+691:     const fallback = {
+692:       ...blankState(),
+693:       ok: true,
+694:       command: "SmartDJ fallback",
+695:       intent: "find_play_song",
+696:       target: "SmartDJ fallback",
+697:       message:
+698:         error instanceof Error
+699:           ? `SmartDJ search error: ${error.message}`
+700:           : "SmartDJ search error.",
+701:       reply:
+702:         error instanceof Error
+703:           ? `SmartDJ search error: ${error.message}`
+704:           : "SmartDJ search error.",
+705:       statusText: "SmartDJ search error.",
+706:       action: "smartdj_error",
+707:       targetPanel: "smartdj_queue",
+708:       playlist: [],
+709:       lastPlaylist: [],
+710:       resultCount: 0,
+711:       resultLabel: "SmartDJ returned 0 result(s).",
+712:       timestamp: new Date().toISOString(),
+713:     };
+714: 
+715:     setState(fallback);
+716: 
+717:     return NextResponse.json(fallback, {
+718:       headers: {
+719:         "Cache-Control": "no-store",
+720:       },
+721:     });
+722:   }
+723: }
+724: 
+725: 
+726: 
+727: 
+
+===== OWNER PAGE SMARTDJ NORMALIZER ONLY =====
+
+  app\owner\page.tsx:1:"use client";
+  app\owner\page.tsx:2:
+  app\owner\page.tsx:3:import { useEffect, 
+useId, useMemo, useRef, useState } from 
+"react";
+> app\owner\page.tsx:4:import 
+OwnerSmartDjCommand from 
+"@/components/owner-smartdj-command";
+  app\owner\page.tsx:5:import 
+GlobalBleepGateButton from 
+"@/components/global-bleep-gate-button";
+  app\owner\page.tsx:6:import 
+GlobalBleepJobsPanel from 
+"@/components/global-bleep-jobs-panel";
+  app\owner\page.tsx:7:
+  app\owner\page.tsx:8:type BroadcastState = 
+"off" | "cue" | "live" | "paused";
+  app\owner\page.tsx:9:type PadMode = 
+"JINGLES" | "DROPS" | "COM" | "ADS" | 
+"SMARTDJ" | "AUTODJ" | "LIVEDJ";
+  app\owner\page.tsx:10:type DjMode = "AUTODJ" 
+| "SMARTDJ" | "LIVEDJ";
+  app\owner\page.tsx:11:type PadColor = 
+"yellow" | "red" | "green" | "blue" | "purple" 
+| "orange";
+  app\owner\page.tsx:12:
+  app\owner\page.tsx:13:type Pad = {
+  app\owner\page.tsx:14:  label: string;
+  app\owner\page.tsx:15:  mode: PadMode;
+  app\owner\page.tsx:16:  message: string;
+  app\owner\page.tsx:104:  { label: 
+"Schedule", href: "/schedule", note: "Show 
+schedule shortcut ready", color: "blue" },
+  app\owner\page.tsx:105:  { label: "Promos", 
+href: "/promos", note: "Promo tools shortcut 
+ready", color: "red" },
+  app\owner\page.tsx:106:];
+  app\owner\page.tsx:107:
+  app\owner\page.tsx:108:
+> app\owner\page.tsx:109:type 
+SmartDjControlPlaylistTrack = {
+  app\owner\page.tsx:110:  id: string;
+  app\owner\page.tsx:111:  title: string;
+  app\owner\page.tsx:112:  artist?: string;
+  app\owner\page.tsx:113:  source?: string;
+  app\owner\page.tsx:114:  reason?: string;
+  app\owner\page.tsx:115:  audioUrl?: string;
+  app\owner\page.tsx:116:  url?: string;
+  app\owner\page.tsx:117:  streamUrl?: string; 
+isExplicit?: boolean; explicitWords?: 
+string[]; };
+  app\owner\page.tsx:118:
+> app\owner\page.tsx:119:function 
+SmartDjControlPlaylist() {
+  app\owner\page.tsx:120:  const audioRef = 
+useRef<HTMLAudioElement | null>(null);
+> app\owner\page.tsx:121:  const [tracks, 
+setTracks] = 
+useState<SmartDjControlPlaylistTrack[]>([]);
+  app\owner\page.tsx:122:  const [playingId, 
+setPlayingId] = useState("");
+  app\owner\page.tsx:123:  const [status, 
+setStatus] = useState("SmartDJ control 
+playlist ready.");
+  app\owner\page.tsx:124:  const 
+[bleepStatusById, setBleepStatusById] = 
+useState<Record<string, string>>({});
+  app\owner\page.tsx:125:  const 
+[queueStatusById, setQueueStatusById] = 
+useState<Record<string, string>>({});
+  app\owner\page.tsx:126:
+  app\owner\page.tsx:127:  useEffect(() => {
+> app\owner\page.tsx:128:    
+loadSmartDjPlaylist();
+  app\owner\page.tsx:129:
+  app\owner\page.tsx:130:    const timer = 
+window.setInterval(() => {
+> app\owner\page.tsx:131:      
+loadSmartDjPlaylist();
+  app\owner\page.tsx:132:    }, 2500);
+  app\owner\page.tsx:133:
+  app\owner\page.tsx:134:    return () => 
+window.clearInterval(timer);
+  app\owner\page.tsx:135:  }, []);
+  app\owner\page.tsx:136:
+> app\owner\page.tsx:137:  function 
+normalizeSmartDjTracks(payload: any): 
+SmartDjControlPlaylistTrack[] {
+  app\owner\page.tsx:138:    const rawList = 
+Array.isArray(payload?.playlist)
+  app\owner\page.tsx:139:      ? 
+payload.playlist
+  app\owner\page.tsx:140:      : 
+Array.isArray(payload?.lastPlaylist)
+  app\owner\page.tsx:141:        ? 
+payload.lastPlaylist
+  app\owner\page.tsx:142:        : 
+Array.isArray(payload?.tracks)
+  app\owner\page.tsx:143:          ? 
+payload.tracks
+  app\owner\page.tsx:144:          : 
+Array.isArray(payload?.lastResult?.playlist)
+  app\owner\page.tsx:145:            ? 
+payload.lastResult.playlist
+  app\owner\page.tsx:146:            : 
+Array.isArray(payload?.result?.playlist)
+  app\owner\page.tsx:147:              ? 
+payload.result.playlist
+  app\owner\page.tsx:148:              : [];
+  app\owner\page.tsx:149:
+  app\owner\page.tsx:157:      streamUrl: 
+String(track?.streamUrl ?? ""),
+  app\owner\page.tsx:158:      url: 
+String(track?.url ?? ""),
+  app\owner\page.tsx:159:    }));
+  app\owner\page.tsx:160:  }
+  app\owner\page.tsx:161:
+> app\owner\page.tsx:162:  function 
+getTrackAudioUrl(track: 
+SmartDjControlPlaylistTrack) {
+  app\owner\page.tsx:163:    return 
+track.audioUrl || track.streamUrl || track.url 
+|| "";
+  app\owner\page.tsx:164:  }
+  app\owner\page.tsx:165:
+> app\owner\page.tsx:166:  async function 
+loadSmartDjPlaylist() {
+  app\owner\page.tsx:167:    try {
+  app\owner\page.tsx:168:      const response 
+= await fetch("/api/smartdj/command", {
+  app\owner\page.tsx:169:        method: "GET",
+  app\owner\page.tsx:170:        cache: 
+"no-store",
+  app\owner\page.tsx:171:      });
+  app\owner\page.tsx:172:
+  app\owner\page.tsx:173:      const data = 
+await response.json();
+> app\owner\page.tsx:174:      const 
+nextTracks = normalizeSmartDjTracks(data);
+  app\owner\page.tsx:175:
+  app\owner\page.tsx:176:      
+setTracks(nextTracks);
+  app\owner\page.tsx:177:
+  app\owner\page.tsx:178:      if 
+(nextTracks.length > 0) {
+  app\owner\page.tsx:179:        
+setStatus(`SmartDJ playlist loaded on control 
+panel: ${nextTracks.length} track(s).`);
+  app\owner\page.tsx:180:      } else {
+  app\owner\page.tsx:181:        setStatus("No 
+SmartDJ playlist created yet. Ask SmartDJ to 
+build one.");
+  app\owner\page.tsx:182:      }
+  app\owner\page.tsx:183:    } catch {
+  app\owner\page.tsx:184:      
+setStatus("Could not load SmartDJ playlist 
+from command engine.");
+  app\owner\page.tsx:185:    }
+  app\owner\page.tsx:186:  }
+  app\owner\page.tsx:187:
+> app\owner\page.tsx:188:  async function 
+playSmartDjTrack(track: 
+SmartDjControlPlaylistTrack) {
+  app\owner\page.tsx:189:    try {
+  app\owner\page.tsx:190:      
+setBleepStatusById((current) => ({
+  app\owner\page.tsx:191:        ...current,
+  app\owner\page.tsx:192:        [track.id]: 
+"Running global bleep check before preview...",
+  app\owner\page.tsx:193:      }));
+  app\owner\page.tsx:194:
+  app\owner\page.tsx:195:      const 
+bleepResponse = await 
+fetch("/api/radio/bleep-check", {
+  app\owner\page.tsx:196:        method: 
+"POST",
+  app\owner\page.tsx:197:        headers: {
+  app\owner\page.tsx:198:          
+"Content-Type": "application/json",
+  app\owner\page.tsx:199:        },
+  app\owner\page.tsx:200:        cache: 
+"no-store",
+  app\owner\page.tsx:249:    }
+  app\owner\page.tsx:250:  }
+  app\owner\page.tsx:251:
+  app\owner\page.tsx:252:  
+  app\owner\page.tsx:253:  
+> app\owner\page.tsx:254:  async function 
+checkSmartDjTrackForBleep(track: 
+SmartDjControlPlaylistTrack) {
+  app\owner\page.tsx:255:    try {
+  app\owner\page.tsx:256:      
+setBleepStatusById((current) => ({
+  app\owner\page.tsx:257:        ...current,
+  app\owner\page.tsx:258:        [track.id]: 
+"Checking track for explicit words...",
+  app\owner\page.tsx:259:      }));
+  app\owner\page.tsx:260:
+  app\owner\page.tsx:261:      const response 
+= await fetch("/api/radio/bleep-check", {
+  app\owner\page.tsx:262:        method: 
+"POST",
+  app\owner\page.tsx:263:        headers: {
+  app\owner\page.tsx:264:          
+"Content-Type": "application/json",
+  app\owner\page.tsx:265:        },
+  app\owner\page.tsx:266:        cache: 
+"no-store",
+  app\owner\page.tsx:353:        data: null,
+  app\owner\page.tsx:354:      };
+  app\owner\page.tsx:355:    }
+  app\owner\page.tsx:356:  }
+  app\owner\page.tsx:357:
+> app\owner\page.tsx:358:  async function 
+sendSmartDjTrackToQueue(track: 
+SmartDjControlPlaylistTrack) {
+  app\owner\page.tsx:359:    try {
+  app\owner\page.tsx:360:      const 
+checkingStatus = "SmartDJ running Global Bleep 
+Gate before queue...";
+  app\owner\page.tsx:361:
+  app\owner\page.tsx:362:      
+setQueueStatusById((current) => ({
+  app\owner\page.tsx:363:        ...current,
+  app\owner\page.tsx:364:        [track.id]: 
+checkingStatus,
+  app\owner\page.tsx:365:      }));
+  app\owner\page.tsx:366:
+  app\owner\page.tsx:367:      
+setBleepStatusById((current) => ({
+  app\owner\page.tsx:368:        ...current,
+  app\owner\page.tsx:369:        [track.id]: 
+checkingStatus,
+  app\owner\page.tsx:370:      }));
+  app\owner\page.tsx:478:          
+<strong>SMARTDJ CREATED PLAYLIST</strong>
+  app\owner\page.tsx:479:          
+<span>Playlist created by SmartDJ will show 
+here and play from control panel.</span>
+  app\owner\page.tsx:480:        </div>
+  app\owner\page.tsx:481:
+  app\owner\page.tsx:482:        <div className
+="owner-control-smartdj-playlist-actions">
+> app\owner\page.tsx:483:          <button 
+type="button" onClick={loadSmartDjPlaylist}>
+  app\owner\page.tsx:484:            REFRESH
+  app\owner\page.tsx:485:          </button>
+  app\owner\page.tsx:486:          <button 
+type="button" onClick={stopSmartDjTrack}>
+  app\owner\page.tsx:487:            STOP
+  app\owner\page.tsx:488:          </button>
+  app\owner\page.tsx:489:        </div>
+  app\owner\page.tsx:490:      </div>
+  app\owner\page.tsx:491:
+  app\owner\page.tsx:492:      {tracks.length 
+> 0 ? (
+  app\owner\page.tsx:493:        <div className
+="owner-control-smartdj-playlist-list">
+  app\owner\page.tsx:494:          
+{tracks.map((track, index) => {
+  app\owner\page.tsx:495:            const 
+isPlaying = playingId === track.id;
+  app\owner\page.tsx:507:                  </b>
+  app\owner\page.tsx:508:                  
+<small>{track.source ?? "Tha Core 
+SmartDJ"}</small>
+  app\owner\page.tsx:509:                </div>
+  app\owner\page.tsx:510:
+  app\owner\page.tsx:511:                <div 
+className="owner-control-smartdj-row-actions">
+> app\owner\page.tsx:512:                  
+<button type="button" onClick={() => 
+playSmartDjTrack(track)}>
+  app\owner\page.tsx:513:                    
+{isPlaying ? "PREVIEWING" : "PREVIEW"}
+  app\owner\page.tsx:514:                  
+</button>
+  app\owner\page.tsx:515:
+  app\owner\page.tsx:516:                  
+<button type="button" onClick={() => 
+checkSmartDjTrackForBleep(track)}>
+  app\owner\page.tsx:517:                    
+BLEEP CHECK
+  app\owner\page.tsx:518:                  
+</button>
+  app\owner\page.tsx:519:
+  app\owner\page.tsx:520:                  
+<button type="button" onClick={() => 
+sendSmartDjTrackToQueue(track)}>
+  app\owner\page.tsx:521:                    
+SEND TO QUEUE
+  app\owner\page.tsx:522:                  
+</button>
+  app\owner\page.tsx:523:                </div>
+  app\owner\page.tsx:524:              </div>
+  app\owner\page.tsx:1344:        <footer 
+className="footer-dock panel">
+  app\owner\page.tsx:1345:          
+<PanelHeading
+  app\owner\page.tsx:1346:            
+left="Footer Control Dock"
+  app\owner\page.tsx:1347:            
+right="Blog • News • Weather • Store • 
+Community • Chat • Upload"
+  app\owner\page.tsx:1348:          />
+> app\owner\page.tsx:1349:            
+<OwnerSmartDjCommand />
+> app\owner\page.tsx:1350:              
+<SmartDjControlPlaylist />
+  app\owner\page.tsx:1351:
+  app\owner\page.tsx:1352:
+  app\owner\page.tsx:1353:          <div 
+className="footer-grid">
+  app\owner\page.tsx:1354:            
+{footerTools.map((tool) => (
+  app\owner\page.tsx:1355:              <a
+  app\owner\page.tsx:1356:                
+key={tool.label}
+  app\owner\page.tsx:1357:                
+href={tool.href}
+  app\owner\page.tsx:1358:                
+onClick={() => selectTool(tool)}
+  app\owner\page.tsx:1359:                
+className={`footer-tool ${tool.color}`}
+  app\owner\page.tsx:1360:              >
+  app\owner\page.tsx:1361:                
+<strong>{tool.label}</strong>
+  app\owner\page.tsx:1362:                
+<span>{tool.note}</span>
+
+
+

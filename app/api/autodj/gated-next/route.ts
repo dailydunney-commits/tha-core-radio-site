@@ -1,0 +1,466 @@
+﻿import { NextRequest, NextResponse } from "next/server";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
+type AutoDjTrack = {
+  id?: string;
+  title?: string;
+  artist?: string;
+  source?: string;
+  reason?: string;
+  genre?: string;
+  mood?: string;
+  path?: string;
+  audioUrl?: string;
+  url?: string;
+  streamUrl?: string;
+  rawUrl?: string;
+  cleanAudioUrl?: string;
+  bleepedAudioUrl?: string;
+  processedAudioUrl?: string;
+  radioSafeAudioUrl?: string;
+  safeAudioUrl?: string;
+};
+
+type GateHistoryItem = {
+  id: string;
+  title: string;
+  artist: string;
+  decision: string;
+  allowed: boolean;
+  timestamp: string;
+};
+
+type AutoDjGateState = {
+  ok: boolean;
+  route: string;
+  cursor: number;
+  lastDecision: string;
+  lastApprovedTrack: AutoDjTrack | null;
+  lastBlockedTrack: AutoDjTrack | null;
+  history: GateHistoryItem[];
+  updatedAt: string;
+};
+
+const STATE_FILE = join(process.cwd(), ".data", "autodj-gated-next-state.json");
+
+function blankState(): AutoDjGateState {
+  return {
+    ok: true,
+    route: "/api/autodj/gated-next",
+    cursor: 0,
+    lastDecision: "IDLE",
+    lastApprovedTrack: null,
+    lastBlockedTrack: null,
+    history: [],
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+function loadState(): AutoDjGateState {
+  try {
+    if (!existsSync(STATE_FILE)) return blankState();
+
+    const raw = readFileSync(STATE_FILE, "utf8");
+    const parsed = JSON.parse(raw) as AutoDjGateState;
+
+    return {
+      ...blankState(),
+      ...parsed,
+      history: Array.isArray(parsed.history) ? parsed.history : [],
+    };
+  } catch {
+    return blankState();
+  }
+}
+
+function saveState(state: AutoDjGateState) {
+  try {
+    mkdirSync(join(process.cwd(), ".data"), { recursive: true });
+    writeFileSync(STATE_FILE, JSON.stringify(state, null, 2), "utf8");
+  } catch {
+    // Keep AutoDJ gate online even if local state save fails.
+  }
+}
+
+function getAnyString(...values: unknown[]): string {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim()) return value.trim();
+    if (typeof value === "number") return String(value);
+  }
+
+  return "";
+}
+
+function cleanId(value: unknown, fallback: string): string {
+  return (
+    String(value ?? "")
+      .toLowerCase()
+      .replace(/[^\w.-]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 120) || fallback
+  );
+}
+
+function normalizeTrack(item: any, index: number, sourceLabel = "AutoDJ Candidate"): AutoDjTrack {
+  const title = getAnyString(
+    item?.title,
+    item?.song?.title,
+    item?.name,
+    item?.path,
+    `AutoDJ Track ${index + 1}`
+  );
+
+  const artist = getAnyString(
+    item?.artist,
+    item?.song?.artist,
+    item?.artist_name,
+    item?.metadata?.artist,
+    "AutoDJ"
+  );
+
+  const audioUrl = getAnyString(
+    item?.audioUrl,
+    item?.url,
+    item?.streamUrl,
+    item?.play_url,
+    item?.download_url
+  );
+
+  const processedAudioUrl = getAnyString(
+    item?.processedAudioUrl,
+    item?.bleepedAudioUrl,
+    item?.cleanAudioUrl,
+    item?.radioSafeAudioUrl,
+    item?.safeAudioUrl
+  );
+
+  return {
+    id: getAnyString(item?.id, item?.unique_id, item?.media_id) || cleanId(`${artist}-${title}-${index}`, `autodj-${index}`),
+    title,
+    artist,
+    source: getAnyString(item?.source) || sourceLabel,
+    reason: getAnyString(item?.reason) || "AutoDJ gated-next candidate.",
+    genre: getAnyString(item?.genre),
+    mood: getAnyString(item?.mood),
+    path: getAnyString(item?.path),
+    rawUrl: getAnyString(item?.rawUrl) || audioUrl,
+    audioUrl,
+    url: getAnyString(item?.url) || audioUrl,
+    streamUrl: getAnyString(item?.streamUrl) || audioUrl,
+    processedAudioUrl,
+    bleepedAudioUrl: getAnyString(item?.bleepedAudioUrl),
+    cleanAudioUrl: getAnyString(item?.cleanAudioUrl),
+    radioSafeAudioUrl: getAnyString(item?.radioSafeAudioUrl),
+    safeAudioUrl: getAnyString(item?.safeAudioUrl),
+  };
+}
+
+function readJsonArrayFile(relativePath: string): AutoDjTrack[] {
+  try {
+    const fullPath = join(process.cwd(), relativePath);
+
+    if (!existsSync(fullPath)) return [];
+
+    const raw = readFileSync(fullPath, "utf8");
+    const parsed = JSON.parse(raw);
+
+    if (!Array.isArray(parsed)) return [];
+
+    return parsed.map((item, index) => normalizeTrack(item, index, relativePath));
+  } catch {
+    return [];
+  }
+}
+
+async function getCandidatePool(body: any): Promise<AutoDjTrack[]> {
+  if (Array.isArray(body?.candidates)) {
+    return body.candidates.map((item: any, index: number) =>
+      normalizeTrack(item, index, "AutoDJ request candidates")
+    );
+  }
+
+  if (body?.track && typeof body.track === "object") {
+    return [normalizeTrack(body.track, 0, "AutoDJ request track")];
+  }
+
+  const fromAutoDjLibrary = readJsonArrayFile("public/autodj-library.json");
+  if (fromAutoDjLibrary.length > 0) return fromAutoDjLibrary;
+
+  const fromSmartDjLibrary = readJsonArrayFile("public/smartdj-library.json");
+  if (fromSmartDjLibrary.length > 0) return fromSmartDjLibrary;
+
+  return [
+    {
+      id: "autodj-test-safe-clean-copy",
+      title: "AutoDJ Test Clean Copy",
+      artist: "Tha Core",
+      source: "AutoDJ gated-next fallback",
+      reason: "Fallback processed clean/bleeped test audio.",
+      processedAudioUrl: "/audio/smartdj/test-bleeped-clean.mp3",
+      audioUrl: "/audio/smartdj/test-bleeped-clean.mp3",
+      url: "/audio/smartdj/test-bleeped-clean.mp3",
+      streamUrl: "/audio/smartdj/test-bleeped-clean.mp3",
+    },
+  ];
+}
+
+async function safetyCheck(origin: string, track: AutoDjTrack) {
+  const response = await fetch(`${origin}/api/radio/global-audio-gate`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    cache: "no-store",
+    body: JSON.stringify({
+      source: "AUTODJ",
+      mode: "pre_broadcast",
+      track,
+      text: [
+        track?.title,
+        track?.artist,
+        track?.source,
+        track?.reason,
+        track?.audioUrl,
+        track?.url,
+        track?.streamUrl,
+        track?.rawUrl
+      ].join(" ")
+    }),
+  }).catch(() => null);
+
+  if (!response) {
+    return {
+      ok: false,
+      safe: false,
+      allowAutoDj: false,
+      decision: "GLOBAL_AUDIO_GATE_FETCH_FAILED",
+      track,
+      message: "Global Audio Gate did not respond."
+    };
+  }
+
+  return response.json().catch(() => ({
+    ok: false,
+    safe: false,
+    allowAutoDj: false,
+    decision: "GLOBAL_AUDIO_GATE_BAD_JSON",
+    track,
+    message: "Global Audio Gate returned unreadable JSON.",
+  }));
+}
+
+function pushHistory(
+  state: AutoDjGateState,
+  track: AutoDjTrack,
+  decision: string,
+  allowed: boolean
+): GateHistoryItem[] {
+  const next: GateHistoryItem = {
+    id: getAnyString(track.id) || "unknown",
+    title: getAnyString(track.title) || "Unknown title",
+    artist: getAnyString(track.artist) || "Unknown artist",
+    decision,
+    allowed,
+    timestamp: new Date().toISOString(),
+  };
+
+  return [next, ...state.history].slice(0, 30);
+}
+
+export async function GET() {
+  const state = loadState();
+  const candidates = await getCandidatePool(null);
+
+  return NextResponse.json(
+    {
+      ...state,
+      ok: true,
+      route: "/api/autodj/gated-next",
+      candidateCount: candidates.length,
+      message:
+        "AutoDJ gated-next online. Tracks must pass Global Audio Gate before AutoDJ rotation.",
+      rules: [
+        "Clean/radio-safe tracks may pass.",
+        "Processed/bleeped tracks may pass.",
+        "Dirty/raw/unverified tracks are held before rotation.",
+        "This route does not send to Azura yet; it approves the next safe candidate through Global Audio Gate first.",
+      ],
+    },
+    {
+      headers: {
+        "Cache-Control": "no-store",
+      },
+    }
+  );
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json().catch(() => null);
+    const action = String(body?.action ?? "next").toLowerCase();
+
+    if (action === "reset") {
+      const resetState = blankState();
+      saveState(resetState);
+
+      return NextResponse.json(
+        {
+          ...resetState,
+          message: "AutoDJ gated-next state reset.",
+        },
+        {
+          headers: {
+            "Cache-Control": "no-store",
+          },
+        }
+      );
+    }
+
+    const state = loadState();
+    const candidates = await getCandidatePool(body);
+
+    if (candidates.length === 0) {
+      const nextState: AutoDjGateState = {
+        ...state,
+        lastDecision: "NO_CANDIDATES",
+        updatedAt: new Date().toISOString(),
+      };
+
+      saveState(nextState);
+
+      return NextResponse.json(
+        {
+          ...nextState,
+          ok: true,
+          allowAutoDj: false,
+          decision: "NO_CANDIDATES",
+          message: "No AutoDJ candidate tracks were available.",
+        },
+        {
+          headers: {
+            "Cache-Control": "no-store",
+          },
+        }
+      );
+    }
+
+    const start = Math.max(0, state.cursor || 0) % candidates.length;
+    const held: any[] = [];
+
+    for (let offset = 0; offset < candidates.length; offset += 1) {
+      const index = (start + offset) % candidates.length;
+      const candidate = candidates[index];
+      const gate = await safetyCheck(request.nextUrl.origin, candidate);
+
+      if (gate?.allowAutoDj && gate?.safe) {
+        const approvedTrack = normalizeTrack(gate.track ?? candidate, index, "AutoDJ gated approved");
+        const nextCursor = (index + 1) % candidates.length;
+
+        const nextState: AutoDjGateState = {
+          ...state,
+          cursor: nextCursor,
+          lastDecision: getAnyString(gate.decision) || "APPROVED",
+          lastApprovedTrack: approvedTrack,
+          lastBlockedTrack: null,
+          history: pushHistory(state, approvedTrack, getAnyString(gate.decision) || "APPROVED", true),
+          updatedAt: new Date().toISOString(),
+        };
+
+        saveState(nextState);
+
+        return NextResponse.json(
+          {
+            ok: true,
+            route: "/api/autodj/gated-next",
+            allowAutoDj: true,
+            safe: true,
+            decision: getAnyString(gate.decision) || "APPROVED",
+            track: approvedTrack,
+            audioUrl:
+              approvedTrack.processedAudioUrl ||
+              approvedTrack.bleepedAudioUrl ||
+              approvedTrack.cleanAudioUrl ||
+              approvedTrack.radioSafeAudioUrl ||
+              approvedTrack.safeAudioUrl ||
+              approvedTrack.audioUrl ||
+              approvedTrack.url ||
+              approvedTrack.streamUrl ||
+              "",
+            gate,
+            cursor: nextCursor,
+            candidateCount: candidates.length,
+            readyForAzuraQueue: true,
+            message:
+              "AutoDJ gated-next approved this clean/bleeped track. It is ready for Azura queue wiring.",
+          },
+          {
+            headers: {
+              "Cache-Control": "no-store",
+            },
+          }
+        );
+      }
+
+      held.push({
+        id: candidate.id,
+        title: candidate.title,
+        artist: candidate.artist,
+        decision: gate?.decision ?? "HELD",
+        message: gate?.message ?? "Track held by AutoDJ safety gate.",
+      });
+    }
+
+    const blockedTrack = candidates[start];
+
+    const nextState: AutoDjGateState = {
+      ...state,
+      lastDecision: "ALL_CANDIDATES_HELD",
+      lastApprovedTrack: null,
+      lastBlockedTrack: blockedTrack,
+      history: pushHistory(state, blockedTrack, "ALL_CANDIDATES_HELD", false),
+      updatedAt: new Date().toISOString(),
+    };
+
+    saveState(nextState);
+
+    return NextResponse.json(
+      {
+        ok: true,
+        route: "/api/autodj/gated-next",
+        allowAutoDj: false,
+        safe: false,
+        decision: "ALL_CANDIDATES_HELD",
+        held,
+        candidateCount: candidates.length,
+        readyForAzuraQueue: false,
+        message:
+          "AutoDJ gated-next blocked all candidates. No raw dirty/unverified audio was allowed through.",
+      },
+      {
+        headers: {
+          "Cache-Control": "no-store",
+        },
+      }
+    );
+  } catch (error) {
+    return NextResponse.json(
+      {
+        ok: false,
+        route: "/api/autodj/gated-next",
+        allowAutoDj: false,
+        safe: false,
+        decision: "GATED_NEXT_ERROR",
+        message:
+          error instanceof Error
+            ? error.message
+            : "AutoDJ gated-next failed.",
+      },
+      { status: 500 }
+    );
+  }
+}
+

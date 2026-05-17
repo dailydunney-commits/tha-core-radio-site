@@ -1,0 +1,184 @@
+﻿"use client";
+
+import { useState } from "react";
+
+export default function GlobalBleepGateButton() {
+  const [status, setStatus] = useState(
+    "GLOBAL BLEEP GATE ON - all broadcast paths must pass safety check."
+  );
+  const [busy, setBusy] = useState(false);
+  const [bleepOn, setBleepOn] = useState(true);
+
+  async function runGlobalBleepCheck() {
+    try {
+      setBusy(true);
+      setStatus("Checking global bleep gate...");
+
+      const response = await fetch("/api/radio/bleep-check", {
+        method: "GET",
+        cache: "no-store",
+      });
+
+      const data = await response.json();
+
+      setStatus(
+        data?.message ||
+          (bleepOn
+            ? "GLOBAL BLEEP GATE ON - safety check complete."
+            : "GLOBAL BLEEP GATE OFF - monitor only.")
+      );
+    } catch {
+      setStatus("Global bleep gate check failed. Hold all broadcast actions.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function toggleBleepGate() {
+    const next = !bleepOn;
+    setBleepOn(next);
+
+    setStatus(
+      next
+        ? "GLOBAL BLEEP GATE ON - all broadcast paths must pass safety check."
+        : "GLOBAL BLEEP GATE OFF - warning mode only, not blocking."
+    );
+  }
+
+  return (
+    <div className={`global-bleep-hero-box ${bleepOn ? "bleep-on" : "bleep-off"}`}>
+      <div className="global-bleep-hero-left">
+        <div className="global-bleep-title-row">
+          <span className={`global-bleep-light ${bleepOn ? "on" : "off"}`} />
+          <strong>GLOBAL BLEEP GATE</strong>
+          <b>{bleepOn ? "ON" : "OFF"}</b>
+        </div>
+
+        <span>
+          AutoDJ • SmartDJ • LiveDJ • Requests • Uploads • Promos • Jingles • Ads
+        </span>
+
+        <p>{status}</p>
+      </div>
+
+      <div className="global-bleep-hero-actions">
+        <button type="button" onClick={toggleBleepGate}>
+          {bleepOn ? "BLEEP ON" : "BLEEP OFF"}
+        </button>
+
+        <button type="button" onClick={runGlobalBleepCheck} disabled={busy}>
+          {busy ? "CHECKING" : "GLOBAL BLEEP CHECK"}
+        </button>
+      </div>
+
+      <style>{`
+        .global-bleep-hero-box {
+          margin: 14px 0;
+          padding: 14px;
+          border: 1px solid rgba(255, 212, 0, 0.8);
+          border-radius: 18px;
+          background: linear-gradient(135deg, rgba(35, 0, 0, 0.96), rgba(0, 12, 18, 0.96));
+          box-shadow: 0 0 20px rgba(255, 212, 0, 0.18), inset 0 0 18px rgba(255, 0, 0, 0.18);
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 14px;
+          color: #fff;
+        }
+
+        .global-bleep-hero-box.bleep-on {
+          border-color: rgba(0, 255, 115, 0.85);
+          box-shadow: 0 0 22px rgba(0, 255, 115, 0.22), inset 0 0 18px rgba(0, 255, 115, 0.12);
+        }
+
+        .global-bleep-hero-box.bleep-off {
+          border-color: rgba(255, 0, 0, 0.85);
+          box-shadow: 0 0 22px rgba(255, 0, 0, 0.22), inset 0 0 18px rgba(255, 0, 0, 0.14);
+        }
+
+        .global-bleep-title-row {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+
+        .global-bleep-title-row strong {
+          display: block;
+          color: #ffd400;
+          font-size: 16px;
+          font-weight: 950;
+          letter-spacing: 0.14em;
+        }
+
+        .global-bleep-title-row b {
+          border-radius: 999px;
+          padding: 5px 10px;
+          background: rgba(0, 0, 0, 0.75);
+          color: #fff;
+          font-size: 12px;
+          font-weight: 950;
+          letter-spacing: 0.1em;
+        }
+
+        .global-bleep-light {
+          width: 18px;
+          height: 18px;
+          border-radius: 999px;
+          display: inline-block;
+          border: 2px solid rgba(255, 255, 255, 0.75);
+        }
+
+        .global-bleep-light.on {
+          background: #00ff73;
+          box-shadow: 0 0 16px rgba(0, 255, 115, 0.95);
+        }
+
+        .global-bleep-light.off {
+          background: #ff1b1b;
+          box-shadow: 0 0 16px rgba(255, 27, 27, 0.95);
+        }
+
+        .global-bleep-hero-left span:not(.global-bleep-light) {
+          display: block;
+          margin-top: 4px;
+          color: #00d9ff;
+          font-size: 12px;
+          font-weight: 900;
+        }
+
+        .global-bleep-hero-left p {
+          margin: 7px 0 0;
+          color: #fff;
+          font-size: 12px;
+          font-weight: 850;
+        }
+
+        .global-bleep-hero-actions {
+          display: flex;
+          gap: 10px;
+          flex-wrap: wrap;
+          justify-content: flex-end;
+        }
+
+        .global-bleep-hero-actions button {
+          min-height: 42px;
+          border: 0;
+          border-radius: 13px;
+          padding: 10px 16px;
+          background: linear-gradient(180deg, #ffcc00, #b98500);
+          color: #120700;
+          font-weight: 950;
+          cursor: pointer;
+          text-transform: uppercase;
+          box-shadow: 0 8px 18px rgba(0, 0, 0, 0.35);
+        }
+
+        .global-bleep-hero-actions button:disabled {
+          opacity: 0.7;
+          cursor: wait;
+        }
+      `}</style>
+    </div>
+  );
+}
+

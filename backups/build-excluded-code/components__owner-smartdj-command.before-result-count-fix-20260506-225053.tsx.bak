@@ -1,0 +1,102 @@
+﻿"use client";
+
+import { useState } from "react";
+
+export default function OwnerSmartDjCommand() {
+  const [command, setCommand] = useState("find and play mothers day song");
+  const [status, setStatus] = useState("SmartDJ command ready.");
+  const [busy, setBusy] = useState(false);
+
+  async function askSmartDj() {
+    setBusy(true);
+    setStatus("SmartDJ is thinking...");
+
+    try {
+      const playlistMode =
+        /\b(build|make|compile)\b/i.test(command) &&
+        /\b(playlist|set)\b/i.test(command);
+
+      const response = await fetch(
+        playlistMode ? "/api/smartdj/build-playlist" : "/api/smartdj/command",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: command }),
+        }
+      );
+
+      const data = await response.json();
+      const selected = data?.smartdj?.selected;
+      const playlist = data?.smartdj?.playlist;
+
+      if (playlist) {
+        setStatus(`SmartDJ built playlist: ${playlist.name || command} (${playlist.count || 0} tracks)`);
+        return;
+      }
+
+      if (selected) {
+        setStatus(selected.text || selected.filename || "SmartDJ found track.");
+        return;
+      }
+
+      setStatus(data?.smartdj?.message || data?.error || "SmartDJ did not return a result.");
+    } catch {
+      setStatus("SmartDJ Engine offline. Make sure localhost:5050 is running.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function viewLastPlaylist() {
+    setBusy(true);
+    setStatus("Loading latest SmartDJ playlist...");
+
+    try {
+      const response = await fetch("/api/smartdj/latest-playlist", {
+        cache: "no-store",
+      });
+
+      const data = await response.json();
+      const playlist = data?.smartdj?.playlist;
+      const tracks = playlist?.tracks || [];
+
+      if (!playlist) {
+        setStatus(data?.smartdj?.message || data?.error || "No SmartDJ playlist found yet.");
+        return;
+      }
+
+      const preview = tracks
+        .slice(0, 5)
+        .map((track: any, index: number) => `${index + 1}. ${track.text || track.filename || "Unknown track"}`)
+        .join(" | ");
+
+      setStatus(`Latest playlist: ${playlist.name || "SmartDJ playlist"} (${playlist.count || tracks.length || 0} tracks) ${preview}`);
+    } catch {
+      setStatus("Could not load latest SmartDJ playlist.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="owner-smartdj-command-box">
+      <strong>SMARTDJ COMMAND</strong>
+
+      <input
+        value={command}
+        onChange={(event) => setCommand(event.target.value)}
+        placeholder="Tell SmartDJ what to find, play, or build..."
+      />
+
+      <button type="button" onClick={askSmartDj} disabled={busy}>
+        Ask SmartDJ
+      </button>
+
+      <button type="button" onClick={viewLastPlaylist} disabled={busy}>
+        View Last Playlist
+      </button>
+
+      <span>{status}</span>
+    </div>
+  );
+}

@@ -1,0 +1,463 @@
+﻿import { NextRequest, NextResponse } from "next/server";
+
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
+type BleepJobTrack = {
+  id?: string;
+  title?: string;
+  artist?: string;
+  source?: string;
+  reason?: string;
+  path?: string;
+  audioUrl?: string;
+  url?: string;
+  streamUrl?: string;
+  rawUrl?: string;
+};
+
+type BleepJob = {
+  id: string;
+  createdAt?: string;
+  updatedAt?: string;
+  status?: string;
+  source?: string;
+  track?: BleepJobTrack;
+  message?: string;
+  originalAttached?: boolean;
+  processorStatus?: string;
+  processedCopyUrl?: string;
+};
+
+declare global {
+  var __THA_CORE_GLOBAL_BLEEP_JOBS__: BleepJob[] | undefined;
+}
+
+function getJobs(): BleepJob[] {
+  if (!globalThis.__THA_CORE_GLOBAL_BLEEP_JOBS__) {
+    globalThis.__THA_CORE_GLOBAL_BLEEP_JOBS__ = [];
+  }
+
+  return globalThis.__THA_CORE_GLOBAL_BLEEP_JOBS__;
+}
+
+function saveJobs(jobs: BleepJob[]) {
+  globalThis.__THA_CORE_GLOBAL_BLEEP_JOBS__ = jobs.slice(0, 50);
+  return globalThis.__THA_CORE_GLOBAL_BLEEP_JOBS__;
+}
+
+function getAzuraBaseUrl(): string {
+  return (
+    process.env.AZURACAST_BASE_URL ||
+    process.env.NEXT_PUBLIC_AZURACAST_BASE_URL ||
+    "http://thacoreonlinerad.com"
+  ).replace(/\/+$/, "");
+}
+
+function getAzuraStationId(): string {
+  return (
+    process.env.AZURACAST_STATION_ID ||
+    process.env.NEXT_PUBLIC_AZURACAST_STATION_ID ||
+    "1"
+  );
+}
+
+function normalize(value: unknown): string {
+  return String(value ?? "")
+    .toLowerCase()
+    .replace(/[^\w\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function getAnyString(...values: unknown[]): string {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim()) return value.trim();
+    if (typeof value === "number") return String(value);
+  }
+
+  return "";
+}
+
+function toAbsoluteUrl(value: unknown): string {
+  if (typeof value !== "string" || !value.trim()) return "";
+
+  const raw = value.trim();
+
+  if (raw.startsWith("http://") || raw.startsWith("https://")) return raw;
+  if (raw.startsWith("/")) return `${getAzuraBaseUrl()}${raw}`;
+
+  return "";
+}
+
+function extractAudioUrl(item: any): string {
+  const direct = getAnyString(
+    item?.audioUrl,
+    item?.streamUrl,
+    item?.url,
+    item?.download_url,
+    item?.downloadUrl,
+    item?.play_url,
+    item?.playUrl,
+    item?.links?.download,
+    item?.links?.play,
+    item?.links?.self,
+    item?.media?.download_url,
+    item?.media?.downloadUrl,
+    item?.media?.play_url,
+    item?.media?.playUrl
+  );
+
+  return toAbsoluteUrl(direct);
+}
+
+function mediaText(item: any): string {
+  return normalize(
+    [
+      item?.id,
+      item?.unique_id,
+      item?.media_id,
+      item?.title,
+      item?.artist,
+      item?.name,
+      item?.path,
+      item?.media_file,
+      item?.song?.title,
+      item?.song?.artist,
+      item?.media?.title,
+      item?.media?.artist,
+      item?.media?.path,
+      item?.extra_metadata?.artist,
+      item?.extra_metadata?.title,
+    ]
+      .filter(Boolean)
+      .join(" ")
+  );
+}
+
+function extractList(payload: any): any[] {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.rows)) return payload.rows;
+  if (Array.isArray(payload?.items)) return payload.items;
+  if (Array.isArray(payload?.data)) return payload.data;
+  if (Array.isArray(payload?.data?.rows)) return payload.data.rows;
+  if (Array.isArray(payload?.data?.items)) return payload.data.items;
+  if (Array.isArray(payload?.records)) return payload.records;
+  if (Array.isArray(payload?.files)) return payload.files;
+  if (Array.isArray(payload?.result)) return payload.result;
+
+  return [];
+}
+
+function jobLooksLikeMother(job: BleepJob) {
+  const text = normalize(
+    [job.track?.title, job.track?.artist, job.track?.reason, job.track?.source].join(" ")
+  );
+
+  return text.includes("mother") || text.includes("mothers");
+}
+
+function buildQueries(job: BleepJob) {
+  const title = normalize(job.track?.title);
+  const artist = normalize(job.track?.artist);
+
+  const queries = [
+    `${artist} ${title}`.trim(),
+    title,
+    artist,
+  ];
+
+  if (jobLooksLikeMother(job)) {
+    queries.push(
+      "mother",
+      "baby mother",
+      "mothers",
+      "mothers day",
+      "mother song",
+      "baby mother song"
+    );
+  }
+
+  return Array.from(new Set(queries.filter(Boolean)));
+}
+
+function buildAzuraUrls(query: string) {
+  const baseUrl = getAzuraBaseUrl();
+  const stationId = getAzuraStationId();
+  const q = encodeURIComponent(query);
+
+  return [
+    `${baseUrl}/api/station/${stationId}/files?search=${q}`,
+    `${baseUrl}/api/station/${stationId}/files?query=${q}`,
+    `${baseUrl}/api/station/${stationId}/files?q=${q}`,
+    `${baseUrl}/api/station/${stationId}/files?keyword=${q}`,
+
+    `${baseUrl}/api/station/${stationId}/files?search=${q}&page=1&rowCount=100`,
+    `${baseUrl}/api/station/${stationId}/files?query=${q}&page=1&rowCount=100`,
+    `${baseUrl}/api/station/${stationId}/files?q=${q}&page=1&rowCount=100`,
+
+    `${baseUrl}/api/station/${stationId}/files?search=${q}&page=1&per_page=100`,
+    `${baseUrl}/api/station/${stationId}/files?query=${q}&page=1&per_page=100`,
+    `${baseUrl}/api/station/${stationId}/files?q=${q}&page=1&per_page=100`,
+  ];
+}
+
+async function fetchJsonFast(url: string, apiKey: string) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 4500);
+
+  try {
+    const headers: HeadersInit = {
+      Accept: "application/json",
+    };
+
+    if (apiKey) {
+      headers["X-API-Key"] = apiKey;
+    }
+
+    const response = await fetch(url, {
+      method: "GET",
+      headers,
+      cache: "no-store",
+      signal: controller.signal,
+    });
+
+    if (!response.ok) return null;
+
+    return response.json();
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function scoreItem(item: any, job: BleepJob) {
+  const text = mediaText(item);
+  let score = 0;
+
+  if (jobLooksLikeMother(job)) {
+    if (text.includes("mother")) score += 100;
+    if (text.includes("baby mother")) score += 40;
+    if (text.includes("mothers")) score += 30;
+  }
+
+  const titleWords = normalize(job.track?.title)
+    .split(" ")
+    .filter((word) => word.length >= 3);
+
+  for (const word of titleWords) {
+    if (text.includes(word)) score += 8;
+  }
+
+  if (extractAudioUrl(item)) score += 25;
+  if (text.includes("mp3")) score += 5;
+  if (text.includes("clean")) score += 2;
+  if (text.includes("radio")) score += 2;
+
+  return score;
+}
+
+function normalizeMediaItem(item: any): BleepJobTrack {
+  const artist = getAnyString(
+    item?.artist,
+    item?.song?.artist,
+    item?.media?.artist,
+    item?.extra_metadata?.artist,
+    "AzuraCast"
+  );
+
+  const title = getAnyString(
+    item?.title,
+    item?.song?.title,
+    item?.media?.title,
+    item?.extra_metadata?.title,
+    item?.name,
+    item?.path,
+    "AzuraCast Track"
+  );
+
+  const rawUrl = extractAudioUrl(item);
+  const proxied = rawUrl ? `/api/smartdj/audio?src=${encodeURIComponent(rawUrl)}` : "";
+
+  return {
+    id: String(
+      item?.id ??
+        item?.unique_id ??
+        item?.media_id ??
+        item?.path ??
+        `azuracast-original-${Date.now()}`
+    ),
+    artist,
+    title,
+    source: "AzuraCast Original Audio",
+    reason: rawUrl
+      ? "Original track attached for bleep-copy processing."
+      : "Original track metadata found, but no direct audio URL was returned.",
+    audioUrl: proxied,
+    url: proxied,
+    streamUrl: proxied,
+    rawUrl,
+  };
+}
+
+async function findOriginalTrack(job: BleepJob): Promise<BleepJobTrack | null> {
+  const apiKey = process.env.AZURACAST_API_KEY || "";
+  const queries = buildQueries(job);
+
+  const urls = Array.from(new Set(queries.flatMap((query) => buildAzuraUrls(query))));
+
+  const settled = await Promise.allSettled(urls.map((url) => fetchJsonFast(url, apiKey)));
+  const collected = new Map<string, any>();
+
+  for (const result of settled) {
+    if (result.status !== "fulfilled") continue;
+
+    const list = extractList(result.value);
+
+    for (const item of list) {
+      const text = mediaText(item);
+
+      const matchesRequest = jobLooksLikeMother(job)
+        ? text.includes("mother")
+        : scoreItem(item, job) > 0;
+
+      if (!matchesRequest) continue;
+
+      const key = String(
+        item?.id ??
+          item?.unique_id ??
+          item?.media_id ??
+          item?.path ??
+          JSON.stringify(item)
+      );
+
+      if (!collected.has(key)) {
+        collected.set(key, item);
+      }
+    }
+  }
+
+  const ranked = Array.from(collected.values())
+    .map((item) => ({
+      item,
+      score: scoreItem(item, job),
+      hasUrl: Boolean(extractAudioUrl(item)),
+    }))
+    .filter((entry) => entry.score > 0)
+    .sort((a, b) => {
+      if (a.hasUrl !== b.hasUrl) return Number(b.hasUrl) - Number(a.hasUrl);
+      return b.score - a.score;
+    });
+
+  if (ranked.length === 0) {
+    return null;
+  }
+
+  return normalizeMediaItem(ranked[0].item);
+}
+
+export async function GET() {
+  return NextResponse.json(
+    {
+      ok: true,
+      route: "/api/radio/bleep-process",
+      message: "Bleep processor connector online.",
+      mode: "strong_azuracast_original_finder",
+    },
+    {
+      headers: {
+        "Cache-Control": "no-store",
+      },
+    }
+  );
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json().catch(() => null);
+    const id = String(body?.id ?? body?.job?.id ?? "");
+    const incomingJob = body?.job as BleepJob | undefined;
+
+    const jobs = getJobs();
+    const existingJob = jobs.find((job) => job.id === id);
+    const job = existingJob ?? incomingJob;
+
+    if (!job?.id) {
+      return NextResponse.json(
+        {
+          ok: false,
+          message: "Missing bleep job.",
+        },
+        { status: 400 }
+      );
+    }
+
+    const originalTrack = await findOriginalTrack(job);
+
+    const nextJobs = jobs.map((item) => {
+      if (item.id !== job.id) return item;
+
+      if (!originalTrack) {
+        return {
+          ...item,
+          updatedAt: new Date().toISOString(),
+          status: "READY_FOR_BLEEP_PROCESSING",
+          originalAttached: false,
+          processorStatus: "ORIGINAL_AUDIO_NOT_FOUND",
+          message:
+            "CREATE BLEEPED COPY REQUESTED - original AzuraCast audio was not found yet. Upload/attach the source audio before processing.",
+        };
+      }
+
+      return {
+        ...item,
+        updatedAt: new Date().toISOString(),
+        status: "READY_FOR_BLEEP_PROCESSING",
+        track: originalTrack,
+        originalAttached: true,
+        processorStatus: originalTrack.rawUrl
+          ? "ORIGINAL_AUDIO_ATTACHED"
+          : "ORIGINAL_METADATA_ATTACHED_NO_AUDIO_URL",
+        processedCopyUrl: "",
+        message: originalTrack.rawUrl
+          ? "ORIGINAL AUDIO ATTACHED - ready for real bleep processor to create a clean/bleeped copy before broadcast."
+          : "ORIGINAL TRACK FOUND - but AzuraCast did not return a direct audio URL. API download hook is needed next.",
+      };
+    });
+
+    const savedJobs = saveJobs(nextJobs);
+    const updatedJob = savedJobs.find((item) => item.id === job.id) ?? null;
+
+    return NextResponse.json(
+      {
+        ok: true,
+        job: updatedJob,
+        jobs: savedJobs,
+        originalFound: Boolean(originalTrack),
+        originalTrack,
+        message: originalTrack
+          ? originalTrack.rawUrl
+            ? "Original audio attached. Ready for bleep processor."
+            : "Original track found, but direct audio URL is missing."
+          : "Original audio not found yet. Source audio required before bleep processing.",
+      },
+      {
+        headers: {
+          "Cache-Control": "no-store",
+        },
+      }
+    );
+  } catch (error) {
+    return NextResponse.json(
+      {
+        ok: false,
+        message:
+          error instanceof Error
+            ? error.message
+            : "Bleep processing route failed.",
+      },
+      { status: 500 }
+    );
+  }
+}

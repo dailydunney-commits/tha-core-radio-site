@@ -1,0 +1,312 @@
+﻿import { NextRequest, NextResponse } from "next/server";
+
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
+type BleepJobTrack = {
+  id?: string;
+  title?: string;
+  artist?: string;
+  source?: string;
+  reason?: string;
+  path?: string;
+  audioUrl?: string;
+  url?: string;
+  streamUrl?: string;
+  rawUrl?: string;
+};
+
+type BleepJobStatus =
+  | "BLEEP_JOB_CREATED"
+  | "CLEAN_VERSION_SEARCHING"
+  | "CLEAN_VERSION_FOUND"
+  | "READY_FOR_BLEEP_PROCESSING";
+
+type BleepJob = {
+  id: string;
+  createdAt: string;
+  updatedAt?: string;
+  status: BleepJobStatus;
+  source: string;
+  track: BleepJobTrack;
+  message: string;
+  cleanResults?: unknown[];
+};
+
+declare global {
+  var __THA_CORE_GLOBAL_BLEEP_JOBS__: BleepJob[] | undefined;
+}
+
+function getJobs() {
+  if (!globalThis.__THA_CORE_GLOBAL_BLEEP_JOBS__) {
+    globalThis.__THA_CORE_GLOBAL_BLEEP_JOBS__ = [];
+  }
+
+  return globalThis.__THA_CORE_GLOBAL_BLEEP_JOBS__;
+}
+
+function normalizeKey(value: unknown) {
+  return String(value ?? "")
+    .toLowerCase()
+    .replace(/[^\w\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function getJobKey(source: string, track: BleepJobTrack) {
+  return [
+    normalizeKey(source),
+    normalizeKey(track.artist),
+    normalizeKey(track.title),
+  ].join("::");
+}
+
+function saveJobs(jobs: BleepJob[]) {
+  globalThis.__THA_CORE_GLOBAL_BLEEP_JOBS__ = jobs.slice(0, 50);
+  return globalThis.__THA_CORE_GLOBAL_BLEEP_JOBS__;
+}
+
+export async function GET() {
+  const jobs = getJobs();
+
+  return NextResponse.json(
+    {
+      ok: true,
+      count: jobs.length,
+      jobs,
+    },
+    {
+      headers: {
+        "Cache-Control": "no-store",
+      },
+    }
+  );
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json().catch(() => null);
+    const action = String(body?.action ?? "");
+
+    if (action === "clear") {
+      saveJobs([]);
+
+      return NextResponse.json(
+        {
+          ok: true,
+          count: 0,
+          jobs: [],
+          message: "Bleep jobs cleared.",
+        },
+        {
+          headers: {
+            "Cache-Control": "no-store",
+          },
+        }
+      );
+    }
+
+    if (action === "remove") {
+      const id = String(body?.id ?? "");
+      const jobs = getJobs();
+      const nextJobs = jobs.filter((job) => job.id !== id);
+
+      saveJobs(nextJobs);
+
+      return NextResponse.json(
+        {
+          ok: true,
+          count: nextJobs.length,
+          jobs: nextJobs,
+          message: "Bleep job removed.",
+        },
+        {
+          headers: {
+            "Cache-Control": "no-store",
+          },
+        }
+      );
+    }
+
+    if (action === "mark_processing") {
+      const id = String(body?.id ?? "");
+      const jobs = getJobs();
+
+      const nextJobs = jobs.map((job) =>
+        job.id === id
+          ? {
+              ...job,
+              updatedAt: new Date().toISOString(),
+              status: "READY_FOR_BLEEP_PROCESSING" as BleepJobStatus,
+              message:
+                "CREATE BLEEPED COPY REQUESTED - audio processor must create a clean/bleeped copy before broadcast.",
+            }
+          : job
+      );
+
+      saveJobs(nextJobs);
+
+      return NextResponse.json(
+        {
+          ok: true,
+          count: nextJobs.length,
+          jobs: nextJobs,
+          message: "Bleeped copy job marked for processing.",
+        },
+        {
+          headers: {
+            "Cache-Control": "no-store",
+          },
+        }
+      );
+    }
+
+    if (action === "clean_found") {
+      const id = String(body?.id ?? "");
+      const cleanResults = Array.isArray(body?.cleanResults) ? body.cleanResults : [];
+      const jobs = getJobs();
+
+      const nextJobs = jobs.map((job) =>
+        job.id === id
+          ? {
+              ...job,
+              updatedAt: new Date().toISOString(),
+              status: "CLEAN_VERSION_FOUND" as BleepJobStatus,
+              cleanResults,
+              message: `CLEAN VERSION FOUND - ${cleanResults.length} clean result(s) ready for review.`,
+            }
+          : job
+      );
+
+      saveJobs(nextJobs);
+
+      return NextResponse.json(
+        {
+          ok: true,
+          count: nextJobs.length,
+          jobs: nextJobs,
+          message: "Clean version attached to bleep job.",
+        },
+        {
+          headers: {
+            "Cache-Control": "no-store",
+          },
+        }
+      );
+    }
+
+    if (action === "clean_not_found") {
+      const id = String(body?.id ?? "");
+      const jobs = getJobs();
+
+      const nextJobs = jobs.map((job) =>
+        job.id === id
+          ? {
+              ...job,
+              updatedAt: new Date().toISOString(),
+              status: "BLEEP_JOB_CREATED" as BleepJobStatus,
+              message:
+                "NO CLEAN VERSION FOUND YET - create a processed bleeped copy before broadcast.",
+            }
+          : job
+      );
+
+      saveJobs(nextJobs);
+
+      return NextResponse.json(
+        {
+          ok: true,
+          count: nextJobs.length,
+          jobs: nextJobs,
+          message: "No clean version found. Bleep job still waiting.",
+        },
+        {
+          headers: {
+            "Cache-Control": "no-store",
+          },
+        }
+      );
+    }
+
+    const track = (body?.track ?? {}) as BleepJobTrack;
+    const source = String(body?.source ?? "CONTROL_PANEL");
+
+    const jobs = getJobs();
+    const nextKey = getJobKey(source, track);
+
+    const existing = jobs.find((job) => getJobKey(job.source, job.track) === nextKey);
+
+    if (existing) {
+      return NextResponse.json(
+        {
+          ok: true,
+          job: existing,
+          duplicate: true,
+          message:
+            "BLEEP JOB ALREADY EXISTS - SmartDJ is still waiting for a clean version or processed bleeped copy before broadcast.",
+        },
+        {
+          headers: {
+            "Cache-Control": "no-store",
+          },
+        }
+      );
+    }
+
+    const job: BleepJob = {
+      id: `bleep-job-${Date.now()}`,
+      createdAt: new Date().toISOString(),
+      status: "BLEEP_JOB_CREATED",
+      source,
+      track,
+      message:
+        "BLEEP JOB CREATED - SmartDJ must find a clean version or create a processed bleeped copy before broadcast.",
+    };
+
+    jobs.unshift(job);
+    saveJobs(jobs);
+
+    return NextResponse.json(
+      {
+        ok: true,
+        job,
+        duplicate: false,
+        message: job.message,
+      },
+      {
+        headers: {
+          "Cache-Control": "no-store",
+        },
+      }
+    );
+  } catch (error) {
+    return NextResponse.json(
+      {
+        ok: false,
+        message:
+          error instanceof Error
+            ? error.message
+            : "Could not update bleep job.",
+      },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE() {
+  saveJobs([]);
+
+  return NextResponse.json(
+    {
+      ok: true,
+      count: 0,
+      jobs: [],
+      message: "Bleep jobs cleared.",
+    },
+    {
+      headers: {
+        "Cache-Control": "no-store",
+      },
+    }
+  );
+}

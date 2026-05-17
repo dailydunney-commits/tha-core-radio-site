@@ -1,0 +1,45 @@
+{
+  "ok": true,
+  "command": "mothers day song",
+  "intent": "find_play_song",
+  "target": "mothers day song",
+  "message": "SmartDJ returned 1 result(s). No clean version found, so the track is HELD for mothers day song until a clean/bleep copy is ready.",
+  "reply": "SmartDJ created the playlist with 1 HELD track(s). Clean/bleep copy required before preview, queue, or broadcast.",
+  "statusText": "SmartDJ playlist created with 1 HELD track(s). Waiting on clean/bleep copy.",
+  "action": "playlist_created_with_held_tracks",
+  "targetPanel": "smartdj_queue",
+  "playlistTitle": "build mothers day song playlist",
+  "playlist": [
+    {
+      "id": "smartdj-held-1778965902052",
+      "title": "mothers day song",
+      "artist": "SmartDJ",
+      "source": "SmartDJ request",
+      "reason": "HELD - No clean/radio-safe audio found yet. Waiting for clean/bleep copy before preview, queue, or broadcast.",
+      "statusText": "HELD - needs clean/bleep copy",
+      "action": "held_for_clean_bleep",
+      "audioUrl": "",
+      "url": "",
+      "streamUrl": "",
+      "rawUrl": ""
+    }
+  ],
+  "lastPlaylist": [
+    {
+      "id": "smartdj-held-1778965902052",
+      "title": "mothers day song",
+      "artist": "SmartDJ",
+      "source": "SmartDJ request",
+      "reason": "HELD - No clean/radio-safe audio found yet. Waiting for clean/bleep copy before preview, queue, or broadcast.",
+      "statusText": "HELD - needs clean/bleep copy",
+      "action": "held_for_clean_bleep",
+      "audioUrl": "",
+      "url": "",
+      "streamUrl": "",
+      "rawUrl": ""
+    }
+  ],
+  "timestamp": "2026-05-16T21:11:42.052Z",
+  "resultCount": 1,
+  "resultLabel": "SmartDJ playlist created with 1 HELD track(s)."
+}

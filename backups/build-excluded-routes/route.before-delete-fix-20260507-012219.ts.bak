@@ -1,0 +1,103 @@
+﻿import { NextRequest, NextResponse } from "next/server";
+
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
+type BleepJobTrack = {
+  id?: string;
+  title?: string;
+  artist?: string;
+  source?: string;
+  reason?: string;
+  path?: string;
+  audioUrl?: string;
+  url?: string;
+  streamUrl?: string;
+  rawUrl?: string;
+};
+
+type BleepJob = {
+  id: string;
+  createdAt: string;
+  status: "NEEDS_CLEAN_VERSION" | "BLEEP_JOB_CREATED" | "READY_FOR_PROCESSING";
+  source: string;
+  track: BleepJobTrack;
+  message: string;
+};
+
+declare global {
+  var __THA_CORE_GLOBAL_BLEEP_JOBS__: BleepJob[] | undefined;
+}
+
+function getJobs() {
+  if (!globalThis.__THA_CORE_GLOBAL_BLEEP_JOBS__) {
+    globalThis.__THA_CORE_GLOBAL_BLEEP_JOBS__ = [];
+  }
+
+  return globalThis.__THA_CORE_GLOBAL_BLEEP_JOBS__;
+}
+
+export async function GET() {
+  const jobs = getJobs();
+
+  return NextResponse.json(
+    {
+      ok: true,
+      count: jobs.length,
+      jobs,
+    },
+    {
+      headers: {
+        "Cache-Control": "no-store",
+      },
+    }
+  );
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json().catch(() => null);
+    const track = (body?.track ?? {}) as BleepJobTrack;
+    const source = String(body?.source ?? "CONTROL_PANEL");
+
+    const id = `bleep-job-${Date.now()}`;
+
+    const job: BleepJob = {
+      id,
+      createdAt: new Date().toISOString(),
+      status: "BLEEP_JOB_CREATED",
+      source,
+      track,
+      message:
+        "BLEEP JOB CREATED - SmartDJ must use a clean version or processed bleeped copy before broadcast.",
+    };
+
+    const jobs = getJobs();
+    jobs.unshift(job);
+    globalThis.__THA_CORE_GLOBAL_BLEEP_JOBS__ = jobs.slice(0, 50);
+
+    return NextResponse.json(
+      {
+        ok: true,
+        job,
+        message: job.message,
+      },
+      {
+        headers: {
+          "Cache-Control": "no-store",
+        },
+      }
+    );
+  } catch (error) {
+    return NextResponse.json(
+      {
+        ok: false,
+        message:
+          error instanceof Error
+            ? error.message
+            : "Could not create bleep job.",
+      },
+      { status: 500 }
+    );
+  }
+}

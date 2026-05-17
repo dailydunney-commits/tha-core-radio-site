@@ -1,0 +1,214 @@
+﻿import { NextRequest, NextResponse } from "next/server";
+
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
+type SmartDJTrack = {
+  id: string;
+  title: string;
+  artist: string;
+  source: string;
+  reason: string;
+  audioUrl: string;
+  url: string;
+  streamUrl: string;
+};
+
+type SmartDJState = {
+  ok: boolean;
+  command: string;
+  intent: string;
+  target: string;
+  message: string;
+  reply: string;
+  statusText: string;
+  action: string;
+  targetPanel: string;
+  playlistTitle: string;
+  playlist: SmartDJTrack[];
+  lastPlaylist: SmartDJTrack[];
+  timestamp: string;
+};
+
+declare global {
+  var __THA_CORE_SMARTDJ_STATE__: SmartDJState | undefined;
+}
+
+function blankState(): SmartDJState {
+  return {
+    ok: true,
+    command: "",
+    intent: "idle",
+    target: "",
+    message: "SmartDJ command ready.",
+    reply: "SmartDJ command ready.",
+    statusText: "SmartDJ command ready.",
+    action: "idle",
+    targetPanel: "smartdj",
+    playlistTitle: "",
+    playlist: [],
+    lastPlaylist: [],
+    timestamp: new Date().toISOString(),
+  };
+}
+
+function getState(): SmartDJState {
+  if (!globalThis.__THA_CORE_SMARTDJ_STATE__) {
+    globalThis.__THA_CORE_SMARTDJ_STATE__ = blankState();
+  }
+
+  return globalThis.__THA_CORE_SMARTDJ_STATE__;
+}
+
+function cleanCommand(value: unknown): string {
+  if (typeof value !== "string") return "";
+
+  return value
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 260);
+}
+
+function normalize(value: string): string {
+  return value.toLowerCase().replace(/[^\w\s]/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function getTarget(command: string): string {
+  const text = normalize(command);
+
+  if (text.includes("mother")) return "Mothers Day Song";
+  if (text.includes("dancehall")) return "Dancehall Song";
+  if (text.includes("reggae")) return "Reggae Song";
+  if (text.includes("rnb") || text.includes("r b")) return "RNB Song";
+  if (text.includes("hip hop") || text.includes("hiphop")) return "Hip-Hop Song";
+
+  return command
+    .replace(/find/gi, "")
+    .replace(/play/gi, "")
+    .replace(/build/gi, "")
+    .replace(/playlist/gi, "")
+    .replace(/song/gi, "")
+    .replace(/\s+/g, " ")
+    .trim() || "SmartDJ Song";
+}
+
+
+function getSmartDjAudioUrl(): string {
+  return (
+    process.env.NEXT_PUBLIC_STREAM_URL ||
+    process.env.STREAM_URL ||
+    "http://thacoreonlinerad.com/listen/tha-core-online/radio.mp3"
+  );
+}
+
+function buildPlaylist(command: string): SmartDJState {
+  const target = getTarget(command);
+  const playlistTitle = `build ${target.toLowerCase()} playlist`;
+
+  const playlist: SmartDJTrack[] = [
+    {
+      id: "smartdj-track-1",
+      artist: "Test Artist",
+      title: target,
+      source: "Tha Core SmartDJ",
+      reason: "SmartDJ created this playlist from the footer command.",
+      audioUrl, url: audioUrl, streamUrl: audioUrl,
+    },
+  ];
+
+  return {
+    ok: true,
+    command,
+    intent: "find_play_song",
+    target,
+    message: `Latest playlist: ${playlistTitle} (${playlist.length} tracks) 1. ${playlist[0].artist} - ${playlist[0].title}`,
+    reply: `Latest playlist: ${playlistTitle} (${playlist.length} tracks) 1. ${playlist[0].artist} - ${playlist[0].title}`,
+    statusText: `SmartDJ playlist ready: ${target}`,
+    action: "prepare_song_queue",
+    targetPanel: "smartdj_queue",
+    playlistTitle,
+    playlist,
+    lastPlaylist: playlist,
+    timestamp: new Date().toISOString(),
+  };
+}
+
+export async function GET() {
+  const state = getState();
+
+  return NextResponse.json(
+    {
+      ...state,
+      playlist: state.playlist ?? [],
+      lastPlaylist: state.lastPlaylist ?? state.playlist ?? [],
+      lastResult: state,
+    },
+    {
+      headers: {
+        "Cache-Control": "no-store",
+      },
+    }
+  );
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json().catch(() => null);
+    const command = cleanCommand(body?.command ?? body?.prompt ?? body?.text);
+
+    if (!command) {
+      return NextResponse.json(
+        {
+          ok: false,
+          message: "Missing SmartDJ command.",
+          reply: "Missing SmartDJ command.",
+        },
+        { status: 400 }
+      );
+    }
+
+    const text = normalize(command);
+    const currentState = getState();
+
+    if (text.includes("last playlist") || text.includes("view playlist")) {
+      return NextResponse.json(
+        {
+          ...currentState,
+          message:
+            currentState.playlist.length > 0
+              ? `Latest playlist: ${currentState.playlistTitle} (${currentState.playlist.length} tracks)`
+              : "No SmartDJ playlist created yet.",
+          reply:
+            currentState.playlist.length > 0
+              ? `Latest playlist: ${currentState.playlistTitle} (${currentState.playlist.length} tracks)`
+              : "No SmartDJ playlist created yet.",
+        },
+        {
+          headers: {
+            "Cache-Control": "no-store",
+          },
+        }
+      );
+    }
+
+    const nextState = buildPlaylist(command);
+    globalThis.__THA_CORE_SMARTDJ_STATE__ = nextState;
+
+    return NextResponse.json(nextState, {
+      headers: {
+        "Cache-Control": "no-store",
+      },
+    });
+  } catch (error) {
+    return NextResponse.json(
+      {
+        ok: false,
+        message: "SmartDJ command route failed.",
+        reply: "SmartDJ command route failed.",
+        error: error instanceof Error ? error.message : "Unknown error",
+      },
+      { status: 500 }
+    );
+  }
+}
+

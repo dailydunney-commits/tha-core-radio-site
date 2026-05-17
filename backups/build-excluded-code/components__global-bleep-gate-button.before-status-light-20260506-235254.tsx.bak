@@ -1,0 +1,133 @@
+﻿"use client";
+
+import { useState } from "react";
+
+export default function GlobalBleepGateButton() {
+  const [status, setStatus] = useState("Global bleep gate ready.");
+  const [busy, setBusy] = useState(false);
+  const [armed, setArmed] = useState(true);
+
+  async function runGlobalBleepCheck() {
+    try {
+      setBusy(true);
+      setStatus("Checking global bleep gate...");
+
+      const response = await fetch("/api/radio/bleep-check", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        cache: "no-store",
+        body: JSON.stringify({
+          source: "CONTROL_PANEL",
+          mode: "pre_broadcast",
+          text: "global bleep gate check for AutoDJ SmartDJ LiveDJ requests uploads promos jingles ads",
+        }),
+      });
+
+      const data = await response.json();
+      setStatus(data?.message || "Global bleep gate checked.");
+    } catch {
+      setStatus("Global bleep gate check failed. Hold all broadcast actions.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function toggleArmed() {
+    const next = !armed;
+    setArmed(next);
+
+    setStatus(
+      next
+        ? "GLOBAL BLEEP GATE ARMED - all broadcast paths must pass safety check."
+        : "GLOBAL BLEEP GATE MONITOR ONLY - warning mode, not blocking."
+    );
+  }
+
+  return (
+    <div className="global-bleep-hero-box">
+      <div className="global-bleep-hero-left">
+        <strong>GLOBAL BLEEP GATE</strong>
+        <span>
+          AutoDJ • SmartDJ • LiveDJ • Requests • Uploads • Promos • Jingles • Ads
+        </span>
+        <p>{status}</p>
+      </div>
+
+      <div className="global-bleep-hero-actions">
+        <button type="button" onClick={toggleArmed}>
+          {armed ? "ARMED" : "MONITOR"}
+        </button>
+
+        <button type="button" onClick={runGlobalBleepCheck} disabled={busy}>
+          {busy ? "CHECKING" : "GLOBAL BLEEP CHECK"}
+        </button>
+      </div>
+
+      <style>{`
+        .global-bleep-hero-box {
+          margin: 14px 0;
+          padding: 14px;
+          border: 1px solid rgba(255, 212, 0, 0.8);
+          border-radius: 18px;
+          background: linear-gradient(135deg, rgba(35, 0, 0, 0.96), rgba(0, 12, 18, 0.96));
+          box-shadow: 0 0 20px rgba(255, 212, 0, 0.18), inset 0 0 18px rgba(255, 0, 0, 0.18);
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 14px;
+          color: #fff;
+        }
+
+        .global-bleep-hero-left strong {
+          display: block;
+          color: #ffd400;
+          font-size: 16px;
+          font-weight: 950;
+          letter-spacing: 0.14em;
+        }
+
+        .global-bleep-hero-left span {
+          display: block;
+          margin-top: 4px;
+          color: #00d9ff;
+          font-size: 12px;
+          font-weight: 900;
+        }
+
+        .global-bleep-hero-left p {
+          margin: 7px 0 0;
+          color: #fff;
+          font-size: 12px;
+          font-weight: 850;
+        }
+
+        .global-bleep-hero-actions {
+          display: flex;
+          gap: 10px;
+          flex-wrap: wrap;
+          justify-content: flex-end;
+        }
+
+        .global-bleep-hero-actions button {
+          min-height: 42px;
+          border: 0;
+          border-radius: 13px;
+          padding: 10px 16px;
+          background: linear-gradient(180deg, #ffcc00, #b98500);
+          color: #120700;
+          font-weight: 950;
+          cursor: pointer;
+          text-transform: uppercase;
+          box-shadow: 0 8px 18px rgba(0, 0, 0, 0.35);
+        }
+
+        .global-bleep-hero-actions button:disabled {
+          opacity: 0.7;
+          cursor: wait;
+        }
+      `}</style>
+    </div>
+  );
+}

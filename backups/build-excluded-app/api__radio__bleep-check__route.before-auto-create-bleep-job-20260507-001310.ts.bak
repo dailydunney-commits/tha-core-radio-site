@@ -1,0 +1,207 @@
+﻿import { NextRequest, NextResponse } from "next/server";
+
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
+type BleepCheckPayload = {
+  source?: string;
+  mode?: "metadata" | "preview" | "pre_broadcast" | "live_delay";
+  requireClean?: boolean;
+  track?: {
+    id?: string;
+    title?: string;
+    artist?: string;
+    source?: string;
+    reason?: string;
+    path?: string;
+    audioUrl?: string;
+    url?: string;
+    streamUrl?: string;
+    rawUrl?: string;
+  };
+  text?: string;
+};
+
+const DEFAULT_EXPLICIT_WORDS = [
+  "explicit",
+  "uncensored",
+  "dirty",
+  "dirty version",
+  "raw version",
+  "raw edit",
+  "parental advisory",
+  "fuck",
+  "shit",
+  "bitch",
+  "pussy",
+  "bloodclaat",
+  "bumboclaat",
+  "raasclaat"
+];
+
+const DEFAULT_CLEAN_WORDS = [
+  "clean",
+  "radio",
+  "radio edit",
+  "clean version",
+  "clean radio",
+  "clean radio edit",
+  "edited",
+  "censored"
+];
+
+function normalize(value: unknown): string {
+  return String(value ?? "")
+    .toLowerCase()
+    .replace(/[^\w\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function getExplicitWords() {
+  const custom = process.env.RADIO_EXPLICIT_WORDS || process.env.SMARTDJ_EXPLICIT_WORDS || "";
+
+  if (custom.trim()) {
+    return custom
+      .split(",")
+      .map((word) => normalize(word))
+      .filter(Boolean);
+  }
+
+  return DEFAULT_EXPLICIT_WORDS.map((word) => normalize(word));
+}
+
+function getCleanWords() {
+  const custom = process.env.RADIO_CLEAN_WORDS || "";
+
+  if (custom.trim()) {
+    return custom
+      .split(",")
+      .map((word) => normalize(word))
+      .filter(Boolean);
+  }
+
+  return DEFAULT_CLEAN_WORDS.map((word) => normalize(word));
+}
+
+function buildScanText(payload: BleepCheckPayload) {
+  return normalize(
+    [
+      payload.source,
+      payload.mode,
+      payload.text,
+      payload.track?.title,
+      payload.track?.artist,
+      payload.track?.source,
+      payload.track?.reason,
+      payload.track?.path,
+      payload.track?.rawUrl,
+      payload.track?.url,
+      payload.track?.streamUrl,
+      payload.track?.audioUrl,
+    ].join(" ")
+  );
+}
+
+function detectExplicitWords(payload: BleepCheckPayload) {
+  const scanText = buildScanText(payload);
+  const words = getExplicitWords();
+
+  return Array.from(new Set(words.filter((word) => word && scanText.includes(word))));
+}
+
+function detectCleanWords(payload: BleepCheckPayload) {
+  const scanText = buildScanText(payload);
+  const words = getCleanWords();
+
+  return Array.from(new Set(words.filter((word) => word && scanText.includes(word))));
+}
+
+export async function GET() {
+  return NextResponse.json(
+    {
+      ok: true,
+      route: "/api/radio/bleep-check",
+      message: "Global radio bleep checker online.",
+      mode: "metadata_filename_text_scan",
+      cleanOnlyMode: true,
+      appliesTo: [
+        "SMARTDJ",
+        "AUTODJ",
+        "LIVEDJ",
+        "REQUESTS",
+        "UPLOADS",
+        "PROMOS",
+        "JINGLES",
+        "ADS",
+        "CONTROL_PANEL"
+      ],
+      explicitWordCount: getExplicitWords().length,
+      cleanWordCount: getCleanWords().length,
+    },
+    {
+      headers: {
+        "Cache-Control": "no-store",
+      },
+    }
+  );
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const payload = (await request.json().catch(() => ({}))) as BleepCheckPayload;
+
+    const explicitWords = detectExplicitWords(payload);
+    const cleanWords = detectCleanWords(payload);
+
+    const requireClean = payload.requireClean !== false;
+    const hasExplicit = explicitWords.length > 0;
+    const hasCleanMarker = cleanWords.length > 0;
+
+    const needsBleep = hasExplicit || (requireClean && !hasCleanMarker);
+
+    let message = "Passed global radio bleep check.";
+
+    if (hasExplicit) {
+      message = `BLEEP REQUIRED before broadcast. Found: ${explicitWords.join(", ")}`;
+    } else if (requireClean && !hasCleanMarker) {
+      message = "BLOCKED BEFORE BROADCAST - clean/radio edit marker required.";
+    }
+
+    return NextResponse.json(
+      {
+        ok: true,
+        source: payload.source ?? "CONTROL_PANEL",
+        safe: !needsBleep,
+        needsBleep,
+        explicitWords,
+        cleanWords,
+        cleanRequired: requireClean,
+        decision: needsBleep ? "HOLD_BEFORE_BROADCAST" : "ALLOW_TO_QUEUE",
+        message,
+        recommendation: needsBleep
+          ? "Do not preview, queue, or broadcast this file until a clean/radio edit version is used."
+          : "Safe to continue to preview, queue, or broadcast path.",
+      },
+      {
+        headers: {
+          "Cache-Control": "no-store",
+        },
+      }
+    );
+  } catch (error) {
+    return NextResponse.json(
+      {
+        ok: false,
+        safe: false,
+        needsBleep: true,
+        decision: "HOLD_BEFORE_BROADCAST",
+        message:
+          error instanceof Error
+            ? error.message
+            : "Global bleep checker failed. Hold before broadcast.",
+      },
+      { status: 500 }
+    );
+  }
+}

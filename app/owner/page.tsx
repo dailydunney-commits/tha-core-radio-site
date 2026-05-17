@@ -1,6 +1,12 @@
-﻿"use client";
+"use client";
 
+
+import AudioSafetyCenterPanel from "../../components/audio-safety-center-panel";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
+import OwnerSmartDjCommand from "@/components/owner-smartdj-command";
+import GlobalBleepGateButton from "@/components/global-bleep-gate-button";
+import GlobalBleepJobsPanel from "@/components/global-bleep-jobs-panel";
+import GlobalGateMiniStatus from "@/components/global-gate-mini-status";
 
 type BroadcastState = "off" | "cue" | "live" | "paused";
 type PadMode = "JINGLES" | "DROPS" | "COM" | "ADS" | "SMARTDJ" | "AUTODJ" | "LIVEDJ";
@@ -102,14 +108,1022 @@ const footerTools: FooterTool[] = [
   { label: "Promos", href: "/promos", note: "Promo tools shortcut ready", color: "red" },
 ];
 
+
+type SmartDjControlPlaylistTrack = {
+  id: string;
+  title: string;
+  artist?: string;
+  source?: string;
+  reason?: string;
+  audioUrl?: string;
+  url?: string;
+  streamUrl?: string; isExplicit?: boolean; explicitWords?: string[]; };
+
+
+function AutoDjGateStatusCard({ autoDj }: { autoDj: boolean }) {
+  const [decision, setDecision] = useState("IDLE");
+
+  useEffect(() => {
+    let alive = true;
+
+    async function loadDecision() {
+      try {
+        const res = await fetch("/api/autodj/gated-next", {
+          cache: "no-store",
+        });
+
+        const data = await res.json().catch(() => null);
+
+        if (alive) {
+          setDecision(String(data?.lastDecision || "IDLE"));
+        }
+      } catch {
+        if (alive) {
+          setDecision("GATE_ERROR");
+        }
+      }
+    }
+
+    loadDecision();
+
+    const timer = window.setInterval(loadDecision, 5000);
+
+    return () => {
+      alive = false;
+      window.clearInterval(timer);
+    };
+  }, []);
+
+  const held =
+    decision.includes("HELD") ||
+    decision.includes("HOLD") ||
+    decision.includes("BLOCK") ||
+    decision.includes("ERROR");
+
+  const value = !autoDj ? "OFF" : held ? "HELD" : "ACTIVE";
+  const tone = !autoDj ? "red" : held ? "red" : "yellow";
+
+  return <StatusCard label="AutoDJ" value={value} tone={tone} />;
+}
+function SmartDjSafetyQueuePanel() {
+  // Old duplicate SmartDJ Safety Queue removed.
+  // AudioSafetyCenterPanel is now the only safety/queue brain.
+  return null;
+}
+function SmartDjControlPlaylist() {
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [tracks, setTracks] = useState<SmartDjControlPlaylistTrack[]>([]);
+  const [playingId, setPlayingId] = useState("");
+  const [status, setStatus] = useState("SmartDJ control playlist ready.");
+  const [bleepStatusById, setBleepStatusById] = useState<Record<string, string>>({});
+  const [queueStatusById, setQueueStatusById] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    loadSmartDjPlaylist();
+
+    const timer = window.setInterval(() => {
+      loadSmartDjPlaylist();
+    }, 2500);
+
+    return () => window.clearInterval(timer);
+  }, []);
+
+  function normalizeSmartDjTracks(payload: any): SmartDjControlPlaylistTrack[] {
+    const rawList = Array.isArray(payload?.playlist)
+      ? payload.playlist
+      : Array.isArray(payload?.lastPlaylist)
+        ? payload.lastPlaylist
+        : Array.isArray(payload?.tracks)
+          ? payload.tracks
+          : Array.isArray(payload?.lastResult?.playlist)
+            ? payload.lastResult.playlist
+            : Array.isArray(payload?.result?.playlist)
+              ? payload.result.playlist
+              : [];
+
+    return rawList.map((track: any, index: number) => ({
+      id: String(track?.id ?? `smartdj-control-track-${index + 1}`),
+      title: String(track?.title ?? track?.name ?? `SmartDJ Track ${index + 1}`),
+      artist: String(track?.artist ?? track?.creator ?? "SmartDJ"),
+      source: String(track?.source ?? "Tha Core SmartDJ"),
+      reason: String(track?.reason ?? "Created by SmartDJ."),
+      audioUrl: String(track?.audioUrl ?? track?.streamUrl ?? track?.url ?? ""),
+      streamUrl: String(track?.streamUrl ?? ""),
+      url: String(track?.url ?? ""),
+    }));
+  }
+
+  function getTrackAudioUrl(track: SmartDjControlPlaylistTrack) {
+    return track.audioUrl || track.streamUrl || track.url || "";
+  }
+
+
+  async function attachReadyBleepJobsToSmartDjTracks(
+    incomingTracks: SmartDjControlPlaylistTrack[]
+  ): Promise<SmartDjControlPlaylistTrack[]> {
+    try {
+      const response = await fetch("/api/radio/bleep-job", {
+        method: "GET",
+        cache: "no-store",
+      });
+
+      const data = await response.json().catch(() => null);
+      const jobs = Array.isArray(data?.jobs) ? data.jobs : [];
+
+      const readyJobs = jobs.filter((job: any) => {
+        const statusText = String(
+          `${job?.status ?? ""} ${job?.processorStatus ?? ""} ${job?.message ?? ""}`
+        ).toUpperCase();
+
+        const safeAudio =
+          job?.processedAudioUrl ||
+          job?.bleepedAudioUrl ||
+          job?.cleanAudioUrl ||
+          job?.radioSafeAudioUrl ||
+          job?.safeAudioUrl ||
+          job?.track?.processedAudioUrl ||
+          job?.track?.bleepedAudioUrl ||
+          job?.track?.cleanAudioUrl ||
+          job?.track?.radioSafeAudioUrl ||
+          job?.track?.safeAudioUrl ||
+          job?.track?.audioUrl ||
+          job?.track?.url ||
+          job?.track?.streamUrl ||
+          "";
+
+        return (
+          Boolean(safeAudio) &&
+          (statusText.includes("PROCESSED_AUDIO_READY") ||
+            statusText.includes("PROCESSED_AUDIO_ATTACHED") ||
+            statusText.includes("READY"))
+        );
+      });
+
+      if (readyJobs.length === 0) return incomingTracks;
+
+      return incomingTracks.map((track: any) => {
+        const trackTitle = String(track?.title ?? "").trim().toLowerCase();
+
+        const matchingJob = readyJobs.find((job: any) => {
+          const jobTrackId = String(job?.track?.id ?? job?.trackId ?? "");
+          const jobTitle = String(job?.track?.title ?? "").trim().toLowerCase();
+
+          return (
+            (track?.id && jobTrackId && jobTrackId === String(track.id)) ||
+            (trackTitle && jobTitle && jobTitle === trackTitle)
+          );
+        });
+
+        if (!matchingJob) return track;
+
+        const safeAudio =
+          matchingJob?.processedAudioUrl ||
+          matchingJob?.bleepedAudioUrl ||
+          matchingJob?.cleanAudioUrl ||
+          matchingJob?.radioSafeAudioUrl ||
+          matchingJob?.safeAudioUrl ||
+          matchingJob?.track?.processedAudioUrl ||
+          matchingJob?.track?.bleepedAudioUrl ||
+          matchingJob?.track?.cleanAudioUrl ||
+          matchingJob?.track?.radioSafeAudioUrl ||
+          matchingJob?.track?.safeAudioUrl ||
+          matchingJob?.track?.audioUrl ||
+          matchingJob?.track?.url ||
+          matchingJob?.track?.streamUrl ||
+          "";
+
+        if (!safeAudio) return track;
+
+        return {
+          ...track,
+          audioUrl: safeAudio,
+          url: safeAudio,
+          streamUrl: safeAudio,
+          cleanAudioUrl: safeAudio,
+          bleepedAudioUrl: safeAudio,
+          processedAudioUrl: safeAudio,
+          radioSafeAudioUrl: safeAudio,
+          safeAudioUrl: safeAudio,
+          reason: "PROCESSED AUDIO READY - clean/bleeped copy attached.",
+          statusText: "CLEAN/BLEEPED READY",
+          action: "processed_audio_ready",
+        } as SmartDjControlPlaylistTrack;
+      });
+    } catch {
+      return incomingTracks;
+    }
+  }
+
+  // OWNER_SYNC_READY_BLEEP_AUDIO_V1
+
+  async function loadSmartDjPlaylist() {
+    try {
+      const response = await fetch(`/api/smartdj/command?refresh=${Date.now()}`, {
+        method: "GET",
+        cache: "no-store",
+      });
+
+      const data = await response.json();
+      const nextTracks = await attachReadyBleepJobsToSmartDjTracks(normalizeSmartDjTracks(data));
+
+      setTracks(nextTracks);
+
+      if (nextTracks.length > 0) {
+        const heldCount = nextTracks.filter((track) =>
+          String((track as any)?.action ?? (track as any)?.statusText ?? (track as any)?.reason ?? "")
+            .toLowerCase()
+            .includes("held")
+        ).length;
+
+        const loadedMessage = `SmartDJ playlist loaded: ${nextTracks.length} track(s).`;
+
+        setStatus(`SmartDJ playlist loaded on control panel: ${nextTracks.length} track(s).`);
+        window.dispatchEvent(new CustomEvent("tha-core-smartdj-status", { detail: loadedMessage }));
+      } else {
+        setStatus("No SmartDJ playlist created yet. Ask SmartDJ to build one.");
+        window.dispatchEvent(new CustomEvent("tha-core-smartdj-status", { detail: "No SmartDJ playlist created yet. Ask SmartDJ to build one." }));
+      }
+    } catch {
+      setStatus("Could not load SmartDJ playlist from command engine.");
+    }
+  }
+
+  async function playSmartDjTrack(track: SmartDjControlPlaylistTrack) {
+    try {
+      if (isSmartDjTrackHeld(track)) {
+        const blockedMessage = "PREVIEW BLOCKED - HELD until clean/bleep copy is ready.";
+        setPlayingId("");
+        setBleepStatusById((current) => ({
+          ...current,
+          [track.id]: blockedMessage,
+        }));
+        setStatus(blockedMessage);
+        return;
+      }
+        if (isSmartDjTrackHeld(track)) {
+          const heldMessage = "PREVIEW BLOCKED - HELD until clean/bleep copy is ready.";
+          setBleepStatusById((current) => ({
+            ...current,
+            [track.id]: heldMessage,
+          }));
+          setStatus(heldMessage);
+          return;
+        }
+      const audioUrl = getTrackAudioUrl(track);
+
+      if (!audioUrl) {
+        setStatus(
+          `Preview failed: ${track.artist ?? "SmartDJ"} - ${track.title}. No audio URL attached.`
+        );
+        return;
+      }
+
+      setPlayingId(track.id);
+      setStatus(`Preview loading: ${track.artist ?? "SmartDJ"} - ${track.title}`);
+
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+      }
+
+      const player = new Audio(audioUrl);
+      audioRef.current = player;
+      player.preload = "auto";
+      player.volume = 1;
+
+      player.onplaying = () => {
+        setStatus(`Preview playing: ${track.artist ?? "SmartDJ"} - ${track.title}`);
+      };
+
+      player.onerror = () => {
+        setPlayingId("");
+        setStatus(`Preview failed: audio could not load for ${track.title}`);
+      };
+
+      player.onended = () => {
+        setPlayingId("");
+        setStatus(`Preview ended: ${track.title}`);
+      };
+
+      await player.play();
+    } catch {
+      setPlayingId("");
+      setStatus("Preview blocked by browser or audio URL failed.");
+    }
+  }
+
+  
+  
+  async function checkSmartDjTrackForBleep(track: SmartDjControlPlaylistTrack) {
+      try {
+        if (isSmartDjTrackHeld(track)) {
+          const heldMessage = "HELD - needs clean/bleep copy before preview, queue, or broadcast.";
+          setBleepStatusById((current) => ({
+            ...current,
+            [track.id]: heldMessage,
+          }));
+          setStatus(heldMessage);
+          return;
+        }
+      setBleepStatusById((current) => ({
+        ...current,
+        [track.id]: "Checking track for explicit words...",
+      }));
+
+      const response = await fetch("/api/radio/bleep-check", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        cache: "no-store",
+        body: JSON.stringify({ track }),
+      });
+
+      const data = await response.json();
+
+      const nextStatus = data?.message || "Bleep check finished.";
+
+      setBleepStatusById((current) => ({
+        ...current,
+        [track.id]: nextStatus,
+      }));
+
+      setStatus(nextStatus);
+    } catch {
+      setBleepStatusById((current) => ({
+        ...current,
+        [track.id]: "Bleep check failed. Hold before broadcast.",
+      }));
+
+      setStatus("Bleep check failed. Hold before broadcast.");
+    }
+  }
+
+  
+  async function runGlobalSafeActionGate(payload: {
+    source: string;
+    action: string;
+    track?: any;
+    text?: string;
+    requireClean?: boolean;
+  }) {
+    try {
+      const response = await fetch("/api/radio/safe-action", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        cache: "no-store",
+        body: JSON.stringify({
+          source: payload.source,
+          action: payload.action,
+          mode: "pre_broadcast",
+          requireClean: payload.requireClean !== false,
+          track: payload.track,
+          text: payload.text,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!data?.allowed) {
+        const message =
+          data?.message ||
+          "BLEEP JOB CREATED - clean/bleeped copy required before broadcast.";
+        setStatus(message);
+      setStatus(message);
+return {
+          allowed: false,
+          message,
+          data,
+        };
+      }
+
+      const message =
+        data?.message || "Passed global radio bleep check. Action allowed.";
+      setStatus(message);
+return {
+        allowed: true,
+        message,
+        data,
+      };
+    } catch {
+      const message = "Global bleep gate failed. Action held before broadcast.";
+        setStatus(message);
+      setStatus(message);
+return {
+        allowed: false,
+        message,
+        data: null,
+      };
+    }
+  }
+
+  async function sendSmartDjTrackToQueue(track: SmartDjControlPlaylistTrack) {
+      try {
+        if (isSmartDjTrackHeld(track)) {
+          const heldMessage = "QUEUE BLOCKED - HELD until clean/bleep copy is ready.";
+          setQueueStatusById((current) => ({
+            ...current,
+            [track.id]: heldMessage,
+          }));
+          setStatus(heldMessage);
+          return;
+        }
+      const checkingStatus = "SmartDJ running Global Bleep Gate before queue...";
+
+      setQueueStatusById((current) => ({
+        ...current,
+        [track.id]: checkingStatus,
+      }));
+
+      setBleepStatusById((current) => ({
+        ...current,
+        [track.id]: checkingStatus,
+      }));
+
+      const safeResponse = await fetch("/api/radio/safe-action", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        cache: "no-store",
+        body: JSON.stringify({
+          source: "SMARTDJ",
+          action: "smartdj_send_to_queue",
+          mode: "pre_broadcast",
+          requireClean: true,
+          track,
+          text: `${track.artist ?? "SmartDJ"} ${track.title ?? ""} ${track.source ?? ""}`,
+        }),
+      });
+
+      const safeData = await safeResponse.json();
+
+      const safeMessage =
+        safeData?.message ||
+        "Global Bleep Gate check finished.";
+
+      setBleepStatusById((current) => ({
+        ...current,
+        [track.id]: safeMessage,
+      }));
+
+      if (!safeData?.allowed) {
+        const holdStatus =
+          safeMessage ||
+          "BLEEP JOB CREATED - clean/bleeped copy required before SmartDJ queue.";
+
+        setQueueStatusById((current) => ({
+          ...current,
+          [track.id]: holdStatus,
+        }));
+
+        setStatus(holdStatus);
+        return;
+      }
+
+      const response = await fetch("/api/smartdj/queue", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        cache: "no-store",
+        body: JSON.stringify({
+          track: {
+            ...track,
+            isExplicit: false,
+            explicitWords: [],
+          },
+        }),
+      });
+
+      const data = await response.json();
+
+      const queueMessage =
+        data?.item?.queueStatus ||
+        data?.message ||
+        "Track sent to SmartDJ queue.";
+
+      const finalStatus = `Passed Global Bleep Gate. ${queueMessage}`;
+
+      setQueueStatusById((current) => ({
+        ...current,
+        [track.id]: finalStatus,
+      }));
+
+      setStatus(finalStatus);
+    } catch {
+      const failStatus =
+        "SmartDJ queue blocked. Global Bleep Gate failed before queue.";
+
+      setQueueStatusById((current) => ({
+        ...current,
+        [track.id]: failStatus,
+      }));
+
+      setBleepStatusById((current) => ({
+        ...current,
+        [track.id]: failStatus,
+      }));
+
+      setStatus(failStatus);
+    }
+  }
+
+  async function fixHeldSmartDjTrack(track: any) {
+    const startMessage = "FIX HELD - clean/bleep job requested. Track stays blocked until safe audio is ready.";
+
+    setBleepStatusById((current) => ({
+      ...current,
+      [track.id]: startMessage,
+    }));
+
+    setQueueStatusById((current) => ({
+      ...current,
+      [track.id]: "QUEUE BLOCKED - waiting for clean/bleep copy.",
+    }));
+
+    setStatus(startMessage);
+
+    try {
+      const response = await fetch("/api/radio/bleep-job", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        cache: "no-store",
+        body: JSON.stringify({
+          source: "SMARTDJ",
+          action: "create_bleep_job",
+          track,
+          text: `${track?.artist ?? "SmartDJ"} ${track?.title ?? ""}`,
+        }),
+      });
+
+      const data = await response.json().catch(() => null);
+
+      const nextMessage =
+        data?.message ||
+        data?.statusText ||
+        data?.reply ||
+        "FIX HELD - bleep/clean job saved. Waiting for processed clean/bleeped audio.";
+
+      setBleepStatusById((current) => ({
+        ...current,
+        [track.id]: nextMessage,
+      }));
+
+      setQueueStatusById((current) => ({
+        ...current,
+        [track.id]: "QUEUE BLOCKED - clean/bleep copy still required before queue.",
+      }));
+
+      setStatus(nextMessage);
+    } catch {
+      const failMessage = "FIX HELD failed. Could not reach bleep-job route.";
+
+      setBleepStatusById((current) => ({
+        ...current,
+        [track.id]: failMessage,
+      }));
+
+      setStatus(failMessage);
+    }
+  }
+
+  // SMARTDJ_FIX_HELD_BUTTON_V2
+
+
+  async function refreshSmartDjPlaylistButton() {
+    setStatus("Refreshing SmartDJ playlist from command engine...");
+    setBleepStatusById({});
+    setQueueStatusById({});
+
+    await loadSmartDjPlaylist();
+
+    setStatus("SmartDJ playlist refresh complete.");
+  }
+
+  // SMARTDJ_REFRESH_BUTTON_WIRED_V1
+
+  function stopSmartDjTrack() {
+    const player = audioRef.current;
+
+    if (player) {
+      player.pause();
+      player.currentTime = 0;
+      player.src = "";
+      player.load();
+    }
+
+    audioRef.current = null;
+    setPlayingId("");
+    setStatus("SmartDJ preview stopped.");
+  }
+
+  return (
+    <section className="owner-control-smartdj-playlist panel">
+      <audio ref={audioRef} preload="none" />
+
+      <div className="owner-control-smartdj-playlist-head">
+        <div>
+          <strong>SMARTDJ CREATED PLAYLIST</strong>
+          <span>Playlist created by SmartDJ will show here and play from control panel.</span>
+        </div>
+
+        <div className="owner-control-smartdj-playlist-actions">
+          <button type="button" onClick={refreshSmartDjPlaylistButton}>
+            REFRESH
+          </button>
+          <button type="button" onClick={stopSmartDjTrack}>
+            STOP
+          </button>
+        </div>
+      </div>
+
+      {tracks.length > 0 ? (
+        <div className="owner-control-smartdj-playlist-list">
+          {tracks.map((track, index) => {
+            const isPlaying = playingId === track.id;
+                  const isHeldTrack = isSmartDjTrackHeld(track);
+
+            return (
+              <div
+                key={`${track.id}-${index}`}
+                className={`owner-control-smartdj-playlist-row ${
+                  isPlaying ? "is-playing" : ""
+                }`}
+              >
+                <div className="owner-control-smartdj-playlist-info">
+                  <b>
+                    {index + 1}. {track.artist ?? "SmartDJ"} - {track.title}
+                  </b>
+                  <small>{track.source ?? "Tha Core SmartDJ"}</small>
+                </div>
+
+                <div className="owner-control-smartdj-row-actions">
+                  <button type="button" onClick={() => playSmartDjTrack(track)}>{isHeldTrack ? "PREVIEW BLOCKED" : isPlaying ? "PREVIEWING" : "PREVIEW"}</button>
+
+                  <button type="button" onClick={() => checkSmartDjTrackForBleep(track)}>
+                    BLEEP CHECK
+                  </button>
+                  {isHeldTrack && (
+                    <button type="button" onClick={() => fixHeldSmartDjTrack(track)}>
+                      FIX HELD
+                    </button>
+                  )}
+
+                  <button type="button" onClick={() => sendSmartDjTrackToQueue(track)}>{isHeldTrack ? "QUEUE BLOCKED" : "SEND TO QUEUE"}</button>
+                </div>
+
+              {(bleepStatusById[track.id] || queueStatusById[track.id]) && (
+                <div className="smartdj-row-status">
+                  {bleepStatusById[track.id] && (
+                    <div>BLEEP CHECK: {bleepStatusById[track.id]}</div>
+                  )}
+                  {queueStatusById[track.id] && (
+                    <div>QUEUE: {queueStatusById[track.id]}</div>
+                  )}
+                </div>
+              )}
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <p className="owner-control-smartdj-empty">
+          No playlist yet. Type a SmartDJ command below and press ASK SMARTDJ.
+        </p>
+      )}
+
+      <p className="owner-control-smartdj-player-status">{status}</p>
+    </section>
+  );
+}
+function isSmartDjTrackHeld(track: SmartDjControlPlaylistTrack) {
+  const item: any = track ?? {};
+
+  const hasSafeAudio = Boolean(
+    item.cleanAudioUrl ||
+      item.bleepedAudioUrl ||
+      item.processedAudioUrl ||
+      item.radioSafeAudioUrl
+  );
+
+  if (hasSafeAudio) return false;
+
+  const hasAnyAudio = Boolean(
+    item.audioUrl ||
+      item.url ||
+      item.streamUrl ||
+      item.rawUrl ||
+      item.cleanAudioUrl ||
+      item.bleepedAudioUrl ||
+      item.processedAudioUrl ||
+      item.radioSafeAudioUrl
+  );
+
+  const text = [
+    item.id,
+    item.title,
+    item.artist,
+    item.source,
+    item.reason,
+    item.statusText,
+    item.action,
+    item.message,
+    item.decision,
+    item.safetyStatus,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  return (
+    !hasAnyAudio ||
+    text.includes("held") ||
+    text.includes("hold_dirty_audio") ||
+    text.includes("needs clean") ||
+    text.includes("clean/bleep") ||
+    text.includes("no clean") ||
+    text.includes("no audio") ||
+    text.includes("dirty") ||
+    text.includes("raw") ||
+    text.includes("explicit") ||
+    text.includes("unverified")
+  );
+}
+// SMARTDJ_HELD_ROW_BUTTON_TRUTH_V1
+
+
+
+function cleanSmartDjTopStatusText(text: string) {
+  return String(text || "")
+    .replace(/\.?\s*\d+\s+HELD waiting on clean\/bleep copy\.?/gi, ".")
+    .replace(/\s+\./g, ".")
+    .trim();
+}
+
+// SMARTDJ_RENDER_STRIP_HELD_TEXT_V1
+
 export default function OwnerControlPanelPage() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const overlayAudioRef = useRef<HTMLAudioElement | null>(null);
 
   const [broadcast, setBroadcast] = useState<BroadcastState>("off");
   const [selectedMode, setSelectedMode] = useState<PadMode>("JINGLES");
+  const [smartDjCommandText, setSmartDjCommandText] = useState("find and play mothers day song");
+  const [smartDjCommandResult, setSmartDjCommandResult] = useState("SmartDJ command ready.");
 
-  const SELECTED_DISPLAY_MEMORY_KEY = "tha-core-owner-selected-display-v1";
+
+  function isSmartDjTopTrackStillHeld(track: any, readyJobs: any[] = []) {
+    const item: any = track ?? {};
+
+    const hasSafeAudio = Boolean(
+      item.safeAudioUrl ||
+      item.radioSafeAudioUrl ||
+      item.cleanAudioUrl ||
+      item.bleepedAudioUrl ||
+      item.processedAudioUrl ||
+      item.audioUrl ||
+      item.url ||
+      item.streamUrl
+    );
+
+    const heldText = String(
+      item.action ?? item.statusText ?? item.reason ?? ""
+    ).toLowerCase();
+
+    const trackId = String(item.id ?? "").trim().toLowerCase();
+    const title = String(item.title ?? "").trim().toLowerCase();
+
+    const hasReadyBleepJob = readyJobs.some((job: any) => {
+      const jobTrack: any = job?.track ?? {};
+      const jobText = String(
+        `${job?.status ?? ""} ${job?.processorStatus ?? ""} ${job?.message ?? ""}`
+      ).toLowerCase();
+
+      const jobHasAudio = Boolean(
+        job?.safeAudioUrl ||
+        job?.radioSafeAudioUrl ||
+        job?.cleanAudioUrl ||
+        job?.bleepedAudioUrl ||
+        job?.processedAudioUrl ||
+        jobTrack?.safeAudioUrl ||
+        jobTrack?.radioSafeAudioUrl ||
+        jobTrack?.cleanAudioUrl ||
+        jobTrack?.bleepedAudioUrl ||
+        jobTrack?.processedAudioUrl ||
+        jobTrack?.audioUrl ||
+        jobTrack?.url ||
+        jobTrack?.streamUrl
+      );
+
+      const jobTrackId = String(jobTrack?.id ?? "").trim().toLowerCase();
+      const jobTitle = String(jobTrack?.title ?? "").trim().toLowerCase();
+
+      const matchesTrack =
+        (trackId && jobTrackId && trackId === jobTrackId) ||
+        (title && jobTitle && title === jobTitle);
+
+      const ready =
+        jobText.includes("processed_audio_ready") ||
+        jobText.includes("processed_audio_attached") ||
+        jobText.includes("ready");
+
+      return matchesTrack && ready && jobHasAudio;
+    });
+
+    return heldText.includes("held") && !hasSafeAudio && !hasReadyBleepJob;
+  }
+
+  // SMARTDJ_TOP_STALE_HELD_FIX_V1
+
+  // SMARTDJ_TOP_FORCE_SYNC_V2
+  useEffect(() => {
+    let alive = true;
+
+    async function forceSyncSmartDjTopStatus() {
+      try {
+        const response = await fetch(`/api/smartdj/command?refresh=${Date.now()}`, {
+          method: "GET",
+          cache: "no-store",
+        });
+
+        const data = await response.json().catch(() => null);
+
+        if (!alive || !response.ok || !data) return;
+
+        const playlist = Array.isArray(data.playlist)
+          ? data.playlist
+          : Array.isArray(data.lastPlaylist)
+            ? data.lastPlaylist
+            : [];
+
+        if (playlist.length > 0) {
+          const readyJobsResponse = await fetch(`/api/radio/bleep-job?topStatus=${Date.now()}`, {
+          cache: "no-store",
+        }).catch(() => null);
+
+        const readyJobsData = readyJobsResponse
+          ? await readyJobsResponse.json().catch(() => null)
+          : null;
+
+        const readyJobs = Array.isArray(readyJobsData?.jobs)
+          ? readyJobsData.jobs
+          : [];
+
+        const heldCount = playlist.filter((track: any) =>
+          isSmartDjTopTrackStillHeld(track, readyJobs)
+        ).length;
+
+          setSmartDjCommandResult(`SmartDJ playlist loaded: ${playlist.length} track(s).`);
+          return;
+        }
+
+        const fallbackMessage = String(
+          data?.statusText ||
+            data?.message ||
+            "No SmartDJ playlist created yet. Ask SmartDJ to build one."
+        );
+
+        if (
+          fallbackMessage &&
+          !fallbackMessage.toLowerCase().includes("returned 0 result")
+        ) {
+          setSmartDjCommandResult(fallbackMessage.replace(/\. \d+ HELD waiting on clean\/bleep copy\.$/, "."));
+        }
+      } catch {
+        // Keep the last good message. Do not replace it with a false 0-result message.
+      }
+    }
+
+    forceSyncSmartDjTopStatus();
+    const timer = window.setInterval(forceSyncSmartDjTopStatus, 1500);
+
+    return () => {
+      alive = false;
+      window.clearInterval(timer);
+    };
+  }, []);
+
+  useEffect(() => {
+    let alive = true;
+
+    async function cleanSmartDjTopHeldStatus() {
+      try {
+        const [smartResponse, jobsResponse] = await Promise.all([
+          fetch(`/api/smartdj/command?topClean=${Date.now()}`, {
+            cache: "no-store",
+          }),
+          fetch(`/api/radio/bleep-job?topClean=${Date.now()}`, {
+            cache: "no-store",
+          }),
+        ]);
+
+        const smartData = await smartResponse.json().catch(() => null);
+        const jobsData = await jobsResponse.json().catch(() => null);
+
+        if (!alive || !smartData) return;
+
+        const playlist = Array.isArray(smartData?.playlist)
+          ? smartData.playlist
+          : Array.isArray(smartData?.lastPlaylist)
+            ? smartData.lastPlaylist
+            : Array.isArray(smartData?.lastResult?.playlist)
+              ? smartData.lastResult.playlist
+              : [];
+
+        if (!playlist.length) return;
+
+        const jobs = Array.isArray(jobsData?.jobs) ? jobsData.jobs : [];
+
+        const readyJobs = jobs.filter((job: any) => {
+          const jobTrack: any = job?.track ?? {};
+          const text = String(
+            `${job?.status ?? ""} ${job?.processorStatus ?? ""} ${job?.message ?? ""}`
+          ).toLowerCase();
+
+          const hasAudio = Boolean(
+            job?.safeAudioUrl ||
+            job?.radioSafeAudioUrl ||
+            job?.cleanAudioUrl ||
+            job?.bleepedAudioUrl ||
+            job?.processedAudioUrl ||
+            jobTrack?.safeAudioUrl ||
+            jobTrack?.radioSafeAudioUrl ||
+            jobTrack?.cleanAudioUrl ||
+            jobTrack?.bleepedAudioUrl ||
+            jobTrack?.processedAudioUrl ||
+            jobTrack?.audioUrl ||
+            jobTrack?.url ||
+            jobTrack?.streamUrl
+          );
+
+          return hasAudio && (
+            text.includes("processed_audio_ready") ||
+            text.includes("processed_audio_attached") ||
+            text.includes("ready")
+          );
+        });
+
+        const stillHeldCount = playlist.filter((track: any) => {
+          const trackText = String(
+            `${track?.action ?? ""} ${track?.statusText ?? ""} ${track?.reason ?? ""}`
+          ).toLowerCase();
+
+          if (!trackText.includes("held")) return false;
+
+          const hasTrackAudio = Boolean(
+            track?.safeAudioUrl ||
+            track?.radioSafeAudioUrl ||
+            track?.cleanAudioUrl ||
+            track?.bleepedAudioUrl ||
+            track?.processedAudioUrl ||
+            track?.audioUrl ||
+            track?.url ||
+            track?.streamUrl
+          );
+
+          if (hasTrackAudio) return false;
+
+          const trackId = String(track?.id ?? "").trim().toLowerCase();
+          const title = String(track?.title ?? "").trim().toLowerCase();
+
+          const hasMatchingReadyJob = readyJobs.some((job: any) => {
+            const jobTrack: any = job?.track ?? {};
+            const jobTrackId = String(jobTrack?.id ?? "").trim().toLowerCase();
+            const jobTitle = String(jobTrack?.title ?? "").trim().toLowerCase();
+
+            return (
+              (trackId && jobTrackId && trackId === jobTrackId) ||
+              (title && jobTitle && title === jobTitle)
+            );
+          });
+
+          return !hasMatchingReadyJob;
+        }).length;
+
+        setSmartDjCommandResult(`SmartDJ playlist loaded: ${playlist.length} track(s).`);
+      } catch {
+        // Keep existing status if cleaner cannot check.
+      }
+    }
+
+    cleanSmartDjTopHeldStatus();
+
+    const timer = window.setInterval(cleanSmartDjTopHeldStatus, 2500);
+
+    return () => {
+      alive = false;
+      window.clearInterval(timer);
+    };
+  }, []);
+
+  // SMARTDJ_TOP_STATUS_READY_CLEANER_V2
+
+const SELECTED_DISPLAY_MEMORY_KEY = "tha-core-owner-selected-display-v1";
 
   useEffect(() => {
     try {
@@ -211,6 +1225,114 @@ export default function OwnerControlPanelPage() {
   const [deckBGain, setDeckBGain] = useState(72);
   const [adBed, setAdBed] = useState(38);
   const [jingleBed, setJingleBed] = useState(48);
+
+
+  useEffect(() => {
+    function getSafetyQueueAudioUrl(item: any) {
+      const track = item?.track ?? item ?? {};
+
+      return (
+        track.safeAudioUrl ||
+        track.radioSafeAudioUrl ||
+        track.cleanAudioUrl ||
+        track.bleepedAudioUrl ||
+        track.processedAudioUrl ||
+        track.audioUrl ||
+        track.url ||
+        track.streamUrl ||
+        ""
+      );
+    }
+
+    async function handleSafetyQueueBroadcast(event: Event) {
+      const detail = (event as CustomEvent<any>).detail ?? {};
+      const item = detail.item ?? {};
+      const track = detail.track ?? item.track ?? {};
+      const audioUrl = detail.audioUrl || getSafetyQueueAudioUrl(item);
+      const title = track?.title || item?.track?.title || "approved safety queue track";
+      const artist = track?.artist || item?.track?.artist || item?.source || "SmartDJ";
+
+      if (!audioUrl) {
+        setScreenTitle("BROADCAST HANDOFF BLOCKED");
+        setScreenText("Approved queue item has no clean/bleeped audio URL.");
+        addLog("Broadcast handoff blocked: missing clean/bleeped audio URL.");
+        return;
+      }
+
+      try {
+        const audio = audioRef.current;
+
+        if (!audio) {
+          setScreenTitle("BROADCAST HANDOFF ERROR");
+          setScreenText("Main broadcast audio monitor is not ready.");
+          addLog("Broadcast handoff failed: main audioRef not ready.");
+          return;
+        }
+
+        audio.pause();
+        audio.src = audioUrl;
+        audio.preload = "auto";
+        audio.volume = volume / 100;
+        audio.muted = !monitorOn;
+
+        setAutoDj(false);
+        setSmartDj(true);
+        setLiveDj(false);
+        setMicLive(false);
+        setSelectedMode("SMARTDJ");
+        setBroadcast("live");
+
+        setScreenTitle("SMARTDJ QUEUE LIVE");
+        setScreenText(`${artist} - ${title} loaded from approved Audio Safety Center queue.`);
+        addLog(`Approved safety queue handoff loaded: ${artist} - ${title}.`);
+
+        await audio.play();
+
+        setScreenTitle("SMARTDJ BROADCASTING");
+        setScreenText(`${artist} - ${title} is playing from approved clean/bleeped queue audio.`);
+        addLog(`Broadcast handoff playing: ${artist} - ${title}.`);
+      } catch {
+        setBroadcast("cue");
+        setScreenTitle("BROADCAST HANDOFF CUED");
+        setScreenText("Browser blocked autoplay. Press main Play / Pause to start the approved queue audio.");
+        addLog("Broadcast handoff cued. User gesture needed to play.");
+      }
+    }
+
+    window.addEventListener(
+      "tha-core-safety-queue-broadcast",
+      handleSafetyQueueBroadcast as EventListener
+    );
+
+    return () => {
+      window.removeEventListener(
+        "tha-core-safety-queue-broadcast",
+        handleSafetyQueueBroadcast as EventListener
+      );
+    };
+  }, [volume, monitorOn]);
+
+  // OWNER_RECEIVE_SAFETY_QUEUE_BROADCAST_V1
+
+  useEffect(() => {
+    function handleSafetyQueueStopPlayback() {
+      stopBroadcast();
+    }
+
+    window.addEventListener(
+      "tha-core-safety-queue-stop-playback",
+      handleSafetyQueueStopPlayback as EventListener
+    );
+
+    return () => {
+      window.removeEventListener(
+        "tha-core-safety-queue-stop-playback",
+        handleSafetyQueueStopPlayback as EventListener
+      );
+    };
+  }, []);
+
+  // OWNER_RECEIVE_SAFETY_QUEUE_STOP_PLAYBACK_V1
 
   const [logs, setLogs] = useState<LogItem[]>([
     {
@@ -390,7 +1512,7 @@ export default function OwnerControlPanelPage() {
       const station = data?.station?.name || "Tha Core Online Radio";
 
       setNowPlayingText(text);
-      setListenerText(`${listeners} current • ${unique} unique`);
+      setListenerText(`${listeners} current ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ ${unique} unique`);
       setStationText(station);
       setLastUpdatedText(`Updated ${stamp()}`);
     } catch {
@@ -449,24 +1571,116 @@ export default function OwnerControlPanelPage() {
     }
   }
 
-  function stopBroadcast() {
+  async function stopBroadcast() {
     const audio = audioRef.current;
+    const overlayAudio = overlayAudioRef.current;
 
     if (audio) {
-      audio.pause();
-
       try {
+        audio.pause();
         audio.currentTime = 0;
+        audio.removeAttribute("src");
+        audio.load();
       } catch {
         // Live stream reset may not be allowed.
       }
     }
 
+    if (overlayAudio) {
+      try {
+        overlayAudio.pause();
+        overlayAudio.currentTime = 0;
+        overlayAudio.removeAttribute("src");
+        overlayAudio.load();
+      } catch {
+        // Overlay reset may not be allowed.
+      }
+    }
+
+    try {
+      await fetch("/api/radio/current-broadcast", {
+        method: "DELETE",
+        cache: "no-store",
+      });
+    } catch {
+      // Stop All should still stop local audio even if reset route fails.
+    }
+
     setBroadcast("off");
     setMicLive(false);
+    setSmartDj(false);
+    setLiveDj(false);
+    setAutoDj(true);
+    setSelectedMode("AUTODJ");
+
     setScreenTitle("STOP ALL");
-    setScreenText("Stop All stopped the full control room broadcast monitor.");
-    addLog("Stop All pressed.");
+    setScreenText("Stop All stopped the owner monitor and cleared the active SmartDJ broadcast handoff.");
+    addLog("Stop All pressed. Audio stopped and current broadcast handoff cleared.");
+
+    refreshNowPlaying();
+  }
+
+  async function returnToLiveStream() {
+    try {
+      setScreenTitle("RETURNING TO LIVE STREAM");
+      setScreenText("Clearing SmartDJ current broadcast handoff and restoring Tha Core live stream.");
+      addLog("Return to live stream requested.");
+
+      const response = await fetch("/api/radio/current-broadcast", {
+        method: "DELETE",
+        cache: "no-store",
+      });
+
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok || data?.ok === false) {
+        setScreenTitle("RETURN TO LIVE FAILED");
+        setScreenText(data?.message || "Could not clear current broadcast handoff.");
+        addLog("Return to live stream failed.");
+        return;
+      }
+
+      const audio = audioRef.current;
+      const liveStreamUrl = "https://thacoreonlinerad.com/listen/tha-core-online/radio.mp3";
+
+      setAutoDj(true);
+      setSmartDj(false);
+      setLiveDj(false);
+      setMicLive(false);
+      setSelectedMode("AUTODJ");
+
+      if (audio) {
+        try {
+          audio.pause();
+          audio.src = liveStreamUrl;
+          audio.preload = "auto";
+          audio.volume = volume / 100;
+          audio.muted = !monitorOn;
+          await audio.play();
+
+          setBroadcast("live");
+          setScreenTitle("LIVE STREAM RESTORED");
+          setScreenText("Current broadcast cleared. Public listeners are back on Tha Core Live Stream.");
+          addLog("Current broadcast cleared. Live stream restored.");
+        } catch {
+          setBroadcast("cue");
+          setScreenTitle("LIVE STREAM RESTORED");
+          setScreenText("Current broadcast cleared. Browser cued the live stream monitor. Press MAIN BROADCAST if needed.");
+          addLog("Current broadcast cleared. Live stream monitor cued.");
+        }
+      } else {
+        setBroadcast("cue");
+        setScreenTitle("LIVE STREAM RESTORED");
+        setScreenText("Current broadcast cleared. Main audio monitor was not ready.");
+        addLog("Current broadcast cleared. Audio monitor not ready.");
+      }
+
+      refreshNowPlaying();
+    } catch {
+      setScreenTitle("RETURN TO LIVE ERROR");
+      setScreenText("Could not reach current-broadcast reset route.");
+      addLog("Return to live stream API error.");
+    }
   }
 
   function skipNext() {
@@ -512,59 +1726,104 @@ export default function OwnerControlPanelPage() {
     addLog(`${type.toUpperCase()} adjusted.`);
   }
 
-  function firePad(pad: Pad) {
-    if (pad.label === "Station ID") {
-      const stream = audioRef.current;
-      const normalVolume = volume / 100;
 
-      if (stream) {
-        stream.volume = Math.max(0, normalVolume * 0.38);
+  async function runGlobalSafeActionGate(payload: {
+    source: string;
+    action: string;
+    track?: any;
+    text?: string;
+    requireClean?: boolean;
+  }) {
+    try {
+      const response = await fetch("/api/radio/safe-action", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        cache: "no-store",
+        body: JSON.stringify({
+          source: payload.source,
+          action: payload.action,
+          mode: "pre_broadcast",
+          requireClean: payload.requireClean !== false,
+          track: payload.track,
+          text: payload.text,
+        }),
+      });
+
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok || !data?.allowed) {
+        const message =
+          data?.message ||
+          "Global Bleep Gate blocked this action before broadcast.";
+
+        setScreenTitle("GLOBAL BLEEP HOLD");
+        setScreenText(message);
+        addLog(message);
+
+        return {
+          allowed: false,
+          message,
+          data,
+        };
       }
 
-      const overlay = new Audio("/overlays/station-id.mp3");
-      overlay.volume = Math.max(0, Math.min(1, jingleBed / 100));
+      const message =
+        data?.message || "Passed global radio bleep check. Action allowed.";
 
-      overlay.onended = () => {
-        if (stream) {
-          stream.volume = normalVolume;
-        }
+      addLog(message);
 
-        setScreenTitle("STATION ID COMPLETE");
-        setScreenText("Station ID finished. Music volume restored.");
-        addLog("Station ID overlay finished.");
+      return {
+        allowed: true,
+        message,
+        data,
       };
+    } catch {
+      const message = "Global bleep gate failed. Action held before broadcast.";
 
-      overlay.onerror = () => {
-        if (stream) {
-          stream.volume = normalVolume;
-        }
+      setScreenTitle("GLOBAL BLEEP ERROR");
+      setScreenText(message);
+      addLog(message);
 
-        setScreenTitle("STATION ID FILE ERROR");
-        setScreenText("Could not load public/overlays/station-id.mp3.");
-        addLog("Station ID overlay file error.");
+      return {
+        allowed: false,
+        message,
+        data: null,
       };
+    }
+  }
 
-      void overlay
-        .play()
-        .then(() => {
-          setScreenTitle("STATION ID OVERLAY");
-          setScreenText("Station ID is playing over the music. Music is ducked underneath.");
-          addLog("Station ID overlay playing over music.");
-        })
-        .catch(() => {
-          if (stream) {
-            stream.volume = normalVolume;
-          }
+  // OWNER_PARENT_SAFE_GATE_HELPER_V1
+  async function firePad(pad: Pad) {
+    const gate = await runGlobalSafeActionGate({
+      source: pad.mode || "CONTROL_PANEL",
+      action: "fire_pad",
+      requireClean: true,
+      track: {
+        id: pad.label,
+        title: pad.label,
+        artist: pad.mode,
+        source: "Owner Control Panel Pad",
+        reason: pad.message,
+      },
+      text: `${pad.mode} ${pad.label} ${pad.message}`,
+    });
 
-          setScreenTitle("OVERLAY BLOCKED");
-          setScreenText("Station ID could not play. Click Play All first, then Station ID.");
-          addLog("Station ID overlay blocked.");
-        });
-
+    if (!gate.allowed) {
       return;
     }
+
+    if (audioRef.current) {
+      const next = !audioRef.current.paused;
+
+      if (next) {
+        audioRef.current.pause();
+      }
+    }
+
     setSelectedMode(pad.mode);
-    setScreenTitle(`${pad.mode} FIRED`);
+    setScreenTitle(`${pad.mode}: ${pad.label}`);
     setScreenText(pad.message);
 
     if (pad.mode === "SMARTDJ") setDjMode("SMARTDJ");
@@ -572,7 +1831,6 @@ export default function OwnerControlPanelPage() {
     if (pad.mode === "LIVEDJ") setDjMode("LIVEDJ");
 
     sendPadToBroadcast(pad);
-
     addLog(`${pad.mode}: ${pad.label}`);
   }
 
@@ -625,7 +1883,7 @@ export default function OwnerControlPanelPage() {
           </div>
 
           <div className="brand-badge">
-            <span className="crown">♛</span>
+            <span className="crown">ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¾ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Âº</span>
             <strong>TC</strong>
             <small>STUDIO LIVE</small>
           </div>
@@ -633,14 +1891,16 @@ export default function OwnerControlPanelPage() {
 
         <section className="status-row">
           <StatusCard label="Broadcast" value={broadcastLabel} tone={isLive ? "green" : isCue ? "yellow" : "red"} />
-          <StatusCard label="AutoDJ" value={autoDj ? "ACTIVE" : "OFF"} tone={autoDj ? "yellow" : "red"} />
+          <AutoDjGateStatusCard autoDj={autoDj} />
           <StatusCard label="SmartDJ" value={smartDj ? "ACTIVE" : "OFF"} tone={smartDj ? "blue" : "red"} />
           <StatusCard label="LiveDJ" value={liveDj ? "LIVE" : "OFF"} tone={liveDj ? "green" : "red"} />
           <StatusCard label="Mic" value={micLive ? "ARMED" : "MUTED"} tone={micLive ? "purple" : "red"} />
           <StatusCard label="Monitor" value={monitorOn ? "ON" : "MUTED"} tone={monitorOn ? "green" : "red"} />
         </section>
 
-        <section className="central-log">
+        <AudioSafetyCenterPanel />
+
+      <section className="central-log">
           <PanelHeading left="Central Control Log" right="Above Studio" />
 
           <div className="log-row">
@@ -670,7 +1930,7 @@ export default function OwnerControlPanelPage() {
           </div>
 
           <button type="button" onClick={refreshNowPlaying}>
-            Refresh • {lastUpdatedText}
+            Refresh ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ {lastUpdatedText}
           </button>
         </section>
 
@@ -697,7 +1957,42 @@ export default function OwnerControlPanelPage() {
               <div className="smart-mode-switch">
                 <button
                   type="button"
-                  onClick={() => setDjMode("AUTODJ")}
+                  onClick={async () => {
+                      addLog("AutoDJ gate checking next clean/bleeped track...");
+
+                      try {
+                        const response = await fetch("/api/autodj/gated-next", {
+                          method: "POST",
+                          headers: {
+                            "Content-Type": "application/json",
+                          },
+                          cache: "no-store",
+                          body: JSON.stringify({
+                            action: "next",
+                          }),
+                        });
+
+                        const data = await response.json();
+
+                        if (data?.allowAutoDj && data?.safe) {
+                          setDjMode("AUTODJ");
+                          addLog(
+                            `AutoDJ gate approved: ${
+                              data?.track?.artist || "AutoDJ"
+                            } - ${data?.track?.title || "clean/bleeped track"}`
+                          );
+                        } else {
+                          addLog(
+                            `AutoDJ gate blocked track: ${
+                              data?.message ||
+                              "Needs clean version or bleeped copy before rotation."
+                            }`
+                          );
+                        }
+                      } catch {
+                        addLog("AutoDJ gate error. AutoDJ was not switched on.");
+                      }
+                    }}
                   className={currentDjMode === "AUTODJ" ? "active auto" : "auto"}
                 >
                   <span>AutoDJ</span>
@@ -831,7 +2126,42 @@ export default function OwnerControlPanelPage() {
                 <button type="button" onClick={() => selectDisplay("COM", "Commercial")}>Com</button>
                 <button type="button" onClick={() => selectDisplay("ADS", "Ads")}>Ads</button>
                 <button type="button" onClick={() => setDjMode("SMARTDJ")}>SmartDJ</button>
-                <button type="button" onClick={() => setDjMode("AUTODJ")}>AutoDJ</button>
+                <button type="button" onClick={async () => {
+                      addLog("AutoDJ gate checking next clean/bleeped track...");
+
+                      try {
+                        const response = await fetch("/api/autodj/gated-next", {
+                          method: "POST",
+                          headers: {
+                            "Content-Type": "application/json",
+                          },
+                          cache: "no-store",
+                          body: JSON.stringify({
+                            action: "next",
+                          }),
+                        });
+
+                        const data = await response.json();
+
+                        if (data?.allowAutoDj && data?.safe) {
+                          setDjMode("AUTODJ");
+                          addLog(
+                            `AutoDJ gate approved: ${
+                              data?.track?.artist || "AutoDJ"
+                            } - ${data?.track?.title || "clean/bleeped track"}`
+                          );
+                        } else {
+                          addLog(
+                            `AutoDJ gate blocked track: ${
+                              data?.message ||
+                              "Needs clean version or bleeped copy before rotation."
+                            }`
+                          );
+                        }
+                      } catch {
+                        addLog("AutoDJ gate error. AutoDJ was not switched on.");
+                      }
+                    }}>AutoDJ</button>
                 <button type="button" onClick={() => setDjMode("LIVEDJ")}>LiveDJ</button>
                 <button type="button" onClick={() => firePad(visiblePads[0] || pads[0])}>Smart Fire</button>
                 <button type="button" onClick={refreshNowPlaying}>Now Playing</button>
@@ -930,8 +2260,12 @@ export default function OwnerControlPanelPage() {
         <footer className="footer-dock panel">
           <PanelHeading
             left="Footer Control Dock"
-            right="Blog • News • Weather • Store • Community • Chat • Upload"
+            right="Blog ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ News ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ Weather ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ Store ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ Community ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ Chat ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ Upload"
           />
+            <OwnerSmartDjCommand />
+              <SmartDjControlPlaylist />
+      <SmartDjSafetyQueuePanel />
+
 
           <div className="footer-grid">
             {footerTools.map((tool) => (
@@ -1929,7 +3263,164 @@ export default function OwnerControlPanelPage() {
         .footer-tool span {
           font-size: 12px;
         }
-        @keyframes spin {
+        .owner-smartdj-command-box {
+          display: grid;
+          grid-template-columns: 160px 1fr 145px 180px;
+          gap: 10px;
+          align-items: center;
+          margin: 12px 0 14px;
+          padding: 12px;
+          border-radius: 18px;
+          background: rgba(0, 209, 255, 0.08);
+          border: 1px solid rgba(0, 209, 255, 0.35);
+        }
+
+        .owner-smartdj-command-box strong {
+          color: #00d1ff;
+          font-size: 13px;
+          font-weight: 950;
+          letter-spacing: 0.12em;
+        }
+
+        .owner-smartdj-command-box input {
+          min-height: 42px;
+          border-radius: 12px;
+          border: 1px solid rgba(255,255,255,.18);
+          padding: 0 12px;
+          font-weight: 900;
+          color: #111;
+        }
+
+        .owner-smartdj-command-box button {
+          min-height: 42px;
+          border: 0;
+          border-radius: 12px;
+          background: linear-gradient(180deg, #00d1ff, #00677a);
+          color: #001014;
+          font-weight: 950;
+          text-transform: uppercase;
+          cursor: pointer;
+        }
+
+        .owner-smartdj-command-box button:nth-of-type(2) {
+          background: linear-gradient(180deg, #ffcc00, #9c5b00);
+          color: #120700;
+        }
+
+        .owner-smartdj-command-box span {
+          grid-column: 1 / -1;
+          color: #fff;
+          font-size: 13px;
+          font-weight: 850;
+        }
+        
+.owner-control-smartdj-playlist {
+  margin: 14px 0;
+  padding: 14px;
+  border: 1px solid rgba(0, 217, 255, 0.45);
+  border-radius: 18px;
+  background: rgba(0, 12, 18, 0.92);
+  box-shadow: 0 0 18px rgba(0, 217, 255, 0.12);
+  color: #fff;
+}
+
+.owner-control-smartdj-playlist-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 10px;
+}
+
+.owner-control-smartdj-playlist-head strong {
+  display: block;
+  color: #00d9ff;
+  font-size: 14px;
+  font-weight: 950;
+  letter-spacing: 0.12em;
+}
+
+.owner-control-smartdj-playlist-head span {
+  display: block;
+  margin-top: 3px;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.owner-control-smartdj-playlist-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.owner-control-smartdj-playlist-actions button,
+.owner-control-smartdj-playlist-row button {
+  border: 0;
+  border-radius: 12px;
+  padding: 9px 14px;
+  background: linear-gradient(180deg, #ffcc00, #b98500);
+  color: #120700;
+  font-weight: 950;
+  cursor: pointer;
+  text-transform: uppercase;
+}
+
+.owner-control-smartdj-playlist-list {
+  display: grid;
+  gap: 8px;
+}
+
+.owner-control-smartdj-playlist-row {
+  display: grid;
+  grid-template-columns: 1fr 430px;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid rgba(255, 0, 0, 0.45);
+  border-radius: 14px;
+  padding: 9px;
+  background: rgba(24, 0, 0, 0.82);
+}
+
+.owner-control-smartdj-playlist-row.is-playing {
+  border-color: #00ff73;
+  box-shadow: 0 0 16px rgba(0, 255, 115, 0.35);
+}
+
+.owner-control-smartdj-playlist-info b {
+  display: block;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 950;
+}
+
+.owner-control-smartdj-playlist-info small {
+  display: block;
+  margin-top: 3px;
+  color: #9ff3ff;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.owner-control-smartdj-empty,
+.owner-control-smartdj-player-status {
+  margin: 8px 0 0;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+
+.owner-control-smartdj-bleep-note {
+  display: block;
+  margin-top: 4px;
+  color: #ff4d4d !important;
+  font-size: 11px;
+  font-weight: 950;
+}
+
+@keyframes spin {
           to { transform: rotate(360deg); }
         }
 
@@ -2192,4 +3683,85 @@ function ControlSlider({
     </div>
   );
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// SMARTDJ_TOP_STATUS_COUNT_ONLY_V1
+
+
+// SMARTDJ_TOP_HELD_TEXT_REMOVED_FINAL_V1
+
+
+// SMARTDJ_LAST_STALE_HELD_TOP_LINE_REMOVED_V1
+
+
+// SMARTDJ_DISPATCH_LOADED_MESSAGE_COUNT_ONLY_V1
+
 

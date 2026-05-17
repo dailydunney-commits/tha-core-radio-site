@@ -1,0 +1,569 @@
+﻿"use client";
+
+import { useEffect, useState } from "react";
+
+type SourceTrack = {
+  id: string;
+  title: string;
+  artist: string;
+  source?: string;
+  reason?: string;
+  audioUrl?: string;
+  url?: string;
+  streamUrl?: string;
+  rawUrl?: string;
+};
+
+type BleepJob = {
+  id: string;
+  createdAt?: string;
+  updatedAt?: string;
+  status?: string;
+  source?: string;
+  mode?: string;
+  message?: string;
+  explicitWords?: string[];
+  cleanWords?: string[];
+  cleanResults?: any[];
+  originalAttached?: boolean;
+  processorStatus?: string;
+  processedCopyUrl?: string;
+  track?: {
+    title?: string;
+    artist?: string;
+    source?: string;
+    rawUrl?: string;
+    audioUrl?: string;
+    url?: string;
+    streamUrl?: string;
+  };
+};
+
+export default function GlobalBleepJobsPanel() {
+  const [jobs, setJobs] = useState<BleepJob[]>([]);
+  const [status, setStatus] = useState("Bleep jobs monitor ready.");
+  const [busyById, setBusyById] = useState<Record<string, string>>({});
+  const [sourceQueryById, setSourceQueryById] = useState<Record<string, string>>({});
+  const [sourceResultsById, setSourceResultsById] = useState<Record<string, SourceTrack[]>>({});
+
+  async function loadJobs() {
+    try {
+      const response = await fetch("/api/radio/bleep-job", {
+        method: "GET",
+        cache: "no-store",
+      });
+
+      const data = await response.json();
+      const nextJobs = Array.isArray(data?.jobs) ? data.jobs : [];
+
+      setJobs(nextJobs);
+
+      setStatus(
+        nextJobs.length > 0
+          ? `${nextJobs.length} bleep job(s) waiting.`
+          : "No bleep jobs waiting."
+      );
+    } catch {
+      setStatus("Could not load bleep jobs.");
+    }
+  }
+
+  async function updateJob(payload: any) {
+    const response = await fetch("/api/radio/bleep-job", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      cache: "no-store",
+      body: JSON.stringify(payload),
+    });
+
+    const data = await response.json();
+    const nextJobs = Array.isArray(data?.jobs) ? data.jobs : [];
+
+    setJobs(nextJobs);
+    setStatus(data?.message || "Bleep job updated.");
+
+    return data;
+  }
+
+  async function findCleanVersion(job: BleepJob) {
+    try {
+      setBusyById((current) => ({
+        ...current,
+        [job.id]: "Searching clean version...",
+      }));
+
+      const artist = job.track?.artist || "";
+      const title = job.track?.title || "";
+      const command = `find clean radio edit ${artist} ${title}`.trim();
+
+      const response = await fetch("/api/smartdj/command", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        cache: "no-store",
+        body: JSON.stringify({ command }),
+      });
+
+      const data = await response.json();
+      const playlist = Array.isArray(data?.playlist) ? data.playlist : [];
+
+      if (playlist.length > 0) {
+        await updateJob({
+          action: "clean_found",
+          id: job.id,
+          cleanResults: playlist,
+        });
+
+        setBusyById((current) => ({
+          ...current,
+          [job.id]: `Clean version found: ${playlist.length} result(s).`,
+        }));
+
+        return;
+      }
+
+      await updateJob({
+        action: "clean_not_found",
+        id: job.id,
+      });
+
+      setBusyById((current) => ({
+        ...current,
+        [job.id]: "No clean version found yet. Try source search or create bleeped.",
+      }));
+    } catch {
+      setBusyById((current) => ({
+        ...current,
+        [job.id]: "Clean search failed.",
+      }));
+    }
+  }
+
+  async function searchSource(job: BleepJob) {
+    const query =
+      String(sourceQueryById[job.id] ?? "").trim() ||
+      String(job.track?.title ?? "").trim() ||
+      String(job.track?.artist ?? "").trim();
+
+    if (!query) {
+      setStatus("Type a source search keyword first.");
+      return;
+    }
+
+    try {
+      setStatus(`Searching Azura source library for "${query}"...`);
+
+      const response = await fetch(
+        `/api/radio/azura-source-search?query=${encodeURIComponent(query)}`,
+        {
+          method: "POST",
+          cache: "no-store",
+        }
+      );
+
+      const data = await response.json();
+      const results = Array.isArray(data?.results) ? data.results : [];
+
+      setSourceResultsById((current) => ({
+        ...current,
+        [job.id]: results,
+      }));
+
+      if (results.length > 0) {
+        setStatus(`Found ${results.length} matching source track(s) for "${query}".`);
+      } else {
+        setStatus(`SmartDJ found 0 matching source tracks for "${query}".`);
+      }
+    } catch {
+      setSourceResultsById((current) => ({
+        ...current,
+        [job.id]: [],
+      }));
+      setStatus("Source search failed. Try again.");
+    }
+  }
+
+  async function attachSource(job: BleepJob, track: SourceTrack) {
+    try {
+      setBusyById((current) => ({
+        ...current,
+        [job.id]: "Attaching original source...",
+      }));
+
+      await updateJob({
+        action: "attach_track",
+        id: job.id,
+        track,
+      });
+
+      setBusyById((current) => ({
+        ...current,
+        [job.id]: track.rawUrl
+          ? "Original source attached with audio URL."
+          : "Original source attached, but audio URL missing.",
+      }));
+    } catch {
+      setBusyById((current) => ({
+        ...current,
+        [job.id]: "Could not attach original source.",
+      }));
+    }
+  }
+
+  async function requestBleepCopy(job: BleepJob) {
+    try {
+      setStatus(`Creating radio-safe processed copy for ${job.track?.title ?? "track"}...`);
+
+      const track: any = job.track ?? {};
+      const sourceUrl =
+        track.rawUrl ||
+        track.audioUrl ||
+        track.streamUrl ||
+        track.url ||
+        track.radioSafeAudioUrl ||
+        track.safeAudioUrl ||
+        "";
+
+      const response = await fetch("/api/radio/bleep-processor", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        cache: "no-store",
+        body: JSON.stringify({
+          jobId: job.id,
+          id: job.id,
+          sourceUrl,
+          track,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data?.ok) {
+        setStatus(
+          data?.message ??
+            "CREATE BLEEPED failed. Attach original source audio first."
+        );
+        return;
+      }
+
+      setStatus(
+        data?.message ??
+          "PROCESSED_AUDIO_READY - radio-safe audio copy created."
+      );
+
+      await refreshJobs();
+    } catch {
+      setStatus("CREATE BLEEPED failed. Processor route could not run.");
+    }
+  }
+
+  async function removeJob(job: BleepJob) {
+    try {
+      setBusyById((current) => ({
+        ...current,
+        [job.id]: "Removing job...",
+      }));
+
+      await updateJob({
+        action: "remove",
+        id: job.id,
+      });
+    } catch {
+      setBusyById((current) => ({
+        ...current,
+        [job.id]: "Could not remove job.",
+      }));
+    }
+  }
+
+  useEffect(() => {
+    loadJobs();
+    const timer = window.setInterval(loadJobs, 4000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  return (
+    <section className="global-bleep-jobs-panel">
+      <div className="global-bleep-jobs-head">
+        <div>
+          <strong>BLEEP JOBS / CLEAN COPY QUEUE</strong>
+          <span>
+            Dirty or unknown tracks wait here until SmartDJ finds clean audio or makes a bleeped copy.
+          </span>
+        </div>
+
+        <button type="button" onClick={loadJobs}>
+          REFRESH JOBS
+        </button>
+      </div>
+
+      {jobs.length > 0 ? (
+        <div className="global-bleep-jobs-list">
+          {jobs.map((job, index) => {
+            const cleanCount = Array.isArray(job.cleanResults)
+              ? job.cleanResults.length
+              : 0;
+
+            const sourceResults = sourceResultsById[job.id] || [];
+
+            return (
+              <div key={job.id || index} className="global-bleep-job-row">
+                <div>
+                  <b>
+                    {index + 1}. {job.track?.artist || "Unknown Artist"} -{" "}
+                    {job.track?.title || "Unknown Track"}
+                  </b>
+
+                  <small>
+                    Source: {job.source || "CONTROL_PANEL"} • Status:{" "}
+                    {job.status || "BLEEP_JOB_CREATED"}
+                  </small>
+
+                  <p>{job.message || "Clean or bleeped copy required before broadcast."}</p>
+
+                  {job.processorStatus && (
+                    <em>Processor: {job.processorStatus}</em>
+                  )}
+
+                  {cleanCount > 0 && <em>Clean results found: {cleanCount}</em>}
+
+                  {busyById[job.id] && <em>{busyById[job.id]}</em>}
+
+                  <div className="source-search-row">
+                    <input
+                      value={sourceQueryById[job.id] ?? ""}
+                      onChange={(event) =>
+                        setSourceQueryById((current) => ({
+                          ...current,
+                          [job.id]: event.target.value,
+                        }))
+                      }
+                      placeholder="Type exact source file name, e.g. baby mother"
+                    />
+
+                    <button type="button" onClick={() => searchSource(job)}>
+                      SEARCH SOURCE
+                    </button>
+                  </div>
+
+                  {sourceResults.length > 0 && (
+                    <div className="source-results">
+                      {sourceResults.slice(0, 5).map((track, index) => (
+                        <div key={`${track.id}-${index}`} className="source-result-row">
+                          <span>
+                            {track.artist} - {track.title}
+                            {track.rawUrl ? " • audio URL found" : " • metadata only"}
+                          </span>
+
+                          <button type="button" onClick={() => attachSource(job, track)}>
+                            ATTACH
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="global-bleep-job-actions">
+                  <button type="button" onClick={() => findCleanVersion(job)}>
+                    FIND CLEAN
+                  </button>
+
+                  <button type="button" onClick={() => requestBleepCopy(job)}>
+                    CREATE BLEEPED
+                  </button>
+
+                  <button type="button" onClick={() => removeJob(job)}>
+                    REMOVE
+                  </button>
+
+                  <strong className="global-bleep-job-badge">HOLD</strong>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <p className="global-bleep-jobs-empty">No bleep jobs waiting right now.</p>
+      )}
+
+      <p className="global-bleep-jobs-status">{status}</p>
+
+      <style>{`
+        .global-bleep-jobs-panel {
+          margin: 14px 0;
+          padding: 14px;
+          border: 1px solid rgba(255, 0, 0, 0.7);
+          border-radius: 18px;
+          background: rgba(18, 0, 0, 0.95);
+          color: #fff;
+          box-shadow: 0 0 18px rgba(255, 0, 0, 0.18);
+        }
+
+        .global-bleep-jobs-head {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          margin-bottom: 10px;
+        }
+
+        .global-bleep-jobs-head strong {
+          display: block;
+          color: #ff4d4d;
+          font-size: 15px;
+          font-weight: 950;
+          letter-spacing: 0.12em;
+        }
+
+        .global-bleep-jobs-head span {
+          display: block;
+          margin-top: 3px;
+          color: #ffd400;
+          font-size: 12px;
+          font-weight: 850;
+        }
+
+        .global-bleep-jobs-head button,
+        .global-bleep-job-actions button,
+        .source-search-row button,
+        .source-result-row button {
+          border: 0;
+          border-radius: 12px;
+          padding: 9px 12px;
+          background: linear-gradient(180deg, #ffcc00, #b98500);
+          color: #120700;
+          font-weight: 950;
+          cursor: pointer;
+          text-transform: uppercase;
+        }
+
+        .global-bleep-jobs-list {
+          display: grid;
+          gap: 8px;
+        }
+
+        .global-bleep-job-row {
+          display: grid;
+          grid-template-columns: 1fr 460px;
+          gap: 12px;
+          align-items: center;
+          border: 1px solid rgba(255, 0, 0, 0.5);
+          border-radius: 14px;
+          padding: 10px;
+          background: rgba(40, 0, 0, 0.82);
+        }
+
+        .global-bleep-job-row b {
+          display: block;
+          color: #fff;
+          font-size: 13px;
+          font-weight: 950;
+        }
+
+        .global-bleep-job-row small {
+          display: block;
+          margin-top: 3px;
+          color: #00d9ff;
+          font-size: 11px;
+          font-weight: 850;
+        }
+
+        .global-bleep-job-row p {
+          margin: 5px 0 0;
+          color: #ffd400;
+          font-size: 12px;
+          font-weight: 850;
+        }
+
+        .global-bleep-job-row em {
+          display: block;
+          margin-top: 5px;
+          color: #ff8a8a;
+          font-size: 11px;
+          font-weight: 900;
+          font-style: normal;
+        }
+
+        .global-bleep-job-actions {
+          justify-self: end;
+          display: flex;
+          align-items: center;
+          justify-content: flex-end;
+          gap: 8px;
+          flex-wrap: wrap;
+        }
+
+        .global-bleep-job-badge {
+          border-radius: 999px;
+          padding: 8px 12px;
+          background: #ff1b1b;
+          color: #fff;
+          box-shadow: 0 0 14px rgba(255, 27, 27, 0.65);
+          font-size: 12px;
+          font-weight: 950;
+        }
+
+        .source-search-row {
+          margin-top: 8px;
+          display: grid;
+          grid-template-columns: 1fr 150px;
+          gap: 8px;
+        }
+
+        .source-search-row input {
+          border: 1px solid rgba(255, 255, 255, 0.18);
+          border-radius: 12px;
+          min-height: 38px;
+          padding: 0 12px;
+          background: #fff;
+          color: #111;
+          font-weight: 900;
+        }
+
+        .source-results {
+          margin-top: 8px;
+          display: grid;
+          gap: 6px;
+        }
+
+        .source-result-row {
+          display: grid;
+          grid-template-columns: 1fr 90px;
+          gap: 8px;
+          align-items: center;
+          padding: 8px;
+          border: 1px solid rgba(0, 217, 255, 0.35);
+          border-radius: 12px;
+          background: rgba(0, 10, 15, 0.78);
+        }
+
+        .source-result-row span {
+          color: #00d9ff;
+          font-size: 11px;
+          font-weight: 900;
+        }
+
+        .global-bleep-jobs-empty,
+        .global-bleep-jobs-status {
+          margin: 8px 0 0;
+          color: #fff;
+          font-size: 12px;
+          font-weight: 850;
+        }
+      `}</style>
+    </section>
+  );
+}
+
+
+
+
+
+
+

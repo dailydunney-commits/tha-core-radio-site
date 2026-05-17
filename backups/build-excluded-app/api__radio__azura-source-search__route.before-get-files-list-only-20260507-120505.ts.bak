@@ -1,0 +1,453 @@
+﻿import { NextRequest, NextResponse } from "next/server";
+
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
+type SourceTrack = {
+  id: string;
+  title: string;
+  artist: string;
+  source: string;
+  reason: string;
+  audioUrl: string;
+  url: string;
+  streamUrl: string;
+  rawUrl?: string;
+};
+
+type FetchDebug = {
+  method: string;
+  url: string;
+  status: number;
+  ok: boolean;
+  count: number;
+};
+
+function getAzuraBaseUrl(): string {
+  return (
+    process.env.AZURACAST_BASE_URL ||
+    process.env.NEXT_PUBLIC_AZURACAST_BASE_URL ||
+    "http://thacoreonlinerad.com"
+  ).replace(/\/+$/, "");
+}
+
+function getAzuraStationId(): string {
+  return (
+    process.env.AZURACAST_STATION_ID ||
+    process.env.NEXT_PUBLIC_AZURACAST_STATION_ID ||
+    "1"
+  );
+}
+
+function getAzuraApiKey(): string {
+  return process.env.AZURACAST_API_KEY || "";
+}
+
+function normalize(value: unknown): string {
+  return String(value ?? "")
+    .toLowerCase()
+    .replace(/[^\w\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function getAnyString(...values: unknown[]): string {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim()) return value.trim();
+    if (typeof value === "number") return String(value);
+  }
+
+  return "";
+}
+
+function toAbsoluteUrl(value: unknown): string {
+  if (typeof value !== "string" || !value.trim()) return "";
+
+  const raw = value.trim();
+
+  if (raw.startsWith("http://") || raw.startsWith("https://")) return raw;
+  if (raw.startsWith("/")) return `${getAzuraBaseUrl()}${raw}`;
+
+  return "";
+}
+
+function extractAudioUrl(item: any): string {
+  const direct = getAnyString(
+    item?.audioUrl,
+    item?.streamUrl,
+    item?.url,
+    item?.download_url,
+    item?.downloadUrl,
+    item?.play_url,
+    item?.playUrl,
+    item?.links?.download,
+    item?.links?.play,
+    item?.links?.self,
+    item?.media?.download_url,
+    item?.media?.downloadUrl,
+    item?.media?.play_url,
+    item?.media?.playUrl
+  );
+
+  return toAbsoluteUrl(direct);
+}
+
+function mediaText(item: any): string {
+  return normalize(
+    [
+      item?.id,
+      item?.unique_id,
+      item?.media_id,
+      item?.title,
+      item?.artist,
+      item?.name,
+      item?.path,
+      item?.media_file,
+      item?.song?.title,
+      item?.song?.artist,
+      item?.media?.title,
+      item?.media?.artist,
+      item?.media?.path,
+      item?.extra_metadata?.artist,
+      item?.extra_metadata?.title,
+    ]
+      .filter(Boolean)
+      .join(" ")
+  );
+}
+
+function collectObjects(value: any, depth = 0): any[] {
+  if (!value || depth > 8) return [];
+
+  if (Array.isArray(value)) {
+    return value.flatMap((item) => collectObjects(item, depth + 1));
+  }
+
+  if (typeof value === "object") {
+    const looksLikeMedia =
+      value.id ||
+      value.unique_id ||
+      value.media_id ||
+      value.title ||
+      value.name ||
+      value.path ||
+      value.song ||
+      value.media ||
+      value.media_file ||
+      value.download_url ||
+      value.links;
+
+    const nested = Object.values(value).flatMap((item) =>
+      collectObjects(item, depth + 1)
+    );
+
+    return looksLikeMedia ? [value, ...nested] : nested;
+  }
+
+  return [];
+}
+
+function normalizeTrack(item: any, index: number): SourceTrack {
+  const artist = getAnyString(
+    item?.artist,
+    item?.song?.artist,
+    item?.media?.artist,
+    item?.extra_metadata?.artist,
+    "AzuraCast"
+  );
+
+  const title = getAnyString(
+    item?.title,
+    item?.song?.title,
+    item?.media?.title,
+    item?.extra_metadata?.title,
+    item?.name,
+    item?.path,
+    `AzuraCast Track ${index + 1}`
+  );
+
+  const rawUrl = extractAudioUrl(item);
+  const proxied = rawUrl ? `/api/smartdj/audio?src=${encodeURIComponent(rawUrl)}` : "";
+
+  return {
+    id: String(
+      item?.id ??
+        item?.unique_id ??
+        item?.media_id ??
+        item?.path ??
+        `azura-source-${Date.now()}-${index}`
+    ),
+    title,
+    artist,
+    source: "AzuraCast Source Search",
+    reason: rawUrl
+      ? "Manual source match found for bleep processing."
+      : "Manual source metadata found, but no direct audio URL returned.",
+    audioUrl: proxied,
+    url: proxied,
+    streamUrl: proxied,
+    rawUrl,
+  };
+}
+
+function scoreItem(item: any, query: string) {
+  const text = mediaText(item);
+  const words = normalize(query)
+    .split(" ")
+    .filter((word) => word.length >= 3);
+
+  let score = 0;
+
+  for (const word of words) {
+    if (text.includes(word)) score += 25;
+  }
+
+  if (normalize(query).includes("mother") && text.includes("mother")) score += 80;
+  if (normalize(query).includes("baby") && text.includes("baby")) score += 25;
+  if (extractAudioUrl(item)) score += 40;
+  if (text.includes("mp3")) score += 5;
+
+  return score;
+}
+
+function buildGetUrls(query: string) {
+  const baseUrl = getAzuraBaseUrl();
+  const stationId = getAzuraStationId();
+  const q = encodeURIComponent(query);
+
+  return [
+    `${baseUrl}/api/station/${stationId}/files?search=${q}`,
+    `${baseUrl}/api/station/${stationId}/files?query=${q}`,
+    `${baseUrl}/api/station/${stationId}/files?q=${q}`,
+    `${baseUrl}/api/station/${stationId}/files?keyword=${q}`,
+
+    `${baseUrl}/api/station/${stationId}/files?search=${q}&page=1&rowCount=500`,
+    `${baseUrl}/api/station/${stationId}/files?query=${q}&page=1&rowCount=500`,
+    `${baseUrl}/api/station/${stationId}/files?q=${q}&page=1&rowCount=500`,
+
+    `${baseUrl}/api/station/${stationId}/files?page=1&rowCount=500`,
+    `${baseUrl}/api/station/${stationId}/files?page=2&rowCount=500`,
+    `${baseUrl}/api/station/${stationId}/files?page=3&rowCount=500`,
+  ];
+}
+
+function buildListUrls() {
+  const baseUrl = getAzuraBaseUrl();
+  const stationId = getAzuraStationId();
+
+  return [
+    `${baseUrl}/api/station/${stationId}/files/list`,
+    `${baseUrl}/api/station/${stationId}/files/list?currentDirectory=`,
+    `${baseUrl}/api/station/${stationId}/files/list?path=`,
+  ];
+}
+
+function buildHeaders(apiKey: string): HeadersInit {
+  const headers: HeadersInit = {
+    Accept: "application/json",
+    "Content-Type": "application/json",
+  };
+
+  if (apiKey) {
+    headers["Authorization"] = `Bearer ${apiKey}`;
+    headers["X-API-Key"] = apiKey;
+  }
+
+  return headers;
+}
+
+async function fetchAzuraJson(method: "GET" | "POST", url: string, body?: unknown) {
+  const apiKey = getAzuraApiKey();
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 6000);
+
+  try {
+    const response = await fetch(url, {
+      method,
+      headers: buildHeaders(apiKey),
+      cache: "no-store",
+      signal: controller.signal,
+      body: method === "POST" ? JSON.stringify(body ?? {}) : undefined,
+    });
+
+    const text = await response.text();
+    let payload: any = null;
+
+    try {
+      payload = text ? JSON.parse(text) : null;
+    } catch {
+      payload = { rawText: text };
+    }
+
+    const objects = collectObjects(payload);
+
+    const debug: FetchDebug = {
+      method,
+      url: url.replace(getAzuraApiKey(), "***"),
+      status: response.status,
+      ok: response.ok,
+      count: objects.length,
+    };
+
+    return { payload, objects, debug };
+  } catch {
+    const debug: FetchDebug = {
+      method,
+      url,
+      status: 0,
+      ok: false,
+      count: 0,
+    };
+
+    return { payload: null, objects: [], debug };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+export async function GET() {
+  return NextResponse.json(
+    {
+      ok: true,
+      route: "/api/radio/azura-source-search",
+      baseUrl: getAzuraBaseUrl(),
+      stationId: getAzuraStationId(),
+      hasApiKey: Boolean(getAzuraApiKey()),
+      message: "Azura source search route online.",
+    },
+    {
+      headers: {
+        "Cache-Control": "no-store",
+      },
+    }
+  );
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json().catch(() => null);
+    const query = String(body?.query ?? "").trim();
+
+    if (!query) {
+      return NextResponse.json(
+        {
+          ok: false,
+          results: [],
+          count: 0,
+          message: "Missing source search query.",
+        },
+        { status: 400 }
+      );
+    }
+
+    const allDebug: FetchDebug[] = [];
+    const collected = new Map<string, any>();
+
+    const getUrls = buildGetUrls(query);
+    const getSettled = await Promise.allSettled(
+      getUrls.map((url) => fetchAzuraJson("GET", url))
+    );
+
+    for (const result of getSettled) {
+      if (result.status !== "fulfilled") continue;
+
+      allDebug.push(result.value.debug);
+
+      for (const item of result.value.objects) {
+        const score = scoreItem(item, query);
+        if (score <= 0) continue;
+
+        const key = String(
+          item?.id ??
+            item?.unique_id ??
+            item?.media_id ??
+            item?.path ??
+            JSON.stringify(item)
+        );
+
+        if (!collected.has(key)) collected.set(key, item);
+      }
+    }
+
+    const listUrls = buildListUrls();
+    const postCalls = listUrls.map((url) => fetchAzuraJson("GET", url));
+
+    const postSettled = await Promise.allSettled(postCalls);
+
+    for (const result of postSettled) {
+      if (result.status !== "fulfilled") continue;
+
+      allDebug.push(result.value.debug);
+
+      for (const item of result.value.objects) {
+        const score = scoreItem(item, query);
+        if (score <= 0) continue;
+
+        const key = String(
+          item?.id ??
+            item?.unique_id ??
+            item?.media_id ??
+            item?.path ??
+            JSON.stringify(item)
+        );
+
+        if (!collected.has(key)) collected.set(key, item);
+      }
+    }
+
+    const results = Array.from(collected.values())
+      .map((item, index) => ({
+        item,
+        score: scoreItem(item, query),
+        track: normalizeTrack(item, index),
+      }))
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 15)
+      .map((entry) => entry.track);
+
+    const goodCalls = allDebug.filter((item) => item.ok);
+    const badCalls = allDebug.filter((item) => !item.ok);
+
+    return NextResponse.json(
+      {
+        ok: true,
+        query,
+        count: results.length,
+        results,
+        baseUrl: getAzuraBaseUrl(),
+        stationId: getAzuraStationId(),
+        hasApiKey: Boolean(getAzuraApiKey()),
+        debugSummary: {
+          totalCalls: allDebug.length,
+          goodCalls: goodCalls.length,
+          badCalls: badCalls.length,
+          sampleStatuses: Array.from(new Set(allDebug.map((item) => item.status))).slice(0, 10),
+          maxObjectsReturned: Math.max(0, ...allDebug.map((item) => item.count)),
+        },
+        message:
+          results.length > 0
+            ? `Found ${results.length} source match(es).`
+            : "No source matches found. Check hasApiKey, stationId, and debugSummary statuses.",
+      },
+      {
+        headers: {
+          "Cache-Control": "no-store",
+        },
+      }
+    );
+  } catch (error) {
+    return NextResponse.json(
+      {
+        ok: false,
+        results: [],
+        count: 0,
+        message:
+          error instanceof Error
+            ? error.message
+            : "Source search failed.",
+      },
+      { status: 500 }
+    );
+  }
+}
+

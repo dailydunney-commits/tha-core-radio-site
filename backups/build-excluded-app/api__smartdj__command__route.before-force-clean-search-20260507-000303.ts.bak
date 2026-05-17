@@ -1,0 +1,505 @@
+﻿import { NextRequest, NextResponse } from "next/server";
+
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
+type SmartDJTrack = {
+  id: string;
+  title: string;
+  artist: string;
+  source: string;
+  reason: string;
+  audioUrl: string;
+  url: string;
+  streamUrl: string;
+  rawUrl?: string;
+};
+
+type SmartDJState = {
+  ok: boolean;
+  command: string;
+  intent: string;
+  target: string;
+  message: string;
+  reply: string;
+  statusText: string;
+  action: string;
+  targetPanel: string;
+  playlistTitle: string;
+  playlist: SmartDJTrack[];
+  lastPlaylist: SmartDJTrack[];
+  timestamp: string;
+  resultCount: number;
+  resultLabel: string;
+};
+
+declare global {
+  var __THA_CORE_SMARTDJ_STATE__: SmartDJState | undefined;
+}
+
+function getAzuraBaseUrl(): string {
+  return (
+    process.env.AZURACAST_BASE_URL ||
+    process.env.NEXT_PUBLIC_AZURACAST_BASE_URL ||
+    "http://thacoreonlinerad.com"
+  ).replace(/\/+$/, "");
+}
+
+function getAzuraStationId(): string {
+  return (
+    process.env.AZURACAST_STATION_ID ||
+    process.env.NEXT_PUBLIC_AZURACAST_STATION_ID ||
+    "1"
+  );
+}
+
+function proxyAudioUrl(rawUrl: string): string {
+  if (!rawUrl) return "";
+  return `/api/smartdj/audio?src=${encodeURIComponent(rawUrl)}`;
+}
+
+function blankState(): SmartDJState {
+  return {
+    ok: true,
+    command: "",
+    intent: "idle",
+    target: "",
+    message: "SmartDJ command ready.",
+    reply: "SmartDJ command ready.",
+    statusText: "SmartDJ command ready.",
+    action: "idle",
+    targetPanel: "smartdj",
+    playlistTitle: "",
+    playlist: [],
+    lastPlaylist: [],
+    timestamp: new Date().toISOString(),
+    resultCount: 0,
+    resultLabel: "SmartDJ returned 0 result(s).",
+  };
+}
+
+function getState(): SmartDJState {
+  if (!globalThis.__THA_CORE_SMARTDJ_STATE__) {
+    globalThis.__THA_CORE_SMARTDJ_STATE__ = blankState();
+  }
+
+  return globalThis.__THA_CORE_SMARTDJ_STATE__;
+}
+
+function cleanCommand(value: unknown): string {
+  if (typeof value !== "string") return "";
+
+  return value.replace(/\s+/g, " ").trim().slice(0, 260);
+}
+
+function normalize(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^\w\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function getSearchTarget(command: string): string {
+  const text = normalize(command);
+
+  if (text.includes("mother")) return "mother";
+  if (text.includes("dancehall")) return "dancehall";
+  if (text.includes("reggae")) return "reggae";
+  if (text.includes("rnb") || text.includes("r b")) return "rnb";
+  if (text.includes("hip hop") || text.includes("hiphop")) return "hip hop";
+
+  const cleaned = command
+    .replace(/find/gi, "")
+    .replace(/play/gi, "")
+    .replace(/build/gi, "")
+    .replace(/playlist/gi, "")
+    .replace(/song/gi, "")
+    .replace(/songs/gi, "")
+    .replace(/and/gi, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  return cleaned || "music";
+}
+
+function getDisplayTarget(command: string): string {
+  const text = normalize(command);
+
+  if (text.includes("mother")) return "Mothers Day Song";
+  if (text.includes("dancehall")) return "Dancehall Song";
+  if (text.includes("reggae")) return "Reggae Song";
+  if (text.includes("rnb") || text.includes("r b")) return "RNB Song";
+  if (text.includes("hip hop") || text.includes("hiphop")) return "Hip-Hop Song";
+
+  const target = getSearchTarget(command);
+
+  return target
+    .split(" ")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function getAzuraSearchQueries(command: string): string[] {
+  const text = normalize(command);
+  const target = getSearchTarget(command);
+
+  if (text.includes("mother")) {
+    return ["mother", "mothers", "mother day", "mothers day"];
+  }
+
+  return [target];
+}
+
+function getAnyString(...values: unknown[]): string {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim()) return value.trim();
+    if (typeof value === "number") return String(value);
+  }
+
+  return "";
+}
+
+function toAbsoluteUrl(value: unknown): string {
+  if (typeof value !== "string" || !value.trim()) return "";
+
+  const raw = value.trim();
+
+  if (raw.startsWith("http://") || raw.startsWith("https://")) return raw;
+  if (raw.startsWith("/")) return `${getAzuraBaseUrl()}${raw}`;
+
+  return "";
+}
+
+function extractAudioUrl(item: any): string {
+  const direct = getAnyString(
+    item?.audioUrl,
+    item?.streamUrl,
+    item?.url,
+    item?.download_url,
+    item?.play_url,
+    item?.links?.download,
+    item?.links?.play,
+    item?.links?.self,
+    item?.media?.download_url,
+    item?.media?.play_url
+  );
+
+  return toAbsoluteUrl(direct);
+}
+
+function mediaText(item: any): string {
+  return normalize(
+    [
+      item?.title,
+      item?.artist,
+      item?.name,
+      item?.path,
+      item?.song?.title,
+      item?.song?.artist,
+      item?.media?.title,
+      item?.media?.artist,
+      item?.media_file,
+      item?.extra_metadata?.artist,
+      item?.extra_metadata?.title,
+    ]
+      .filter(Boolean)
+      .join(" ")
+  );
+}
+
+function isStrictRequestMatch(item: any, command: string): boolean {
+  const text = mediaText(item);
+  const request = normalize(command);
+
+  if (request.includes("mother")) {
+    return (
+      text.includes("mother") ||
+      text.includes("mothers") ||
+      text.includes("mother day") ||
+      text.includes("mothers day")
+    );
+  }
+
+  const words = getSearchTarget(command)
+    .split(" ")
+    .map((word) => normalize(word))
+    .filter((word) => word.length >= 3);
+
+  if (words.length === 0) return false;
+
+  return words.some((word) => text.includes(word));
+}
+
+function scoreMedia(item: any, queryWords: string[]): number {
+  const text = mediaText(item);
+  let score = 0;
+
+  for (const word of queryWords) {
+    if (word && text.includes(word)) score += 10;
+  }
+
+  if (text.includes("clean")) score += 2;
+  if (text.includes("radio")) score += 2;
+
+  return score;
+}
+
+function normalizeMediaItem(item: any, index: number): SmartDJTrack {
+  const artist = getAnyString(
+    item?.artist,
+    item?.song?.artist,
+    item?.media?.artist,
+    item?.extra_metadata?.artist,
+    "AzuraCast"
+  );
+
+  const title = getAnyString(
+    item?.title,
+    item?.song?.title,
+    item?.media?.title,
+    item?.extra_metadata?.title,
+    item?.name,
+    item?.path,
+    `AzuraCast Track ${index + 1}`
+  );
+
+  const rawUrl = extractAudioUrl(item);
+  const playableUrl = rawUrl ? proxyAudioUrl(rawUrl) : "";
+
+  return {
+    id: String(item?.id ?? item?.unique_id ?? item?.media_id ?? `azuracast-track-${index + 1}`),
+    artist,
+    title,
+    source: "AzuraCast Media Library",
+    reason: rawUrl
+      ? "Matched from the requested SmartDJ search."
+      : "Matched the request, but no direct audio URL was returned.",
+    audioUrl: playableUrl,
+    url: playableUrl,
+    streamUrl: playableUrl,
+    rawUrl,
+  };
+}
+
+async function fetchJson(url: string, apiKey: string) {
+  const headers: HeadersInit = { Accept: "application/json" };
+
+  if (apiKey) headers["X-API-Key"] = apiKey;
+
+  const response = await fetch(url, {
+    method: "GET",
+    headers,
+    cache: "no-store",
+  });
+
+  if (!response.ok) return null;
+
+  return response.json();
+}
+
+function extractList(payload: any): any[] {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.rows)) return payload.rows;
+  if (Array.isArray(payload?.items)) return payload.items;
+  if (Array.isArray(payload?.data)) return payload.data;
+  if (Array.isArray(payload?.records)) return payload.records;
+  if (Array.isArray(payload?.files)) return payload.files;
+
+  return [];
+}
+
+async function searchAzuraCastMedia(command: string): Promise<SmartDJTrack[]> {
+  const apiKey = process.env.AZURACAST_API_KEY || "";
+  const baseUrl = getAzuraBaseUrl();
+  const stationId = getAzuraStationId();
+  const searchTarget = getSearchTarget(command);
+  const words = normalize(searchTarget).split(" ").filter(Boolean);
+  const queries = getAzuraSearchQueries(command);
+
+  const collected = new Map<string, any>();
+
+  for (const query of queries) {
+    const urls = [
+      `${baseUrl}/api/station/${stationId}/files?search=${encodeURIComponent(query)}`,
+      `${baseUrl}/api/station/${stationId}/files?query=${encodeURIComponent(query)}`,
+    ];
+
+    for (const url of urls) {
+      const payload = await fetchJson(url, apiKey);
+      const list = extractList(payload);
+
+      for (const item of list) {
+        const key = String(
+          item?.id ??
+            item?.unique_id ??
+            item?.media_id ??
+            item?.path ??
+            JSON.stringify(item)
+        );
+
+        if (!collected.has(key)) {
+          collected.set(key, item);
+        }
+      }
+    }
+  }
+
+  const allItems = Array.from(collected.values());
+
+  if (allItems.length === 0) return [];
+
+  return allItems
+    .map((item) => ({
+      item,
+      score: scoreMedia(item, words),
+    }))
+    .filter((entry) => isStrictRequestMatch(entry.item, command))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 20)
+    .map((entry, index) => normalizeMediaItem(entry.item, index));
+}
+
+function buildNoMatchState(command: string): SmartDJState {
+  const target = getDisplayTarget(command);
+
+  return {
+    ...blankState(),
+    command,
+    intent: "find_play_song",
+    target,
+    message: `SmartDJ returned 0 result(s) for ${target}.`,
+    reply: `SmartDJ returned 0 result(s) for ${target}.`,
+    statusText: `SmartDJ returned 0 result(s) for ${target}.`,
+    action: "no_match",
+    targetPanel: "smartdj_queue",
+    timestamp: new Date().toISOString(),
+    resultCount: 0,
+    resultLabel: "SmartDJ returned 0 result(s).",
+  };
+}
+
+function buildStateFromTracks(command: string, tracks: SmartDJTrack[]): SmartDJState {
+  const target = getDisplayTarget(command);
+  const playlistTitle = `build ${target.toLowerCase()} playlist`;
+  const first = tracks[0];
+
+  return {
+    ok: true,
+    command,
+    intent: "find_play_song",
+    target,
+    message: `SmartDJ returned ${tracks.length} result(s) for ${target}.`,
+    reply: `SmartDJ returned ${tracks.length} result(s) for ${target}.`,
+    statusText: `SmartDJ returned ${tracks.length} result(s) for ${target}.`,
+    action: "prepare_song_queue",
+    targetPanel: "smartdj_queue",
+    playlistTitle,
+    playlist: tracks,
+    lastPlaylist: tracks,
+    timestamp: new Date().toISOString(),
+    resultCount: tracks.length,
+    resultLabel: `SmartDJ returned ${tracks.length} result(s).`,
+  };
+}
+
+export async function GET() {
+  const state = getState();
+
+  return NextResponse.json(
+    {
+      ...state,
+      playlist: state.playlist ?? [],
+      lastPlaylist: state.lastPlaylist ?? state.playlist ?? [],
+      lastResult: state,
+    },
+    {
+      headers: {
+        "Cache-Control": "no-store",
+      },
+    }
+  );
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json().catch(() => null);
+    const command = cleanCommand(body?.command ?? body?.prompt ?? body?.text);
+
+    if (!command) {
+      return NextResponse.json(
+        {
+          ok: false,
+          message: "Missing SmartDJ command.",
+          reply: "Missing SmartDJ command.",
+          resultCount: 0,
+          resultLabel: "SmartDJ returned 0 result(s).",
+        },
+        { status: 400 }
+      );
+    }
+
+    const text = normalize(command);
+    const currentState = getState();
+
+    if (text.includes("last playlist") || text.includes("view playlist")) {
+      return NextResponse.json(
+        {
+          ...currentState,
+          message:
+            currentState.playlist.length > 0
+              ? `SmartDJ returned ${currentState.playlist.length} result(s).`
+              : "SmartDJ returned 0 result(s).",
+          reply:
+            currentState.playlist.length > 0
+              ? `SmartDJ returned ${currentState.playlist.length} result(s).`
+              : "SmartDJ returned 0 result(s).",
+          resultCount: currentState.playlist.length,
+          resultLabel: `SmartDJ returned ${currentState.playlist.length} result(s).`,
+        },
+        {
+          headers: {
+            "Cache-Control": "no-store",
+          },
+        }
+      );
+    }
+
+    const realTracks = await searchAzuraCastMedia(command);
+    const nextState =
+      realTracks.length > 0
+        ? buildStateFromTracks(command, realTracks)
+        : buildNoMatchState(command);
+
+    globalThis.__THA_CORE_SMARTDJ_STATE__ = nextState;
+
+    return NextResponse.json(nextState, {
+      headers: {
+        "Cache-Control": "no-store",
+      },
+    });
+  } catch (error) {
+    const fallback = buildNoMatchState("SmartDJ fallback");
+    globalThis.__THA_CORE_SMARTDJ_STATE__ = fallback;
+
+    return NextResponse.json(
+      {
+        ...fallback,
+        ok: true,
+        message:
+          error instanceof Error
+            ? `SmartDJ search error: ${error.message}`
+            : "SmartDJ search error.",
+        reply:
+          error instanceof Error
+            ? `SmartDJ search error: ${error.message}`
+            : "SmartDJ search error.",
+      },
+      {
+        headers: {
+          "Cache-Control": "no-store",
+        },
+      }
+    );
+  }
+}

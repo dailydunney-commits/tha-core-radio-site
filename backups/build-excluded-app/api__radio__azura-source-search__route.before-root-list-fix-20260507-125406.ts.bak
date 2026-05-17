@@ -1,0 +1,432 @@
+﻿import { NextRequest, NextResponse } from "next/server";
+
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
+type SourceTrack = {
+  id: string;
+  title: string;
+  artist: string;
+  source: string;
+  reason: string;
+  audioUrl: string;
+  url: string;
+  streamUrl: string;
+  rawUrl?: string;
+  path?: string;
+};
+
+function getAzuraBaseUrl(): string {
+  return (
+    process.env.AZURACAST_BASE_URL ||
+    process.env.NEXT_PUBLIC_AZURACAST_BASE_URL ||
+    "http://thacoreonlinerad.com"
+  ).replace(/\/+$/, "");
+}
+
+function getAzuraStationId(): string {
+  return (
+    process.env.AZURACAST_STATION_ID ||
+    process.env.NEXT_PUBLIC_AZURACAST_STATION_ID ||
+    "1"
+  );
+}
+
+function getAzuraApiKey(): string {
+  return process.env.AZURACAST_API_KEY || "";
+}
+
+function normalize(value: unknown): string {
+  return String(value ?? "")
+    .toLowerCase()
+    .replace(/[^\w\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function getQueryWords(query: string) {
+  return normalize(query)
+    .split(" ")
+    .filter((word) => word.length >= 3);
+}
+
+function getAnyString(...values: unknown[]): string {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim()) return value.trim();
+    if (typeof value === "number") return String(value);
+  }
+
+  return "";
+}
+
+function toAbsoluteUrl(value: unknown): string {
+  if (typeof value !== "string" || !value.trim()) return "";
+
+  const raw = value.trim();
+
+  if (raw.startsWith("http://") || raw.startsWith("https://")) return raw;
+  if (raw.startsWith("/")) return `${getAzuraBaseUrl()}${raw}`;
+
+  return "";
+}
+
+function buildHeaders(): HeadersInit {
+  const apiKey = getAzuraApiKey();
+
+  const headers: HeadersInit = {
+    Accept: "application/json",
+  };
+
+  if (apiKey) {
+    headers.Authorization = `Bearer ${apiKey}`;
+    headers["X-API-Key"] = apiKey;
+  }
+
+  return headers;
+}
+
+function mediaText(item: any): string {
+  return normalize(
+    [
+      item?.id,
+      item?.unique_id,
+      item?.media_id,
+      item?.title,
+      item?.artist,
+      item?.name,
+      item?.text,
+      item?.path,
+      item?.path_short,
+      item?.media_file,
+      item?.song?.title,
+      item?.song?.artist,
+      item?.media?.title,
+      item?.media?.artist,
+      item?.media?.path,
+      item?.extra_metadata?.artist,
+      item?.extra_metadata?.title,
+    ]
+      .filter(Boolean)
+      .join(" ")
+  );
+}
+
+function isDirectory(item: any) {
+  const type = normalize(item?.type);
+  return type === "directory" || item?.dir === true || item?.is_dir === true;
+}
+
+function isAudioFile(item: any) {
+  if (isDirectory(item)) return false;
+
+  const text = mediaText(item);
+
+  return (
+    text.includes("mp3") ||
+    text.includes("wav") ||
+    text.includes("m4a") ||
+    text.includes("aac") ||
+    Boolean(item?.media) ||
+    Boolean(item?.media_id) ||
+    Boolean(item?.unique_id)
+  );
+}
+
+function matchesQuery(item: any, query: string) {
+  const text = mediaText(item);
+  const words = getQueryWords(query);
+
+  if (words.length === 0) return false;
+
+  // For "baby mother", require baby or mother. Prefer both in score.
+  return words.some((word) => text.includes(word));
+}
+
+function scoreItem(item: any, query: string) {
+  const text = mediaText(item);
+  const words = getQueryWords(query);
+  let score = 0;
+
+  for (const word of words) {
+    if (text.includes(word)) score += 60;
+  }
+
+  if (words.every((word) => text.includes(word))) score += 200;
+  if (text.includes("baby mother")) score += 200;
+  if (text.includes("mother")) score += 90;
+  if (text.includes("baby")) score += 40;
+  if (text.includes("mp3")) score += 20;
+  if (extractAudioUrl(item)) score += 50;
+
+  return score;
+}
+
+function extractAudioUrl(item: any): string {
+  const direct = getAnyString(
+    item?.audioUrl,
+    item?.streamUrl,
+    item?.url,
+    item?.download_url,
+    item?.downloadUrl,
+    item?.play_url,
+    item?.playUrl,
+    item?.links?.download,
+    item?.links?.play,
+    item?.links?.self,
+    item?.media?.download_url,
+    item?.media?.downloadUrl,
+    item?.media?.play_url,
+    item?.media?.playUrl
+  );
+
+  return toAbsoluteUrl(direct);
+}
+
+function normalizeTrack(item: any, index: number): SourceTrack {
+  const title = getAnyString(
+    item?.title,
+    item?.song?.title,
+    item?.media?.title,
+    item?.extra_metadata?.title,
+    item?.name,
+    item?.text,
+    item?.path_short,
+    item?.path,
+    `AzuraCast Track ${index + 1}`
+  );
+
+  const artist = getAnyString(
+    item?.artist,
+    item?.song?.artist,
+    item?.media?.artist,
+    item?.extra_metadata?.artist,
+    "AzuraCast"
+  );
+
+  const rawUrl = extractAudioUrl(item);
+  const proxied = rawUrl ? `/api/smartdj/audio?src=${encodeURIComponent(rawUrl)}` : "";
+
+  return {
+    id: String(
+      item?.id ??
+        item?.unique_id ??
+        item?.media_id ??
+        item?.path ??
+        `azura-source-${Date.now()}-${index}`
+    ),
+    title,
+    artist,
+    source: "AzuraCast Source Search",
+    reason: rawUrl
+      ? "Manual source match found for bleep processing."
+      : "Manual source metadata found, but no direct audio URL returned.",
+    audioUrl: proxied,
+    url: proxied,
+    streamUrl: proxied,
+    rawUrl,
+    path: getAnyString(item?.path, item?.path_short),
+  };
+}
+
+function extractList(payload: any): any[] {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.rows)) return payload.rows;
+  if (Array.isArray(payload?.items)) return payload.items;
+  if (Array.isArray(payload?.data)) return payload.data;
+  if (Array.isArray(payload?.files)) return payload.files;
+  if (Array.isArray(payload?.directories)) return payload.directories;
+  return [];
+}
+
+async function fetchDirectory(directory: string) {
+  const baseUrl = getAzuraBaseUrl();
+  const stationId = getAzuraStationId();
+
+  const encoded = encodeURIComponent(directory);
+  const urls = Array.from(
+    new Set([
+      `${baseUrl}/api/station/${stationId}/files/list?currentDirectory=${encoded}`,
+      `${baseUrl}/api/station/${stationId}/files/list?path=${encoded}`,
+    ])
+  );
+
+  for (const url of urls) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 7000);
+
+    try {
+      const response = await fetch(url, {
+        method: "GET",
+        headers: buildHeaders(),
+        cache: "no-store",
+        signal: controller.signal,
+      });
+
+      const text = await response.text();
+
+      if (!response.ok) continue;
+
+      let payload: any = null;
+
+      try {
+        payload = text ? JSON.parse(text) : null;
+      } catch {
+        payload = null;
+      }
+
+      const items = extractList(payload);
+
+      return {
+        ok: true,
+        status: response.status,
+        directory,
+        url,
+        items,
+      };
+    } catch {
+      // Try next URL style.
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  return {
+    ok: false,
+    status: 0,
+    directory,
+    url: urls[0],
+    items: [],
+  };
+}
+
+function getDirectoryPath(item: any) {
+  return getAnyString(item?.path, item?.path_short, item?.text, item?.name);
+}
+
+export async function GET() {
+  return NextResponse.json(
+    {
+      ok: true,
+      route: "/api/radio/azura-source-search",
+      baseUrl: getAzuraBaseUrl(),
+      stationId: getAzuraStationId(),
+      hasApiKey: Boolean(getAzuraApiKey()),
+      mode: "folder crawl exact query filter",
+    },
+    {
+      headers: {
+        "Cache-Control": "no-store",
+      },
+    }
+  );
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json().catch(() => null);
+    const query = String(body?.query ?? "").trim();
+
+    if (!query) {
+      return NextResponse.json(
+        {
+          ok: false,
+          results: [],
+          count: 0,
+          message: "Missing source search query.",
+        },
+        { status: 400 }
+      );
+    }
+
+    const visited = new Set<string>();
+    const directoriesToScan = ["", "/", "Fresh-Dancehall", "Hip-Hop", "Jingles", "Ole-School-Dancehall", "R-n-B", "Reggae", "Tha Core Mix"];
+    const foundFiles: any[] = [];
+    const debug: any[] = [];
+
+    while (directoriesToScan.length > 0 && visited.size < 60) {
+      const directory = directoriesToScan.shift() || "";
+
+      if (visited.has(directory)) continue;
+      visited.add(directory);
+
+      const result = await fetchDirectory(directory);
+
+      debug.push({
+        directory,
+        ok: result.ok,
+        status: result.status,
+        count: result.items.length,
+      });
+
+      for (const item of result.items) {
+        if (isDirectory(item)) {
+          const nextDirectory = getDirectoryPath(item);
+
+          if (nextDirectory && !visited.has(nextDirectory)) {
+            directoriesToScan.push(nextDirectory);
+          }
+
+          continue;
+        }
+
+        if (!isAudioFile(item)) continue;
+        if (!matchesQuery(item, query)) continue;
+
+        foundFiles.push(item);
+      }
+    }
+
+    const results = foundFiles
+      .map((item, index) => ({
+        item,
+        score: scoreItem(item, query),
+        track: normalizeTrack(item, index),
+      }))
+      .filter((entry) => entry.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 15)
+      .map((entry) => entry.track);
+
+    return NextResponse.json(
+      {
+        ok: true,
+        query,
+        count: results.length,
+        results,
+        baseUrl: getAzuraBaseUrl(),
+        stationId: getAzuraStationId(),
+        hasApiKey: Boolean(getAzuraApiKey()),
+        debugSummary: {
+          directoriesScanned: visited.size,
+          filesMatched: foundFiles.length,
+          goodCalls: debug.filter((item) => item.ok).length,
+          badCalls: debug.filter((item) => !item.ok).length,
+          maxObjectsReturned: Math.max(0, ...debug.map((item) => item.count)),
+        },
+        debug,
+        message:
+          results.length > 0
+            ? `Found ${results.length} exact source match(es).`
+            : "No exact source matches found. Try another title/artist keyword.",
+      },
+      {
+        headers: {
+          "Cache-Control": "no-store",
+        },
+      }
+    );
+  } catch (error) {
+    return NextResponse.json(
+      {
+        ok: false,
+        results: [],
+        count: 0,
+        message:
+          error instanceof Error
+            ? error.message
+            : "Source search failed.",
+      },
+      { status: 500 }
+    );
+  }
+}

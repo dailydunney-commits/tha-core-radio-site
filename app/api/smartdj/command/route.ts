@@ -60,6 +60,34 @@ function proxyAudioUrl(rawUrl: string): string {
   return `/api/smartdj/audio?src=${encodeURIComponent(rawUrl)}`;
 }
 
+const SMARTDJ_STATE_DIR = join(process.cwd(), ".data");
+const SMARTDJ_STATE_FILE = join(SMARTDJ_STATE_DIR, "smartdj-state.json");
+
+function readSavedSmartDjState(): SmartDJState | null {
+  try {
+    if (!existsSync(SMARTDJ_STATE_FILE)) return null;
+    const saved = JSON.parse(readFileSync(SMARTDJ_STATE_FILE, "utf8")) as SmartDJState;
+    if (!saved || typeof saved !== "object") return null;
+    if (!Array.isArray(saved.playlist)) saved.playlist = [];
+    if (!Array.isArray(saved.lastPlaylist)) saved.lastPlaylist = [];
+    return saved;
+  } catch {
+    return null;
+  }
+}
+
+function saveSmartDjState(state: SmartDJState) {
+  try {
+    mkdirSync(SMARTDJ_STATE_DIR, { recursive: true });
+    writeFileSync(SMARTDJ_STATE_FILE, JSON.stringify(state, null, 2), "utf8");
+  } catch {}
+}
+
+function setSmartDjState(state: SmartDJState): SmartDJState {
+  globalThis.__THA_CORE_SMARTDJ_STATE__ = state;
+  saveSmartDjState(state);
+  return state;
+}
 function blankState(): SmartDJState {
   return {
     ok: true,
@@ -80,42 +108,9 @@ function blankState(): SmartDJState {
   };
 }
 
-const SMARTDJ_STATE_FILE = join(process.cwd(), ".data", "smartdj-state.json");
-
-function loadSavedState(): SmartDJState | null {
-  try {
-    if (!existsSync(SMARTDJ_STATE_FILE)) return null;
-
-    const raw = readFileSync(SMARTDJ_STATE_FILE, "utf8");
-    const parsed = JSON.parse(raw) as SmartDJState;
-
-    if (!parsed || typeof parsed !== "object") return null;
-    if (!Array.isArray(parsed.playlist)) parsed.playlist = [];
-    if (!Array.isArray(parsed.lastPlaylist)) parsed.lastPlaylist = [];
-
-    return parsed;
-  } catch {
-    return null;
-  }
-}
-
-function saveState(state: SmartDJState) {
-  try {
-    mkdirSync(join(process.cwd(), ".data"), { recursive: true });
-    writeFileSync(SMARTDJ_STATE_FILE, JSON.stringify(state, null, 2), "utf8");
-  } catch {
-    // Keep SmartDJ working even if local file save fails.
-  }
-}
-
-function setState(state: SmartDJState): SmartDJState {
-  globalThis.__THA_CORE_SMARTDJ_STATE__ = state;
-  saveState(state);
-  return state;
-}
 function getState(): SmartDJState {
   if (!globalThis.__THA_CORE_SMARTDJ_STATE__) {
-    globalThis.__THA_CORE_SMARTDJ_STATE__ = loadSavedState() || blankState();
+    globalThis.__THA_CORE_SMARTDJ_STATE__ = readSavedSmartDjState() || blankState();
   }
 
   return globalThis.__THA_CORE_SMARTDJ_STATE__;
@@ -564,78 +559,28 @@ function extractSmartDjTarget(command: string): string {
   );
 }
 
-function getPlayableBleepUrl(jobResult: any): string {
-  const raw = getAnyString(
-    jobResult?.bleepedAudioUrl,
-    jobResult?.cleanAudioUrl,
-    jobResult?.processedAudioUrl,
-    jobResult?.outputAudioUrl,
-    jobResult?.radioSafeAudioUrl,
-    jobResult?.safeAudioUrl,
-    jobResult?.result?.bleepedAudioUrl,
-    jobResult?.result?.cleanAudioUrl,
-    jobResult?.result?.processedAudioUrl,
-    jobResult?.result?.outputAudioUrl,
-    jobResult?.job?.bleepedAudioUrl,
-    jobResult?.job?.cleanAudioUrl,
-    jobResult?.job?.processedAudioUrl,
-    jobResult?.job?.outputAudioUrl,
-    jobResult?.track?.bleepedAudioUrl,
-    jobResult?.track?.cleanAudioUrl,
-    jobResult?.track?.processedAudioUrl,
-    jobResult?.track?.outputAudioUrl
-  );
-
-  if (!raw) return "";
-  if (raw.startsWith("/")) return raw;
-
-  return proxyAudioUrl(raw);
-}
-
 function buildBleepJobState(
   command: string,
-  originalTrack?: SmartDJTrack | null,
-  bleepJobResult?: any
+  candidateTrack?: SmartDJTrack | null
 ): SmartDJState {
   const target = extractSmartDjTarget(command);
-  const bleepedUrl = getPlayableBleepUrl(bleepJobResult);
 
-  const fallbackTrack: SmartDJTrack = {
-    id: `smartdj-bleep-needed-${Date.now()}`,
-    title: target,
-    artist: "SmartDJ",
-    source: "SmartDJ request",
+  const heldTrack = {
+    id: String(candidateTrack?.id || `smartdj-held-${Date.now()}`),
+    title: String(candidateTrack?.title || target || "SmartDJ held track"),
+    artist: String(candidateTrack?.artist || "SmartDJ"),
+    source: String(candidateTrack?.source || "SmartDJ request"),
     reason:
-      "No clean/radio edit version was returned. SmartDJ created a bleep job and blocked raw dirty audio until a cleaned/bleeped copy is ready.",
-    audioUrl: "",
-    url: "",
-    streamUrl: "",
-    rawUrl: "",
-  };
+      "HELD - No clean/radio-safe audio found yet. Waiting for clean/bleep copy before preview, queue, or broadcast.",
+    statusText: "HELD - needs clean/bleep copy",
+    action: "held_for_clean_bleep",
+    audioUrl: String(candidateTrack?.audioUrl || ""),
+    url: String(candidateTrack?.url || ""),
+    streamUrl: String(candidateTrack?.streamUrl || ""),
+    rawUrl: String(candidateTrack?.rawUrl || ""),
+  } as SmartDJTrack;
 
-  const baseTrack = originalTrack ?? fallbackTrack;
-
-  const safeQueueTrack: SmartDJTrack = {
-    ...baseTrack,
-    id: `${baseTrack.id || `smartdj-${Date.now()}`}-safe-check`,
-    source: bleepedUrl
-      ? "SmartDJ auto-bleeped clean copy"
-      : "SmartDJ bleep queue",
-    reason: bleepedUrl
-      ? "No clean version was found, so SmartDJ prepared a bleeped/radio-safe version for playlist use."
-      : "No clean version was found. SmartDJ created a bleep job and kept the song in the queue, but raw dirty audio is blocked until the bleeped copy is ready.",
-    audioUrl: bleepedUrl,
-    url: bleepedUrl,
-    streamUrl: bleepedUrl,
-    rawUrl:
-      baseTrack.rawUrl ||
-      baseTrack.audioUrl ||
-      baseTrack.url ||
-      baseTrack.streamUrl ||
-      "",
-  };
-
-  const playlist = [safeQueueTrack];
+  const tracks = [heldTrack];
   const playlistTitle = `build ${target.toLowerCase()} playlist`;
 
   return {
@@ -644,144 +589,131 @@ function buildBleepJobState(
     command,
     intent: "find_play_song",
     target,
-    message: bleepedUrl
-      ? `SmartDJ returned 1 result(s). No clean version found, so a bleeped/radio-safe version was prepared for ${target}.`
-      : `SmartDJ returned 1 result(s). No clean version found, so 1 bleep job was created for ${target}. Raw dirty audio is blocked until cleaned.`,
-    reply: bleepedUrl
-      ? `SmartDJ returned 1 result(s). Bleeped/radio-safe version is ready for ${target}.`
-      : `SmartDJ returned 1 result(s). Bleep job created for ${target}. Raw dirty audio is blocked until cleaned.`,
-    statusText: bleepedUrl
-      ? `SmartDJ bleeped/radio-safe track ready for ${target}.`
-      : `SmartDJ bleep job queued for ${target}. Waiting for cleaned copy.`,
-    action: bleepedUrl ? "prepare_song_queue" : "create_bleep_job",
+    message: `SmartDJ returned ${tracks.length} result(s). No clean version found, so the track is HELD for ${target} until a clean/bleep copy is ready.`,
+    reply: `SmartDJ created the playlist with ${tracks.length} HELD track(s). Clean/bleep copy required before preview, queue, or broadcast.`,
+    statusText: `SmartDJ playlist created with ${tracks.length} HELD track(s). Waiting on clean/bleep copy.`,
+    action: "playlist_created_with_held_tracks",
     targetPanel: "smartdj_queue",
     playlistTitle,
-    playlist,
-    lastPlaylist: playlist,
+    playlist: tracks,
+    lastPlaylist: tracks,
     timestamp: new Date().toISOString(),
-    resultCount: playlist.length,
-    resultLabel: `SmartDJ returned ${playlist.length} result(s).`,
+    resultCount: tracks.length,
+    resultLabel: `SmartDJ playlist created with ${tracks.length} HELD track(s).`,
   };
 }
-function getReadyAudioUrlFromBleepJob(job: any): string {
-  return getAnyString(
-    job?.processedAudioUrl,
-    job?.bleepedAudioUrl,
-    job?.cleanAudioUrl,
-    job?.radioSafeAudioUrl,
-    job?.safeAudioUrl,
-    job?.track?.processedAudioUrl,
-    job?.track?.bleepedAudioUrl,
-    job?.track?.cleanAudioUrl,
-    job?.track?.radioSafeAudioUrl,
-    job?.track?.safeAudioUrl,
-    job?.track?.audioUrl,
-    job?.track?.url,
-    job?.track?.streamUrl
-  );
-}
 
-function sameSmartDjTrackForBleepJob(track: SmartDJTrack, job: any): boolean {
-  const trackTitle = normalize(track?.title);
-  const trackArtist = normalize(track?.artist);
-  const jobTitle = normalize(job?.track?.title);
-  const jobArtist = normalize(job?.track?.artist);
 
-  const trackRaw = normalize(
-    track?.rawUrl || track?.audioUrl || track?.url || track?.streamUrl || track?.id
-  );
-
-  const jobRaw = normalize(
-    job?.track?.rawUrl ||
-      job?.track?.audioUrl ||
-      job?.track?.url ||
-      job?.track?.streamUrl ||
-      job?.track?.id
-  );
-
-  if (trackRaw && jobRaw && (trackRaw.includes(jobRaw) || jobRaw.includes(trackRaw))) {
-    return true;
-  }
-
-  if (trackTitle && jobTitle && trackTitle === jobTitle) {
-    if (!trackArtist || !jobArtist) return true;
-    return trackArtist === jobArtist;
-  }
-
-  return false;
-}
-
-async function syncSmartDjStateWithBleepJobs(origin: string): Promise<SmartDJState> {
-  const state = getState();
-  const playlist = Array.isArray(state.playlist) ? state.playlist : [];
-
-  if (playlist.length === 0) return state;
-
+async function syncProcessedBleepJobsIntoSmartDjState(state: SmartDJState, origin: string): Promise<SmartDJState> {
   try {
     const response = await fetch(`${origin}/api/radio/bleep-job`, {
       method: "GET",
       cache: "no-store",
-    }).catch(() => null);
-
-    if (!response || !response.ok) return state;
+    });
 
     const data = await response.json().catch(() => null);
     const jobs = Array.isArray(data?.jobs) ? data.jobs : [];
 
-    if (jobs.length === 0) return state;
+    const readyJobs = jobs.filter((job: any) => {
+      const status = String(job?.status || job?.processorStatus || "").toUpperCase();
+
+      const audioUrl =
+        job?.processedAudioUrl ||
+        job?.bleepedAudioUrl ||
+        job?.cleanAudioUrl ||
+        job?.radioSafeAudioUrl ||
+        job?.safeAudioUrl ||
+        job?.track?.processedAudioUrl ||
+        job?.track?.bleepedAudioUrl ||
+        job?.track?.cleanAudioUrl ||
+        job?.track?.radioSafeAudioUrl ||
+        job?.track?.safeAudioUrl ||
+        job?.track?.audioUrl ||
+        job?.track?.url ||
+        job?.track?.streamUrl ||
+        "";
+
+      return Boolean(audioUrl) && (
+        status.includes("PROCESSED_AUDIO_READY") ||
+        status.includes("PROCESSED_AUDIO_ATTACHED") ||
+        status.includes("READY")
+      );
+    });
+
+    if (readyJobs.length === 0) return state;
+
+    const readyByTrackId = new Map<string, any>();
+
+    for (const job of readyJobs) {
+      const trackId = String(job?.track?.id || job?.trackId || "");
+      if (trackId) readyByTrackId.set(trackId, job);
+    }
 
     let changed = false;
 
-    const nextPlaylist = playlist.map((track) => {
-      const currentAudio = getAnyString(track.audioUrl, track.url, track.streamUrl);
+    const syncTrack = (track: any) => {
+      const job = readyByTrackId.get(String(track?.id || ""));
 
-      if (currentAudio) return track;
+      if (!job) return track;
 
-      const readyJob = jobs.find((job: any) => {
-        const readyUrl = getReadyAudioUrlFromBleepJob(job);
-        return readyUrl && sameSmartDjTrackForBleepJob(track, job);
-      });
+      const audioUrl =
+        job?.processedAudioUrl ||
+        job?.bleepedAudioUrl ||
+        job?.cleanAudioUrl ||
+        job?.radioSafeAudioUrl ||
+        job?.safeAudioUrl ||
+        job?.track?.processedAudioUrl ||
+        job?.track?.bleepedAudioUrl ||
+        job?.track?.cleanAudioUrl ||
+        job?.track?.radioSafeAudioUrl ||
+        job?.track?.safeAudioUrl ||
+        job?.track?.audioUrl ||
+        job?.track?.url ||
+        job?.track?.streamUrl ||
+        "";
 
-      if (!readyJob) return track;
+      if (!audioUrl) return track;
 
-      const readyUrl = getReadyAudioUrlFromBleepJob(readyJob);
       changed = true;
 
       return {
         ...track,
-        source: "SmartDJ auto-bleeped clean copy",
-        reason:
-          "Bleep job completed. SmartDJ linked the clean/bleeped audio copy back to this playlist row.",
-        audioUrl: readyUrl,
-        url: readyUrl,
-        streamUrl: readyUrl,
-        rawUrl: track.rawUrl || readyJob?.track?.rawUrl || "",
+        audioUrl,
+        url: audioUrl,
+        streamUrl: audioUrl,
+        processedAudioUrl: job?.processedAudioUrl || job?.track?.processedAudioUrl || audioUrl,
+        bleepedAudioUrl: job?.bleepedAudioUrl || job?.track?.bleepedAudioUrl || audioUrl,
+        cleanAudioUrl: job?.cleanAudioUrl || job?.track?.cleanAudioUrl || audioUrl,
+        radioSafeAudioUrl: job?.radioSafeAudioUrl || job?.track?.radioSafeAudioUrl || audioUrl,
+        safeAudioUrl: job?.safeAudioUrl || job?.track?.safeAudioUrl || audioUrl,
+        reason: "PROCESSED AUDIO READY - clean/bleeped copy attached.",
+        statusText: "CLEAN/BLEEPED READY",
+        action: "processed_audio_ready",
       };
-    });
+    };
+
+    const playlist = Array.isArray(state.playlist) ? state.playlist.map(syncTrack) : [];
+    const lastPlaylist = Array.isArray(state.lastPlaylist) ? state.lastPlaylist.map(syncTrack) : playlist;
 
     if (!changed) return state;
 
-    const nextState: SmartDJState = {
+    return {
       ...state,
-      action: "prepare_song_queue",
-      targetPanel: "smartdj_queue",
-      playlist: nextPlaylist,
-      lastPlaylist: nextPlaylist,
-      resultCount: nextPlaylist.length,
-      resultLabel: `SmartDJ returned ${nextPlaylist.length} result(s).`,
-      message: "SmartDJ bleep job completed. Clean/bleeped playlist audio is ready.",
-      reply: "SmartDJ bleep job completed. Clean/bleeped playlist audio is ready.",
-      statusText: "SmartDJ clean/bleeped audio linked back to playlist.",
-      timestamp: new Date().toISOString(),
+      playlist,
+      lastPlaylist,
+      message: "SmartDJ playlist synced with processed clean/bleeped audio.",
+      reply: "SmartDJ clean/bleeped copy is ready. Preview and queue can now be tested.",
+      statusText: "SmartDJ processed audio ready.",
+      resultLabel: `SmartDJ playlist ready: ${playlist.length} track(s).`,
     };
-
-    return setState(nextState);
   } catch {
     return state;
   }
 }
+
+// SMARTDJ_SYNC_PROCESSED_BLEEP_JOBS_V1
 export async function GET(request: NextRequest) {
-  const state = await syncSmartDjStateWithBleepJobs(request.nextUrl.origin);
+  const state = await syncProcessedBleepJobsIntoSmartDjState(getState(), request.nextUrl.origin);
 
   return NextResponse.json(
     {
@@ -817,7 +749,7 @@ export async function POST(request: NextRequest) {
     }
 
     const text = normalize(command);
-    const currentState = await syncSmartDjStateWithBleepJobs(request.nextUrl.origin);
+    const currentState = getState();
 
     if (text.includes("last playlist") || text.includes("view playlist")) {
       const count =
@@ -852,51 +784,14 @@ export async function POST(request: NextRequest) {
       ? await sourceRes.json().catch(() => null)
       : null;
 
-    const sourceTracks = Array.isArray(sourceData?.results)
-      ? sourceData.results
-      : [];
-
-    const sourceCleanTracks = sourceTracks.filter((track: any) => {
-      const label = [
-        track?.title,
-        track?.artist,
-        track?.source,
-        track?.reason,
-        track?.audioUrl,
-        track?.url,
-        track?.streamUrl,
-        track?.rawUrl,
-      ]
-        .join(" ")
-        .toLowerCase();
-
-      const looksDirty =
-        label.includes("explicit") ||
-        label.includes("dirty") ||
-        label.includes("uncensored") ||
-        label.includes("raw version") ||
-        label.includes("parental advisory") ||
-        label.includes("bleep processing") ||
-        label.includes("manual source match");
-
-      const looksClean =
-        label.includes("clean") ||
-        label.includes("radio edit") ||
-        label.includes("radio-safe") ||
-        label.includes("edited") ||
-        label.includes("censored");
-
-      return looksClean && !looksDirty;
-    });
-
     const cleanTracks =
-      sourceCleanTracks.length > 0
-        ? sourceCleanTracks
+      Array.isArray(sourceData?.results) && sourceData.results.length > 0
+        ? sourceData.results
         : await searchAzuraCastCleanMedia(smartTarget);
 
     if (cleanTracks.length > 0) {
       const nextState = buildStateFromTracks(extractSmartDjTarget(command), cleanTracks);
-      setState(nextState);
+      setSmartDjState(nextState);
 
       return NextResponse.json(nextState, {
         headers: {
@@ -905,24 +800,12 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const originalMatches =
-      sourceTracks.length > 0
-        ? sourceTracks
-        : await searchAzuraCastAnyMedia(extractSmartDjTarget(command));
-
+    const originalMatches = await searchAzuraCastAnyMedia(extractSmartDjTarget(command));
     const originalTrack = originalMatches[0] ?? null;
-    const bleepJobResult = await createSmartDjBleepJob(
-      extractSmartDjTarget(command),
-      request.nextUrl.origin,
-      originalTrack
-    ).catch(() => null);
+    await createSmartDjBleepJob(extractSmartDjTarget(command), request.nextUrl.origin, originalTrack).catch(() => null);
 
-    const nextState = buildBleepJobState(
-      extractSmartDjTarget(command),
-      originalTrack,
-      bleepJobResult
-    );
-    setState(nextState);
+    const nextState = buildBleepJobState(extractSmartDjTarget(command));
+    setSmartDjState(nextState);
 
     return NextResponse.json(nextState, {
       headers: {
@@ -954,7 +837,7 @@ export async function POST(request: NextRequest) {
       timestamp: new Date().toISOString(),
     };
 
-    setState(fallback);
+    globalThis.__THA_CORE_SMARTDJ_STATE__ = fallback;
 
     return NextResponse.json(fallback, {
       headers: {
@@ -963,7 +846,6 @@ export async function POST(request: NextRequest) {
     });
   }
 }
-
 
 
 

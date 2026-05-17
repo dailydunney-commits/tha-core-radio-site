@@ -1,0 +1,27 @@
+[
+  {
+    "id": "smartdj-1778967471822-9edc707e03c3e",
+    "createdAt": "2026-05-16T21:37:51.822Z",
+    "source": "SMARTDJ",
+    "action": "smartdj_send_to_queue",
+    "decision": "ALLOW_TO_QUEUE",
+    "message": "Passed Global Bleep Gate. Queued in SmartDJ safety queue.",
+    "track": {
+      "id": "smartdj-held-1778965902052",
+      "title": "mothers day song",
+      "artist": "SmartDJ",
+      "source": "SmartDJ request",
+      "reason": "PROCESSED AUDIO READY - clean/bleeped copy attached.",
+      "audioUrl": "/audio/smartdj/test-bleeped-clean.mp3",
+      "streamUrl": "/audio/smartdj/test-bleeped-clean.mp3",
+      "url": "/audio/smartdj/test-bleeped-clean.mp3",
+      "cleanAudioUrl": "/audio/smartdj/test-bleeped-clean.mp3",
+      "bleepedAudioUrl": "/audio/smartdj/test-bleeped-clean.mp3",
+      "processedAudioUrl": "/audio/smartdj/test-bleeped-clean.mp3",
+      "radioSafeAudioUrl": "/audio/smartdj/test-bleeped-clean.mp3",
+      "safeAudioUrl": "/audio/smartdj/test-bleeped-clean.mp3",
+      "statusText": "CLEAN/BLEEPED READY",
+      "action": "processed_audio_ready"
+    }
+  }
+]

@@ -1,0 +1,273 @@
+﻿import { NextRequest, NextResponse } from "next/server";
+
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
+type BleepCheckPayload = {
+  source?: string;
+  mode?: "metadata" | "preview" | "pre_broadcast" | "live_delay";
+  requireClean?: boolean;
+  track?: {
+    id?: string;
+    title?: string;
+    artist?: string;
+    source?: string;
+    reason?: string;
+    path?: string;
+    audioUrl?: string;
+    url?: string;
+    streamUrl?: string;
+    rawUrl?: string;
+  };
+  text?: string;
+};
+
+type BleepJob = {
+  id: string;
+  createdAt: string;
+  status: "BLEEP_JOB_CREATED";
+  source: string;
+  mode: string;
+  track: BleepCheckPayload["track"];
+  explicitWords: string[];
+  cleanWords: string[];
+  message: string;
+};
+
+declare global {
+  var __THA_CORE_GLOBAL_BLEEP_JOBS__: BleepJob[] | undefined;
+}
+
+const DEFAULT_EXPLICIT_WORDS = [
+  "explicit",
+  "uncensored",
+  "dirty",
+  "dirty version",
+  "raw version",
+  "raw edit",
+  "parental advisory",
+  "fuck",
+  "shit",
+  "bitch",
+  "pussy",
+  "bloodclaat",
+  "bumboclaat",
+  "raasclaat"
+];
+
+const DEFAULT_CLEAN_WORDS = [
+  "clean",
+  "radio",
+  "radio edit",
+  "clean version",
+  "clean radio",
+  "clean radio edit",
+  "edited",
+  "censored"
+];
+
+function getJobs() {
+  if (!globalThis.__THA_CORE_GLOBAL_BLEEP_JOBS__) {
+    globalThis.__THA_CORE_GLOBAL_BLEEP_JOBS__ = [];
+  }
+
+  return globalThis.__THA_CORE_GLOBAL_BLEEP_JOBS__;
+}
+
+function normalize(value: unknown): string {
+  return String(value ?? "")
+    .toLowerCase()
+    .replace(/[^\w\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function getExplicitWords() {
+  const custom = process.env.RADIO_EXPLICIT_WORDS || process.env.SMARTDJ_EXPLICIT_WORDS || "";
+
+  if (custom.trim()) {
+    return custom
+      .split(",")
+      .map((word) => normalize(word))
+      .filter(Boolean);
+  }
+
+  return DEFAULT_EXPLICIT_WORDS.map((word) => normalize(word));
+}
+
+function getCleanWords() {
+  const custom = process.env.RADIO_CLEAN_WORDS || "";
+
+  if (custom.trim()) {
+    return custom
+      .split(",")
+      .map((word) => normalize(word))
+      .filter(Boolean);
+  }
+
+  return DEFAULT_CLEAN_WORDS.map((word) => normalize(word));
+}
+
+function buildScanText(payload: BleepCheckPayload) {
+  return normalize(
+    [
+      payload.source,
+      payload.mode,
+      payload.text,
+      payload.track?.title,
+      payload.track?.artist,
+      payload.track?.source,
+      payload.track?.reason,
+      payload.track?.path,
+      payload.track?.rawUrl,
+      payload.track?.url,
+      payload.track?.streamUrl,
+      payload.track?.audioUrl,
+    ].join(" ")
+  );
+}
+
+function detectWords(payload: BleepCheckPayload, words: string[]) {
+  const scanText = buildScanText(payload);
+
+  return Array.from(
+    new Set(words.filter((word) => word && scanText.includes(word)))
+  );
+}
+
+function createBleepJob(
+  payload: BleepCheckPayload,
+  explicitWords: string[],
+  cleanWords: string[]
+) {
+  const jobs = getJobs();
+
+  const job: BleepJob = {
+    id: `bleep-job-${Date.now()}`,
+    createdAt: new Date().toISOString(),
+    status: "BLEEP_JOB_CREATED",
+    source: payload.source ?? "CONTROL_PANEL",
+    mode: payload.mode ?? "pre_broadcast",
+    track: payload.track ?? {},
+    explicitWords,
+    cleanWords,
+    message:
+      "BLEEP JOB CREATED - SmartDJ must find a clean version or create a processed bleeped copy before broadcast.",
+  };
+
+  jobs.unshift(job);
+  globalThis.__THA_CORE_GLOBAL_BLEEP_JOBS__ = jobs.slice(0, 50);
+
+  return job;
+}
+
+export async function GET() {
+  const jobs = getJobs();
+
+  return NextResponse.json(
+    {
+      ok: true,
+      route: "/api/radio/bleep-check",
+      message: "Global radio bleep checker online.",
+      cleanOnlyMode: true,
+      jobsCount: jobs.length,
+      latestJob: jobs[0] ?? null,
+      appliesTo: [
+        "SMARTDJ",
+        "AUTODJ",
+        "LIVEDJ",
+        "REQUESTS",
+        "UPLOADS",
+        "PROMOS",
+        "JINGLES",
+        "ADS",
+        "CONTROL_PANEL"
+      ],
+      explicitWordCount: getExplicitWords().length,
+      cleanWordCount: getCleanWords().length,
+    },
+    {
+      headers: {
+        "Cache-Control": "no-store",
+      },
+    }
+  );
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const payload = (await request.json().catch(() => ({}))) as BleepCheckPayload;
+
+    const explicitWords = detectWords(payload, getExplicitWords());
+    const cleanWords = detectWords(payload, getCleanWords());
+
+    const requireClean = payload.requireClean !== false;
+    const hasExplicit = explicitWords.length > 0;
+    const hasCleanMarker = cleanWords.length > 0;
+
+    const needsBleep = hasExplicit || (requireClean && !hasCleanMarker);
+
+    if (needsBleep) {
+      const job = createBleepJob(payload, explicitWords, cleanWords);
+
+      return NextResponse.json(
+        {
+          ok: true,
+          source: payload.source ?? "CONTROL_PANEL",
+          safe: false,
+          needsBleep: true,
+          jobCreated: true,
+          job,
+          explicitWords,
+          cleanWords,
+          cleanRequired: requireClean,
+          decision: "CREATE_BLEEP_JOB",
+          message: job.message,
+          recommendation:
+            "Do not send this item live until SmartDJ finds a clean/radio version or the system creates a bleeped copy.",
+        },
+        {
+          headers: {
+            "Cache-Control": "no-store",
+          },
+        }
+      );
+    }
+
+    return NextResponse.json(
+      {
+        ok: true,
+        source: payload.source ?? "CONTROL_PANEL",
+        safe: true,
+        needsBleep: false,
+        jobCreated: false,
+        explicitWords,
+        cleanWords,
+        cleanRequired: requireClean,
+        decision: "ALLOW_TO_QUEUE",
+        message: "Passed global radio bleep check.",
+        recommendation: "Safe to continue to preview, queue, or broadcast path.",
+      },
+      {
+        headers: {
+          "Cache-Control": "no-store",
+        },
+      }
+    );
+  } catch (error) {
+    return NextResponse.json(
+      {
+        ok: false,
+        safe: false,
+        needsBleep: true,
+        jobCreated: false,
+        decision: "HOLD_BEFORE_BROADCAST",
+        message:
+          error instanceof Error
+            ? error.message
+            : "Global bleep checker failed. Hold before broadcast.",
+      },
+      { status: 500 }
+    );
+  }
+}

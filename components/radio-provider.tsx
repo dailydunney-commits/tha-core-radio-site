@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import {
   createContext,
@@ -27,6 +27,23 @@ const STREAM_URL =
   "https://18.222.11.16/listen/tha-core-online/radio.mp3";
 
 const VOLUME_KEY = "tha-core-radio-volume";
+
+async function getListenerCurrentStreamUrl() {
+  try {
+    const response = await fetch(`/api/listener/now-playing?refresh=${Date.now()}`, {
+      cache: "no-store",
+    });
+
+    const data = await response.json().catch(() => null);
+
+    return String(data?.streamUrl || data?.audioUrl || STREAM_URL).trim() || STREAM_URL;
+  } catch {
+    return STREAM_URL;
+  }
+}
+
+// LISTENER_CURRENT_BROADCAST_STREAM_V1
+
 
 export function RadioProvider({ children }: { children: React.ReactNode }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);

@@ -1,0 +1,209 @@
+﻿"use client";
+
+import { useEffect, useState } from "react";
+
+type BleepJob = {
+  id: string;
+  createdAt?: string;
+  status?: string;
+  source?: string;
+  mode?: string;
+  message?: string;
+  explicitWords?: string[];
+  cleanWords?: string[];
+  track?: {
+    title?: string;
+    artist?: string;
+    source?: string;
+  };
+};
+
+export default function GlobalBleepJobsPanel() {
+  const [jobs, setJobs] = useState<BleepJob[]>([]);
+  const [status, setStatus] = useState("Bleep jobs monitor ready.");
+
+  async function loadJobs() {
+    try {
+      const response = await fetch("/api/radio/bleep-job", {
+        method: "GET",
+        cache: "no-store",
+      });
+
+      const data = await response.json();
+      const nextJobs = Array.isArray(data?.jobs) ? data.jobs : [];
+
+      setJobs(nextJobs);
+
+      setStatus(
+        nextJobs.length > 0
+          ? `${nextJobs.length} bleep job(s) waiting.`
+          : "No bleep jobs waiting."
+      );
+    } catch {
+      setStatus("Could not load bleep jobs.");
+    }
+  }
+
+  useEffect(() => {
+    loadJobs();
+    const timer = window.setInterval(loadJobs, 4000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  return (
+    <section className="global-bleep-jobs-panel">
+      <div className="global-bleep-jobs-head">
+        <div>
+          <strong>BLEEP JOBS / CLEAN COPY QUEUE</strong>
+          <span>Dirty or unknown tracks wait here until SmartDJ finds clean audio or makes a bleeped copy.</span>
+        </div>
+
+        <button type="button" onClick={loadJobs}>
+          REFRESH JOBS
+        </button>
+      </div>
+
+      {jobs.length > 0 ? (
+        <div className="global-bleep-jobs-list">
+          {jobs.map((job, index) => (
+            <div key={job.id || index} className="global-bleep-job-row">
+              <div>
+                <b>
+                  {index + 1}. {job.track?.artist || "Unknown Artist"} - {job.track?.title || "Unknown Track"}
+                </b>
+
+                <small>
+                  Source: {job.source || "CONTROL_PANEL"} • Status: {job.status || "BLEEP_JOB_CREATED"}
+                </small>
+
+                <p>{job.message || "Clean or bleeped copy required before broadcast."}</p>
+
+                {Array.isArray(job.explicitWords) && job.explicitWords.length > 0 && (
+                  <em>Flagged: {job.explicitWords.join(", ")}</em>
+                )}
+              </div>
+
+              <strong className="global-bleep-job-badge">HOLD</strong>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="global-bleep-jobs-empty">No bleep jobs waiting right now.</p>
+      )}
+
+      <p className="global-bleep-jobs-status">{status}</p>
+
+      <style>{`
+        .global-bleep-jobs-panel {
+          margin: 14px 0;
+          padding: 14px;
+          border: 1px solid rgba(255, 0, 0, 0.7);
+          border-radius: 18px;
+          background: rgba(18, 0, 0, 0.95);
+          color: #fff;
+          box-shadow: 0 0 18px rgba(255, 0, 0, 0.18);
+        }
+
+        .global-bleep-jobs-head {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          margin-bottom: 10px;
+        }
+
+        .global-bleep-jobs-head strong {
+          display: block;
+          color: #ff4d4d;
+          font-size: 15px;
+          font-weight: 950;
+          letter-spacing: 0.12em;
+        }
+
+        .global-bleep-jobs-head span {
+          display: block;
+          margin-top: 3px;
+          color: #ffd400;
+          font-size: 12px;
+          font-weight: 850;
+        }
+
+        .global-bleep-jobs-head button {
+          border: 0;
+          border-radius: 12px;
+          padding: 10px 14px;
+          background: linear-gradient(180deg, #ffcc00, #b98500);
+          color: #120700;
+          font-weight: 950;
+          cursor: pointer;
+        }
+
+        .global-bleep-jobs-list {
+          display: grid;
+          gap: 8px;
+        }
+
+        .global-bleep-job-row {
+          display: grid;
+          grid-template-columns: 1fr 90px;
+          gap: 12px;
+          align-items: center;
+          border: 1px solid rgba(255, 0, 0, 0.5);
+          border-radius: 14px;
+          padding: 10px;
+          background: rgba(40, 0, 0, 0.82);
+        }
+
+        .global-bleep-job-row b {
+          display: block;
+          color: #fff;
+          font-size: 13px;
+          font-weight: 950;
+        }
+
+        .global-bleep-job-row small {
+          display: block;
+          margin-top: 3px;
+          color: #00d9ff;
+          font-size: 11px;
+          font-weight: 850;
+        }
+
+        .global-bleep-job-row p {
+          margin: 5px 0 0;
+          color: #ffd400;
+          font-size: 12px;
+          font-weight: 850;
+        }
+
+        .global-bleep-job-row em {
+          display: block;
+          margin-top: 5px;
+          color: #ff8a8a;
+          font-size: 11px;
+          font-weight: 900;
+          font-style: normal;
+        }
+
+        .global-bleep-job-badge {
+          justify-self: end;
+          border-radius: 999px;
+          padding: 8px 12px;
+          background: #ff1b1b;
+          color: #fff;
+          box-shadow: 0 0 14px rgba(255, 27, 27, 0.65);
+          font-size: 12px;
+          font-weight: 950;
+        }
+
+        .global-bleep-jobs-empty,
+        .global-bleep-jobs-status {
+          margin: 8px 0 0;
+          color: #fff;
+          font-size: 12px;
+          font-weight: 850;
+        }
+      `}</style>
+    </section>
+  );
+}

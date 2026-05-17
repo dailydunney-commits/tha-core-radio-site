@@ -1,0 +1,342 @@
+﻿"use client";
+
+import { useEffect, useState } from "react";
+
+type SafetyQueueItem = {
+  id?: string;
+  createdAt?: string;
+  source?: string;
+  action?: string;
+  decision?: string;
+  message?: string;
+  track?: {
+    id?: string;
+    title?: string;
+    artist?: string;
+    source?: string;
+    reason?: string;
+    statusText?: string;
+    action?: string;
+  };
+};
+
+type SafetyState = {
+  queueCount: number;
+  queue: SafetyQueueItem[];
+  bleepJobsWaiting: number;
+  lastUpdated: string;
+  status: "ONLINE" | "CHECKING" | "ERROR";
+  message: string;
+};
+
+
+function getTrackAudioUrl(item: SafetyQueueItem) {
+  const track: any = item.track ?? {};
+
+  return (
+    track.safeAudioUrl ||
+    track.radioSafeAudioUrl ||
+    track.cleanAudioUrl ||
+    track.bleepedAudioUrl ||
+    track.processedAudioUrl ||
+    track.audioUrl ||
+    track.url ||
+    track.streamUrl ||
+    ""
+  );
+}
+
+// AUDIO_SAFETY_QUEUE_CONTROLS_V1
+
+function getTrackTitle(item: SafetyQueueItem) {
+  return item.track?.title || item.track?.id || "Unknown track";
+}
+
+export default function AudioSafetyCenterPanel() {
+  const [state, setState] = useState<SafetyState>({
+    queueCount: 0,
+    queue: [],
+    bleepJobsWaiting: 0,
+    lastUpdated: "...",
+    status: "CHECKING",
+    message: "Checking Audio Safety Center...",
+  });
+
+  async function refreshSafetyCenter() {
+    try {
+      const [safeResponse, jobsResponse] = await Promise.allSettled([
+        fetch("/api/radio/safe-action", {
+          method: "GET",
+          cache: "no-store",
+        }),
+        fetch("/api/radio/bleep-job", {
+          method: "GET",
+          cache: "no-store",
+        }),
+      ]);
+
+      let queueCount = 0;
+      let queue: SafetyQueueItem[] = [];
+      let bleepJobsWaiting = 0;
+
+      if (safeResponse.status === "fulfilled") {
+        const safeData = await safeResponse.value.json().catch(() => null);
+        queueCount = Number(safeData?.queueCount ?? 0);
+        queue = Array.isArray(safeData?.queue) ? safeData.queue : [];
+      }
+
+      if (jobsResponse.status === "fulfilled") {
+        const jobsData = await jobsResponse.value.json().catch(() => null);
+        const jobs =
+          Array.isArray(jobsData?.jobs)
+            ? jobsData.jobs
+            : Array.isArray(jobsData?.queue)
+              ? jobsData.queue
+              : Array.isArray(jobsData?.bleepJobs)
+                ? jobsData.bleepJobs
+                : [];
+
+        bleepJobsWaiting = jobs.length;
+      }
+
+      setState({
+        queueCount,
+        queue,
+        bleepJobsWaiting,
+        lastUpdated: new Date().toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+        }),
+        status: "ONLINE",
+        message: "Audio Safety Center online. One Truth safety rule active.",
+      });
+    } catch {
+      setState((current) => ({
+        ...current,
+        status: "ERROR",
+        message: "Audio Safety Center could not refresh.",
+        lastUpdated: new Date().toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+        }),
+      }));
+    }
+  }
+
+
+  async function playQueuedSafetyItem(item: SafetyQueueItem) {
+    const audioUrl = getTrackAudioUrl(item);
+
+    if (!audioUrl) {
+      setState((current) => ({
+        ...current,
+        message: "Queued track has no playable clean/bleeped audio URL.",
+      }));
+      return;
+    }
+
+    try {
+      const player = new Audio(audioUrl);
+      player.volume = 1;
+      await player.play();
+
+      setState((current) => ({
+        ...current,
+        message: `Playing queued safe track: ${getTrackTitle(item)}`,
+      }));
+    } catch {
+      setState((current) => ({
+        ...current,
+        message: "Could not play queued safe track.",
+      }));
+    }
+  }
+
+  async function removeQueuedSafetyItem(item: SafetyQueueItem) {
+    if (!item.id) return;
+
+    try {
+      await fetch("/api/radio/safe-action", {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        cache: "no-store",
+        body: JSON.stringify({
+          id: item.id,
+        }),
+      });
+
+      await refreshSafetyCenter();
+    } catch {
+      setState((current) => ({
+        ...current,
+        message: "Could not remove queued safety item.",
+      }));
+    }
+  }
+
+  async function clearSafetyQueue() {
+    try {
+      await fetch("/api/radio/safe-action", {
+        method: "DELETE",
+        cache: "no-store",
+      });
+
+      await refreshSafetyCenter();
+    } catch {
+      setState((current) => ({
+        ...current,
+        message: "Could not clear SmartDJ safety queue.",
+      }));
+    }
+  }
+
+  async function testHeldRule() {
+    try {
+      const response = await fetch("/api/radio/safe-action", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        cache: "no-store",
+        body: JSON.stringify({
+          source: "CONTROL_PANEL",
+          action: "test_held_rule",
+          track: {
+            id: "audio-safety-center-held-test",
+            title: "Held safety test",
+            artist: "Tha Core",
+            source: "Audio Safety Center",
+            reason: "HELD - needs clean/bleep copy",
+            statusText: "HELD - needs clean/bleep copy",
+            action: "held_for_clean_bleep",
+            audioUrl: "",
+            url: "",
+            streamUrl: "",
+            rawUrl: "",
+          },
+        }),
+      });
+
+      const data = await response.json().catch(() => null);
+
+      setState((current) => ({
+        ...current,
+        message:
+          data?.decision === "BLOCKED_HELD_ONE_TRUTH"
+            ? "HELD test passed. Blocked everywhere until clean/bleep copy is ready."
+            : data?.message || "HELD test completed.",
+      }));
+
+      await refreshSafetyCenter();
+    } catch {
+      setState((current) => ({
+        ...current,
+        message: "HELD test failed to run.",
+      }));
+    }
+  }
+
+  useEffect(() => {
+    refreshSafetyCenter();
+
+    const timer = window.setInterval(refreshSafetyCenter, 15000);
+
+    return () => window.clearInterval(timer);
+  }, []);
+
+  return (
+    <section className="audio-safety-center-panel">
+      <div className="audio-safety-center-head">
+        <div>
+          <p className="eyebrow">ONE TRUTH SAFETY CENTER</p>
+          <h2>AUDIO SAFETY CENTER</h2>
+          <p>
+            SmartDJ • AutoDJ • LiveDJ • Requests • Uploads • Promos • Jingles • Ads
+          </p>
+        </div>
+
+        <div className="audio-safety-center-actions">
+          <button type="button" onClick={refreshSafetyCenter}>
+            REFRESH SAFETY
+          </button>
+          <button type="button" onClick={testHeldRule}>
+            TEST HELD
+          </button>
+          <button type="button" onClick={clearSafetyQueue}>
+            CLEAR QUEUE
+          </button>
+        </div>
+      </div>
+
+      <div className="audio-safety-center-rule">
+        <strong>Rule:</strong> HELD anywhere = blocked everywhere. CLEAN anywhere =
+        clean everywhere. BLEEPED anywhere = safe everywhere.
+      </div>
+
+      <div className="audio-safety-center-grid">
+        <div className="audio-safety-center-card">
+          <span>Safety Brain</span>
+          <strong>{state.status}</strong>
+          <small>{state.message}</small>
+        </div>
+
+        <div className="audio-safety-center-card">
+          <span>SmartDJ Safety Queue</span>
+          <strong>{state.queueCount}</strong>
+          <small>Only clean/bleeped approved tracks should appear here.</small>
+        </div>
+
+        <div className="audio-safety-center-card">
+          <span>Bleep / Clean Jobs</span>
+          <strong>{state.bleepJobsWaiting}</strong>
+          <small>Tracks waiting for clean or bleeped copy.</small>
+        </div>
+
+        <div className="audio-safety-center-card">
+          <span>Last Updated</span>
+          <strong>{state.lastUpdated}</strong>
+          <small>Auto refresh every 15 seconds.</small>
+        </div>
+      </div>
+
+      <div className="audio-safety-center-flow">
+        <div>
+          <strong>Preview</strong>
+          <span>Blocked unless CLEAN or BLEEPED</span>
+        </div>
+        <div>
+          <strong>Queue</strong>
+          <span>Blocked unless CLEAN or BLEEPED</span>
+        </div>
+        <div>
+          <strong>Broadcast</strong>
+          <span>Blocked unless CLEAN or BLEEPED</span>
+        </div>
+      </div>
+
+      {state.queue.length > 0 ? (
+        <div className="audio-safety-center-list">
+          {state.queue.map((item, index) => (
+            <div key={`${item.id}-${index}`} className="audio-safety-center-item">
+              <strong>
+                {index + 1}. {item.track?.artist || item.source || "Tha Core"} -{" "}
+                {getTrackTitle(item)}
+              </strong>
+              <span>{item.message || item.decision || "Queued safety item."}</span>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="audio-safety-center-empty">
+          No approved safety-queue tracks right now. HELD tracks stay blocked until
+          clean/bleep copy is ready.
+        </p>
+      )}
+    </section>
+  );
+}
+

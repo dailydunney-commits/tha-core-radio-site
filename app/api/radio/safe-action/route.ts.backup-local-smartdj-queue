@@ -1,0 +1,133 @@
+﻿import { NextRequest, NextResponse } from "next/server";
+
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
+type SafeActionPayload = {
+  source?: string;
+  action?: string;
+  mode?: "metadata" | "preview" | "pre_broadcast" | "live_delay";
+  requireClean?: boolean;
+  track?: {
+    id?: string;
+    title?: string;
+    artist?: string;
+    source?: string;
+    reason?: string;
+    path?: string;
+    audioUrl?: string;
+    url?: string;
+    streamUrl?: string;
+    rawUrl?: string;
+  };
+  text?: string;
+};
+
+async function runBleepCheck(payload: SafeActionPayload, origin: string) {
+  const url = `${origin}/api/radio/bleep-check`;
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    cache: "no-store",
+    body: JSON.stringify({
+      source: payload.source ?? "CONTROL_PANEL",
+      mode: payload.mode ?? "pre_broadcast",
+      requireClean: payload.requireClean !== false,
+      track: payload.track,
+      text: payload.text,
+    }),
+  });
+
+  return response.json();
+}
+
+export async function GET() {
+  return NextResponse.json(
+    {
+      ok: true,
+      route: "/api/radio/safe-action",
+      message: "Global safe action route online.",
+      flow:
+        "Every control action can pass here first: bleep-check -> allow or bleep-job.",
+      protects: [
+        "AUTODJ",
+        "SMARTDJ",
+        "LIVEDJ",
+        "REQUESTS",
+        "UPLOADS",
+        "PROMOS",
+        "JINGLES",
+        "ADS",
+        "CONTROL_PANEL",
+      ],
+    },
+    {
+      headers: {
+        "Cache-Control": "no-store",
+      },
+    }
+  );
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const payload = (await request.json().catch(() => ({}))) as SafeActionPayload;
+    const origin = request.nextUrl.origin;
+
+    const bleep = await runBleepCheck(payload, origin);
+
+    if (bleep?.needsBleep || bleep?.decision === "CREATE_BLEEP_JOB") {
+      return NextResponse.json(
+        {
+          ok: true,
+          allowed: false,
+          source: payload.source ?? "CONTROL_PANEL",
+          action: payload.action ?? "broadcast_action",
+          decision: "CREATE_BLEEP_JOB",
+          message:
+            bleep?.message ||
+            "BLEEP JOB CREATED - clean or processed bleeped copy required before broadcast.",
+          bleep,
+        },
+        {
+          headers: {
+            "Cache-Control": "no-store",
+          },
+        }
+      );
+    }
+
+    return NextResponse.json(
+      {
+        ok: true,
+        allowed: true,
+        source: payload.source ?? "CONTROL_PANEL",
+        action: payload.action ?? "broadcast_action",
+        decision: "ALLOW_TO_QUEUE",
+        message: "Passed global radio bleep check. Action allowed.",
+        bleep,
+      },
+      {
+        headers: {
+          "Cache-Control": "no-store",
+        },
+      }
+    );
+  } catch (error) {
+    return NextResponse.json(
+      {
+        ok: false,
+        allowed: false,
+        decision: "HOLD_BEFORE_BROADCAST",
+        message:
+          error instanceof Error
+            ? error.message
+            : "Global safe action failed. Hold before broadcast.",
+      },
+      { status: 500 }
+    );
+  }
+}
