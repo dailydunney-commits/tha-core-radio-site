@@ -2108,73 +2108,10 @@ const SELECTED_DISPLAY_MEMORY_KEY = "tha-core-owner-selected-display-v1";
                   Mic
                 </button>
               </div>
-
-              <div className="center-pad-bank">
-                <button type="button" onClick={() => firePad(getPad("Station ID"))}>Station ID</button>
-                <button type="button" onClick={() => firePad(getPad("DJ Drop"))}>DJ Drop</button>
-                <button type="button" onClick={() => firePad(getPad("Com Break"))}>Com Break</button>
-                <button type="button" onClick={() => firePad(getPad("Store Ad"))}>Store Ad</button>
-                <button type="button" onClick={() => firePad(getPad("Sponsor Ad"))}>Sponsor Ad</button>
-                <button type="button" onClick={() => firePad(getPad("Music Promo"))}>Music Promo</button>
-              </div>
-
-              <div className="mode-buttons">
-                <button type="button" onClick={() => selectDisplay("JINGLES", "Jingles")}>Jingles</button>
-                <button type="button" onClick={() => selectDisplay("DROPS", "Drops")}>Drops</button>
-                <button type="button" onClick={() => selectDisplay("COM", "Commercial")}>Com</button>
-                <button type="button" onClick={() => selectDisplay("ADS", "Ads")}>Ads</button>
-                <button type="button" onClick={() => setDjMode("SMARTDJ")}>SmartDJ</button>
-                <button type="button" onClick={async () => {
-                      addLog("AutoDJ gate checking next clean/bleeped track...");
-
-                      try {
-                        const response = await fetch("/api/autodj/gated-next", {
-                          method: "POST",
-                          headers: {
-                            "Content-Type": "application/json",
-                          },
-                          cache: "no-store",
-                          body: JSON.stringify({
-                            action: "next",
-                          }),
-                        });
-
-                        const data = await response.json();
-
-                        if (data?.allowAutoDj && data?.safe) {
-                          setDjMode("AUTODJ");
-                          addLog(
-                            `AutoDJ gate approved: ${
-                              data?.track?.artist || "AutoDJ"
-                            } - ${data?.track?.title || "clean/bleeped track"}`
-                          );
-                        } else {
-                          addLog(
-                            `AutoDJ gate blocked track: ${
-                              data?.message ||
-                              "Needs clean version or bleeped copy before rotation."
-                            }`
-                          );
-                        }
-                      } catch {
-                        addLog("AutoDJ gate error. AutoDJ was not switched on.");
-                      }
-                    }}>AutoDJ</button>
-                <button type="button" onClick={() => setDjMode("LIVEDJ")}>LiveDJ</button>
-                <button type="button" onClick={() => firePad(visiblePads[0] || pads[0])}>Smart Fire</button>
-                <button type="button" onClick={refreshNowPlaying}>Now Playing</button>
-              </div>
-
-              <div className="effect-buttons">
-                <button type="button" onClick={() => effectPunch("reverb")}>Reverb +</button>
-                <button type="button" onClick={() => effectPunch("delay")}>Delay +</button>
-                <button type="button" onClick={() => effectPunch("echo")}>Echo +</button>
-                <button type="button" onClick={() => effectPunch("bass")}>Bass +</button>
-                <button type="button" onClick={() => effectPunch("ad")}>Ad Bed +</button>
-                <button type="button" onClick={() => effectPunch("jingle")}>Jingle Bed +</button>
-              </div>
-
-              <div className="crossfader">
+              {/* Duplicate center pad bank removed. Main pad grid is the one true pad section. */}
+              {/* Duplicate mode buttons removed. Smart switch and pad tabs are the single source of truth. */}
+              {/* Duplicate effect buttons removed until effects are wired to real audio processing. */}
+<div className="crossfader">
                 <span>Deck A</span>
                 <input
                   type="range"
