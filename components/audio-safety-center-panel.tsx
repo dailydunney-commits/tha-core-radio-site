@@ -513,7 +513,7 @@ async function sendQueuedSafetyItemToBroadcast(item: SafetyQueueItem) {
           <p className="audio-safety-center-kicker">ONE TRUTH SAFETY CENTER</p>
           <h2>AUDIO SAFETY CENTER</h2>
           <p>
-            SmartDJ Ã¢â‚¬Â¢ AutoDJ Ã¢â‚¬Â¢ LiveDJ Ã¢â‚¬Â¢ Requests Ã¢â‚¬Â¢ Uploads Ã¢â‚¬Â¢ Promos Ã¢â‚¬Â¢ Jingles Ã¢â‚¬Â¢ Ads
+            SmartDJ {"\u2022"} AutoDJ {"\u2022"} LiveDJ {"\u2022"} Requests {"\u2022"} Uploads {"\u2022"} Promos {"\u2022"} Jingles {"\u2022"} Ads
           </p>
         </div>
 
@@ -594,7 +594,7 @@ async function sendQueuedSafetyItemToBroadcast(item: SafetyQueueItem) {
               <span>{item.message || item.decision || "Queued safety item."}</span>
 
               <small>
-                Decision: {item.decision || "ALLOW_TO_QUEUE"} Ã¢â‚¬Â¢ Source:{" "}
+                Decision: {item.decision || "ALLOW_TO_QUEUE"} {"\u2022"} Source:{" "}
                 {item.source || "CONTROL_PANEL"}
               </small>
 
