@@ -212,3 +212,84 @@ button {
   border: 1px solid rgba(255, 0, 0, 0.75) !important;
   box-shadow: 0 0 18px rgba(255, 0, 0, 0.22) !important;
 }
+
+/* AUDIO_SAFETY_ONE_MASTER_BUTTON_ONLY_V1 */
+.audio-safety-center-jobs .audio-safety-center-queue-item .audio-safety-center-queue-actions,
+.audio-safety-center-queue-list .audio-safety-center-queue-item .audio-safety-center-queue-actions {
+  display: none !important;
+}
+
+.audio-safety-center-master-clean-return {
+  margin-top: 8px;
+  margin-bottom: 8px;
+}
+
+.audio-safety-center-master-clean-return button {
+  border: 0;
+  border-radius: 12px;
+  padding: 10px 18px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  background: linear-gradient(180deg, #ffd21a, #c98b00);
+  color: #050505;
+  box-shadow: 0 0 18px rgba(255, 210, 26, 0.25);
+}
+/* SMARTDJ_ONE_MASTER_PLAYLIST_CONTROL_CSS_V1 */
+/* Hide repeated per-track SmartDJ playlist buttons. One master button controls the playlist. */
+.owner-control-smartdj-playlist-row button,
+.owner-control-smartdj-playlist-list .owner-control-smartdj-playlist-row button {
+  display: none !important;
+}
+
+/* Keep top playlist action buttons visible. */
+.owner-control-smartdj-playlist-head button,
+.owner-control-smartdj-playlist-actions button {
+  display: inline-flex !important;
+}
+/* FORCE_AUDIO_SAFETY_ONE_BUTTON_UI_V2 */
+/* Audio Safety Center should not show repeated buttons on every queue/job row. */
+.audio-safety-center-queue-item .audio-safety-center-queue-actions,
+.audio-safety-center-queue-item button {
+  display: none !important;
+}
+
+/* Keep only master buttons visible. */
+.audio-safety-center-master-clean-return button,
+.audio-safety-center-master-queue-controls button,
+.owner-control-smartdj-playlist-actions button,
+.owner-control-smartdj-playlist-head button {
+  display: inline-flex !important;
+}
+
+.audio-safety-center-master-queue-controls {
+  margin: 12px 0;
+  padding: 12px;
+  border: 1px solid rgba(255, 210, 26, 0.45);
+  border-radius: 14px;
+  background: rgba(255, 210, 26, 0.08);
+}
+
+.audio-safety-center-master-queue-controls strong {
+  display: block;
+  margin-bottom: 8px;
+  color: #ffd21a;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.audio-safety-center-master-queue-controls button {
+  border: 0;
+  border-radius: 12px;
+  padding: 10px 18px;
+  font-weight: 900;
+  cursor: pointer;
+  background: linear-gradient(180deg, #ffd21a, #c98b00);
+  color: #050505;
+}
+/* HIDE_AUDIO_SAFETY_ITEM_ACTIONS_V1 */
+/* Hide repeated buttons inside approved safety queue rows. Master queue control stays visible. */
+.audio-safety-center-item-actions,
+.audio-safety-center-item-actions button {
+  display: none !important;
+}

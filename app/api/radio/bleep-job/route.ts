@@ -134,6 +134,34 @@ function getProcessedAudioUrlFromBleepJob(value: any): string {
   );
 }
 
+
+// SMARTDJ_ORIGINAL_AUDIO_HOOK_V1
+// Treat source/search audio as ORIGINAL audio for processing only.
+// This does NOT mark the track clean. It only gives the processor something to clean/bleep.
+function pickOriginalAudioUrlFromTrack(track: any): string {
+  return pickBleepAudioUrl(
+    track?.rawUrl,
+    track?.sourceAudioUrl,
+    track?.originalAudioUrl,
+    track?.audioUrl,
+    track?.url,
+    track?.streamUrl
+  );
+}
+
+function normalizeOriginalTrackForProcessing(track: BleepJobTrack): BleepJobTrack {
+  const originalUrl = pickOriginalAudioUrlFromTrack(track);
+
+  if (!originalUrl) return track;
+
+  return {
+    ...track,
+    rawUrl: originalUrl,
+    sourceAudioUrl: originalUrl,
+    originalAudioUrl: originalUrl,
+  } as BleepJobTrack;
+}
+
 function applyProcessedAudioToJob(job: BleepJob, payload: any): BleepJob {
   const processedUrl = getProcessedAudioUrlFromBleepJob(payload);
 
@@ -421,7 +449,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const track = (body?.track ?? {}) as BleepJobTrack;
+    const track = normalizeOriginalTrackForProcessing((body?.track ?? {}) as BleepJobTrack);
     const source = String(body?.source ?? "CONTROL_PANEL");
 
     const jobs = getJobs();

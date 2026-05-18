@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 
 import AudioSafetyCenterPanel from "../../components/audio-safety-center-panel";
@@ -693,6 +693,36 @@ return {
   }
 
   // SMARTDJ_FIX_HELD_BUTTON_V2
+  // SMARTDJ_ONE_MASTER_PLAYLIST_CONTROL_V1
+  async function smartDjPlaylistMasterControl() {
+    if (!tracks.length) {
+      setStatus("No SmartDJ playlist tracks loaded.");
+      return;
+    }
+
+    setStatus(`SmartDJ master control running for ${tracks.length} track(s)...`);
+
+    for (const track of tracks) {
+      try {
+        if (isSmartDjTrackHeld(track)) {
+          await fixHeldSmartDjTrack(track);
+        } else {
+          await checkSmartDjTrackForBleep(track);
+          await sendSmartDjTrackToQueue(track);
+        }
+      } catch {
+        // Keep going track by track. One bad item must not stop SmartDJ.
+      }
+    }
+
+    await loadSmartDjPlaylist();
+
+    setStatus(
+      "SmartDJ master control complete. HELD tracks were sent to clean/bleep flow. Ready tracks were checked and queued through safety."
+    );
+  }
+
+
 
 
   async function refreshSmartDjPlaylistButton() {
