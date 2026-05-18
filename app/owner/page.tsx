@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 
 import AudioSafetyCenterPanel from "../../components/audio-safety-center-panel";
@@ -734,7 +734,7 @@ return {
 
         <div className="owner-control-smartdj-playlist-actions">
           <button type="button" onClick={refreshSmartDjPlaylistButton}>
-            REFRESH
+            REFRESH STATUS
           </button>
           <button type="button" onClick={stopSmartDjTrack}>
             STOP
@@ -1929,7 +1929,7 @@ const SELECTED_DISPLAY_MEMORY_KEY = "tha-core-owner-selected-display-v1";
             <strong>{stationText}</strong>
           </div>
 
-          <button type="button" onClick={refreshNowPlaying}>REFRESH</button>
+          <button type="button" onClick={refreshNowPlaying}>REFRESH SAFETY</button>
         </section>
 
         <section className="main-studio">
@@ -2092,7 +2092,7 @@ const SELECTED_DISPLAY_MEMORY_KEY = "tha-core-owner-selected-display-v1";
               </button>
 
               <div className="broadcast-buttons">
-                <button type="button" onClick={cueBroadcast} className="btn blood">Cue</button>
+                <button type="button" onClick={cueBroadcast} className="btn blood">LEFT CUE</button>
                 <button type="button" onClick={stopBroadcast} className="btn red">Stop All</button>
                 <button type="button" onClick={skipNext} className="btn blue">Skip</button>
                 <button type="button" onClick={studioSkip} className="btn purple">Studio Skip</button>
@@ -3489,7 +3489,7 @@ function Turntable({
       </div>
 
       <div className="deck-buttons">
-        <button type="button" onClick={onCue}>Cue</button>
+        <button type="button" onClick={onCue}>RIGHT CUE</button>
         <button type="button" onClick={onSync}>Sync</button>
         <button type="button" onClick={onLoad}>Load</button>
       </div>
