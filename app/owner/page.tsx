@@ -692,36 +692,41 @@ return {
     }
   }
 
-  // SMARTDJ_FIX_HELD_BUTTON_V2
-  // SMARTDJ_ONE_MASTER_PLAYLIST_CONTROL_V1
+    // SMARTDJ_FIX_HELD_BUTTON_V2
+  // SMARTDJ_ONE_MASTER_PLAYLIST_CONTROL_V2
   async function smartDjPlaylistMasterControl() {
     if (!tracks.length) {
       setStatus("No SmartDJ playlist tracks loaded.");
       return;
     }
 
-    setStatus(`SmartDJ master control running for ${tracks.length} track(s)...`);
+    setStatus("SmartDJ auto clean + return running...");
 
-    for (const track of tracks) {
-      try {
-        if (isSmartDjTrackHeld(track)) {
-          await fixHeldSmartDjTrack(track);
-        } else {
-          await checkSmartDjTrackForBleep(track);
-          await sendSmartDjTrackToQueue(track);
-        }
-      } catch {
-        // Keep going track by track. One bad item must not stop SmartDJ.
-      }
+    try {
+      const response = await fetch("/api/radio/smartdj-auto-clean", {
+        method: "POST",
+        cache: "no-store",
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      await loadSmartDjPlaylist();
+
+      const message =
+        data?.message ||
+        "SmartDJ auto clean + return complete. HELD tracks stay blocked until clean/bleeped audio is ready.";
+
+      setStatus(message);
+
+      window.dispatchEvent(
+        new CustomEvent("tha-core-smartdj-status", {
+          detail: message,
+        })
+      );
+    } catch {
+      setStatus("SmartDJ auto clean + return failed. No unsafe track was released.");
     }
-
-    await loadSmartDjPlaylist();
-
-    setStatus(
-      "SmartDJ master control complete. HELD tracks were sent to clean/bleep flow. Ready tracks were checked and queued through safety."
-    );
   }
-
 
 
 

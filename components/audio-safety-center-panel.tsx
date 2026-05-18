@@ -422,6 +422,96 @@ export default function AudioSafetyCenterPanel() {
       }));
     }
   }
+  // SMARTDJ_AUTO_CLEAN_MAIN_BUTTON_V1
+  async function runSmartDjAutoCleanReturn() {
+    setState((current) => ({
+      ...current,
+      message: "SmartDJ auto clean + return is running...",
+      lastUpdated: new Date().toLocaleTimeString(),
+    }));
+
+    try {
+      const response = await fetch("/api/radio/smartdj-auto-clean", {
+        method: "POST",
+        cache: "no-store",
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      await refreshBleepJobs();
+      await refreshSafetyCenter();
+
+      const message =
+        data?.message ||
+        "SmartDJ auto clean + return complete. HELD tracks stay blocked until clean/bleeped audio is ready.";
+
+      setState((current) => ({
+        ...current,
+        message,
+        lastUpdated: new Date().toLocaleTimeString(),
+      }));
+
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("tha-core-smartdj-status", {
+            detail: message,
+          })
+        );
+      }
+    } catch {
+      setState((current) => ({
+        ...current,
+        message: "SmartDJ auto clean + return failed. No unsafe audio was released.",
+        lastUpdated: new Date().toLocaleTimeString(),
+      }));
+    }
+  }
+  // TRUE_ONE_BUTTON_SMARTDJ_AUTO_CLEAN_V1
+  async function runSmartDjAutoCleanReturn() {
+    setState((current) => ({
+      ...current,
+      message: "SmartDJ auto clean + return is running...",
+      lastUpdated: new Date().toLocaleTimeString(),
+    }));
+
+    try {
+      const response = await fetch("/api/radio/smartdj-auto-clean", {
+        method: "POST",
+        cache: "no-store",
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      await refreshBleepJobs();
+      await refreshSafetyCenter();
+
+      const message =
+        data?.message ||
+        "SmartDJ auto clean + return complete. HELD tracks stay blocked until clean/bleeped audio is ready.";
+
+      setState((current) => ({
+        ...current,
+        message,
+        lastUpdated: new Date().toLocaleTimeString(),
+      }));
+
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("tha-core-smartdj-status", { detail: message })
+        );
+      }
+    } catch {
+      setState((current) => ({
+        ...current,
+        message: "SmartDJ auto clean + return failed. No unsafe audio was released.",
+        lastUpdated: new Date().toLocaleTimeString(),
+      }));
+    }
+  }
+
+
+
+
 
 
 
@@ -866,15 +956,15 @@ async function sendQueuedSafetyItemToBroadcast(item: SafetyQueueItem) {
         </div>
 
         <div className="audio-safety-center-actions">
-          <button type="button" onClick={refreshSafetyCenter}>
-            REFRESH SAFETY
+          <button
+            type="button"
+            className="one-master-smartdj-clean-return"
+            onClick={runSmartDjAutoCleanReturn}
+          >
+            SMARTDJ AUTO CLEAN + RETURN
           </button>
-          <button type="button" onClick={testHeldRule}>
-            TEST HELD
-          </button>
-          <button type="button" onClick={clearSafetyQueue}>
-            CLEAR QUEUE
-          </button>
+          
+          
         </div>
       </div>
 
@@ -954,7 +1044,7 @@ async function sendQueuedSafetyItemToBroadcast(item: SafetyQueueItem) {
                   <div>
                     <strong>{getBleepJobTitle(job)}</strong>
                     <small>
-                      Status: {job?.status || "BLEEP_JOB_CREATED"} {"ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢"}{" "}
+                      Status: {job?.status || "BLEEP_JOB_CREATED"} {"ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢"}{" "}
                       {isReady ? "READY - clean/bleeped audio attached" : "HELD - waiting for clean/bleeped copy"}
                     </small>
                     <small>{job?.message || "Waiting for clean/bleeped copy."}</small>

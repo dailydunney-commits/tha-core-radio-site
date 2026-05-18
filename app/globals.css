@@ -293,3 +293,102 @@ button {
 .audio-safety-center-item-actions button {
   display: none !important;
 }
+/* ONE_BUTTON_SAFETY_UI_FINAL_V1 */
+/* Keep Audio Safety Center as a brain/status panel, not a detailed button wall. */
+.audio-safety-center-jobs,
+.audio-safety-center-list,
+.audio-safety-center-item,
+.audio-safety-center-queue-list,
+.audio-safety-center-queue-item,
+.audio-safety-center-item-actions,
+.audio-safety-center-queue-actions,
+.audio-safety-center-master-queue-controls {
+  display: none !important;
+}
+
+/* Keep top safety command buttons and status cards visible. */
+.audio-safety-center button,
+.audio-safety-center-card,
+.audio-safety-center-status,
+.audio-safety-center-summary,
+.audio-safety-center-rule,
+.audio-safety-center-metrics,
+.audio-safety-center-master-clean-return {
+  display: revert !important;
+}
+
+/* Keep the one SmartDJ playlist master control visible. */
+.owner-control-smartdj-playlist-head button,
+.owner-control-smartdj-playlist-actions button {
+  display: inline-flex !important;
+}
+
+/* Hide repeated song-row buttons inside SmartDJ playlist. */
+.owner-control-smartdj-playlist-row button {
+  display: none !important;
+}
+/* ONE_BUTTON_ONLY_AUDIO_SAFETY_V1 */
+/* Final rule: Audio Safety Center shows ONE control button only. */
+.audio-safety-center button,
+.audio-safety-center-card button,
+.audio-safety-center-status button,
+.audio-safety-center-jobs button,
+.audio-safety-center-list button,
+.audio-safety-center-item button,
+.audio-safety-center-queue-item button,
+.audio-safety-center-master-queue-controls button,
+.audio-safety-center-master-clean-return button {
+  display: none !important;
+}
+
+.audio-safety-center .one-master-smartdj-clean-return,
+.one-master-smartdj-clean-return {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  border: 0 !important;
+  border-radius: 14px !important;
+  padding: 14px 24px !important;
+  margin: 10px 0 14px 0 !important;
+  font-size: 16px !important;
+  font-weight: 1000 !important;
+  letter-spacing: 0.06em !important;
+  cursor: pointer !important;
+  background: linear-gradient(180deg, #ffd21a, #c98b00) !important;
+  color: #050505 !important;
+  box-shadow: 0 0 22px rgba(255, 210, 26, 0.35) !important;
+}
+
+/* Hide internal job/queue rows. Safety brain stays as status only. */
+.audio-safety-center-jobs,
+.audio-safety-center-list,
+.audio-safety-center-item,
+.audio-safety-center-queue-list,
+.audio-safety-center-queue-item,
+.audio-safety-center-item-actions,
+.audio-safety-center-queue-actions,
+.audio-safety-center-master-queue-controls {
+  display: none !important;
+}
+
+/* Hide SmartDJ playlist row buttons. Master control only. */
+.owner-control-smartdj-playlist-row button {
+  display: none !important;
+}
+/* TRUE_ONE_BUTTON_SMARTDJ_AUTO_CLEAN_CSS_V1 */
+.one-master-smartdj-clean-return {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border: 0 !important;
+  border-radius: 14px !important;
+  padding: 16px 28px !important;
+  margin: 12px 0 16px 0 !important;
+  font-size: 17px !important;
+  font-weight: 1000 !important;
+  letter-spacing: 0.06em !important;
+  cursor: pointer !important;
+  background: linear-gradient(180deg, #ffd21a, #c98b00) !important;
+  color: #050505 !important;
+  box-shadow: 0 0 22px rgba(255, 210, 26, 0.4) !important;
+}
