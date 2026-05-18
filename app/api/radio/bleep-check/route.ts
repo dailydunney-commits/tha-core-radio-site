@@ -277,30 +277,6 @@ export async function POST(request: NextRequest) {
     const needsBleep = hasExplicit || (requireClean && !hasCleanMarker);
 
     if (needsBleep) {
-      if (hasAzuraSourceAudio(payload)) {
-      return NextResponse.json(
-        {
-          ok: true,
-          source: payload.source ?? "CONTROL_PANEL",
-          safe: true,
-          needsBleep: false,
-          jobCreated: false,
-          explicitWords,
-          cleanWords,
-          cleanRequired: false,
-          decision: "ALLOW_AZURA_SOURCE_SEARCH_PREVIEW",
-          message:
-            "PASSED - AzuraCast source track has direct audio and is allowed for SmartDJ preview.",
-          recommendation: "Safe to preview from SmartDJ control panel.",
-        },
-        {
-          headers: {
-            "Cache-Control": "no-store",
-          },
-        }
-      );
-    }
-
     const job = createBleepJob(payload, explicitWords, cleanWords);
 
       return NextResponse.json(
