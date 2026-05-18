@@ -28,8 +28,7 @@ type NowPlayingData = {
   };
 };
 
-const STREAM_URL =
-  "https://thacoreonlinerad.com/listen/tha-core-online/radio.mp3";
+const STREAM_URL = "";
 
 const NOW_PLAYING_URL = "/api/listener/now-playing";
 
@@ -41,10 +40,8 @@ async function getPublicListenerStreamUrl() {
 
     const data = await response.json().catch(() => null);
 
-    return String(data?.streamUrl || data?.audioUrl || STREAM_URL).trim() || STREAM_URL;
-  } catch {
-    return STREAM_URL;
-  }
+    return String(data?.streamUrl || data?.audioUrl || "").trim();
+  } catch { return ""; }
 }
 
 // PUBLIC_LISTENER_STREAM_HELPER_V1
@@ -250,8 +247,17 @@ export default function HomePage() {
 
       setStatusText("Starting Tha Core live stream...");
 
-      if (!audio.src || !audio.src.includes(STREAM_URL)) {
-        audio.src = await getPublicListenerStreamUrl();
+      const nextStreamUrl = await getPublicListenerStreamUrl();
+
+      if (!nextStreamUrl) {
+        audio.pause();
+        audio.removeAttribute("src");
+        audio.load();
+        return;
+      }
+
+      if (!audio.src || audio.src !== nextStreamUrl) {
+        audio.src = nextStreamUrl;
         audio.load();
       }
 

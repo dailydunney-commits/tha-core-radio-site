@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import {
   createContext,
@@ -22,9 +22,7 @@ type RadioContextValue = {
 
 const RadioContext = createContext<RadioContextValue | null>(null);
 
-const STREAM_URL =
-  process.env.NEXT_PUBLIC_STREAM_URL ||
-  "https://18.222.11.16/listen/tha-core-online/radio.mp3";
+const STREAM_URL = "";
 
 const VOLUME_KEY = "tha-core-radio-volume";
 
@@ -36,10 +34,8 @@ async function getListenerCurrentStreamUrl() {
 
     const data = await response.json().catch(() => null);
 
-    return String(data?.streamUrl || data?.audioUrl || STREAM_URL).trim() || STREAM_URL;
-  } catch {
-    return STREAM_URL;
-  }
+    return String(data?.streamUrl || data?.audioUrl || "").trim();
+  } catch { return ""; }
 }
 
 // LISTENER_CURRENT_BROADCAST_STREAM_V1

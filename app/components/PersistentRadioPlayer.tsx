@@ -3,9 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 
-const STREAM_URL =
-  process.env.NEXT_PUBLIC_STREAM_URL ||
-  "http://thacoreonlinerad.com/listen/tha-core-online/radio.mp3";
+const STREAM_URL = "";
 
 export default function PersistentRadioPlayer() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -144,7 +142,7 @@ export default function PersistentRadioPlayer() {
           <p style={styles.label}>THA CORE ONLINE RADIO</p>
           <p style={styles.nowPlaying}>{nowPlaying}</p>
           <p style={styles.status}>
-            {message} · Listeners: {listeners}
+            {message} Â· Listeners: {listeners}
           </p>
         </div>
       </div>
