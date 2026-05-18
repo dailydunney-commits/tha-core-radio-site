@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState } from "react";
 
@@ -104,8 +104,9 @@ export default function OwnerSmartDjCommand() {
     setStatus("SmartDJ is thinking...");
 
     try {
-      const playlistMode =
-        /\b(build|make|compile)\b/i.test(command) &&
+      // SMARTDJ_CREATE_PLAYLIST_UI_ROUTE_FIX_V1
+  const playlistMode =
+        /\b(build|make|compile|create|generate)\b/i.test(command) &&
         /\b(playlist|set)\b/i.test(command);
 
       const response = await fetch(

@@ -1,5 +1,23 @@
 [
   {
+    "id": "bleep-job-1779065388704",
+    "createdAt": "2026-05-18T00:49:48.704Z",
+    "status": "BLEEP_JOB_CREATED",
+    "source": "SMARTDJ",
+    "track": {
+      "id": "smartdj-bleep-needed-1779065388480",
+      "title": "create money playlist",
+      "artist": "SmartDJ",
+      "source": "SmartDJ request",
+      "reason": "No clean/radio edit version was returned. SmartDJ must find a clean version or create a processed bleeped copy before broadcast.",
+      "audioUrl": "",
+      "url": "",
+      "streamUrl": "",
+      "rawUrl": ""
+    },
+    "message": "BLEEP JOB CREATED - SmartDJ must find a clean version or create a processed bleeped copy before broadcast."
+  },
+  {
     "id": "bleep-job-1778911451727",
     "createdAt": "2026-05-16T06:04:11.727Z",
     "status": "PROCESSED_AUDIO_READY",
