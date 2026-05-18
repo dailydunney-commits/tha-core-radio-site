@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
+import { join } from "path";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -61,6 +63,39 @@ const DEFAULT_CLEAN_WORDS = [
   "edited",
   "censored"
 ];
+
+
+// BLEEP_CHECK_FILE_PERSISTENCE_V1
+// Keeps bleep-check jobs visible to the Audio Safety Center / bleep-job route.
+const BLEEP_JOBS_DIR = join(process.cwd(), ".data");
+const BLEEP_JOBS_FILE = join(BLEEP_JOBS_DIR, "bleep-jobs.json");
+
+function readJobsFromFile(): BleepJob[] {
+  try {
+    if (!existsSync(BLEEP_JOBS_FILE)) return [];
+
+    const parsed = JSON.parse(readFileSync(BLEEP_JOBS_FILE, "utf8"));
+    return Array.isArray(parsed) ? (parsed as BleepJob[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeJobsToFile(jobs: BleepJob[]) {
+  try {
+    mkdirSync(BLEEP_JOBS_DIR, { recursive: true });
+    writeFileSync(BLEEP_JOBS_FILE, JSON.stringify(jobs.slice(0, 50), null, 2), "utf8");
+  } catch {
+    // Keep API alive even if local file write fails.
+  }
+}
+
+function saveJobs(jobs: BleepJob[]) {
+  const nextJobs = jobs.slice(0, 50);
+  (globalThis as any).__THA_CORE_GLOBAL_BLEEP_JOBS__ = nextJobs;
+  writeJobsToFile(nextJobs);
+  return nextJobs;
+}
 
 function getJobs() {
   if (!(globalThis as any).__THA_CORE_GLOBAL_BLEEP_JOBS__) {
@@ -225,7 +260,7 @@ function createBleepJob(
   };
 
   jobs.unshift(job);
-  (globalThis as any).__THA_CORE_GLOBAL_BLEEP_JOBS__ = jobs.slice(0, 50);
+  saveJobs(jobs);
 
   return job;
 }
