@@ -61,9 +61,6 @@ function getTrackAudioUrl(item: SafetyQueueItem) {
     track.cleanAudioUrl ||
     track.bleepedAudioUrl ||
     track.processedAudioUrl ||
-    track.audioUrl ||
-    track.url ||
-    track.streamUrl ||
     ""
   );
 }
@@ -89,6 +86,7 @@ function formatBroadcastOutput(current: CurrentBroadcastState) {
 }
 
 export default function AudioSafetyCenterPanel() {
+  const [bleepJobs, setBleepJobs] = useState<any[]>([]);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const [state, setState] = useState<SafetyState>({
@@ -148,6 +146,284 @@ export default function AudioSafetyCenterPanel() {
       }));
     }
   }
+  // AUDIO_SAFETY_BLEEP_JOB_CONTROL_V1
+  function getBleepJobTitle(job: any) {
+    return job?.track?.title || job?.track?.id || job?.id || "Unknown bleep job";
+  }
+
+  function getBleepJobSafeUrl(job: any) {
+    return (
+      job?.processedAudioUrl ||
+      job?.bleepedAudioUrl ||
+      job?.cleanAudioUrl ||
+      job?.radioSafeAudioUrl ||
+      job?.safeAudioUrl ||
+      job?.track?.processedAudioUrl ||
+      job?.track?.bleepedAudioUrl ||
+      job?.track?.cleanAudioUrl ||
+      job?.track?.radioSafeAudioUrl ||
+      job?.track?.safeAudioUrl ||
+      ""
+    );
+  }
+
+  function getBleepJobReadyTrack(job: any) {
+    const safeUrl = getBleepJobSafeUrl(job);
+    const track = job?.track ?? {};
+
+    return {
+      ...track,
+      audioUrl: safeUrl,
+      url: safeUrl,
+      streamUrl: safeUrl,
+      processedAudioUrl: safeUrl,
+      bleepedAudioUrl: safeUrl,
+      cleanAudioUrl: safeUrl,
+      radioSafeAudioUrl: safeUrl,
+      safeAudioUrl: safeUrl,
+      statusText: "READY - clean/bleeped audio attached",
+      action: "processed_audio_ready",
+      source: track?.source || job?.source || "Audio Safety Center",
+    };
+  }
+
+  async function refreshBleepJobs() {
+    try {
+      const response = await fetch("/api/radio/bleep-job", {
+        cache: "no-store",
+      });
+
+      const data = await response.json().catch(() => ({}));
+      const jobs = Array.isArray(data?.jobs) ? data.jobs : [];
+
+      setBleepJobs(jobs);
+
+      setState((current) => ({
+        ...current,
+        bleepJobsWaiting: jobs.filter((job: any) => !getBleepJobSafeUrl(job)).length,
+        lastUpdated: new Date().toLocaleTimeString(),
+        message: data?.message || current.message,
+      }));
+    } catch {
+      setState((current) => ({
+        ...current,
+        message: "Could not load bleep/clean jobs.",
+      }));
+    }
+  }
+
+  async function attachProcessedAudioToBleepJob(job: any) {
+    const safeUrl = window.prompt(
+      "Paste the CLEAN / BLEEPED / RADIO-SAFE audio URL for this job:",
+      getBleepJobSafeUrl(job) || "/audio/smartdj/test-bleeped-clean.mp3"
+    );
+
+    if (!safeUrl || !safeUrl.trim()) return;
+
+    setState((current) => ({
+      ...current,
+      message: "Attaching clean/bleeped audio to bleep job...",
+    }));
+
+    try {
+      const response = await fetch("/api/radio/bleep-job", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        cache: "no-store",
+        body: JSON.stringify({
+          action: "attach_processed_audio",
+          id: job?.id,
+          processedAudioUrl: safeUrl.trim(),
+          bleepedAudioUrl: safeUrl.trim(),
+          cleanAudioUrl: safeUrl.trim(),
+          radioSafeAudioUrl: safeUrl.trim(),
+          safeAudioUrl: safeUrl.trim(),
+        }),
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      setState((current) => ({
+        ...current,
+        message:
+          data?.message ||
+          "Clean/bleeped audio attached. Job can now become READY.",
+      }));
+
+      await refreshBleepJobs();
+      await refreshSafetyCenter();
+    } catch {
+      setState((current) => ({
+        ...current,
+        message: "Could not attach clean/bleeped audio.",
+      }));
+    }
+  }
+  // SMARTDJ_ONE_BUTTON_CLEAN_RETURN_V1
+  async function smartDjCleanAndReturn(job: any) {
+    const safeUrl = getBleepJobSafeUrl(job);
+    const sourceText = String(job?.source || job?.track?.source || "SMARTDJ").toUpperCase();
+
+    if (!sourceText.includes("SMARTDJ")) {
+      setState((current) => ({
+        ...current,
+        message:
+          "PARKED - this one-button return is wired for SmartDJ first. Other source lanes come next.",
+      }));
+      return;
+    }
+
+    setState((current) => ({
+      ...current,
+      message: "SmartDJ is checking clean/bleep status and returning safe audio to its playlist...",
+    }));
+
+    try {
+      if (safeUrl) {
+        await fetch(`/api/smartdj/command?refresh=${Date.now()}`, {
+          method: "GET",
+          cache: "no-store",
+        }).catch(() => null);
+
+        await fetch(`/api/smartdj/latest-playlist?refresh=${Date.now()}`, {
+          method: "GET",
+          cache: "no-store",
+        }).catch(() => null);
+
+        await refreshBleepJobs();
+        await refreshSafetyCenter();
+
+        const message =
+          "SMARTDJ COMPLETE - clean/bleeped audio returned to the SmartDJ playlist. Use SmartDJ playlist controls for preview/queue/broadcast.";
+
+        setState((current) => ({
+          ...current,
+          message,
+          lastUpdated: new Date().toLocaleTimeString(),
+        }));
+
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(
+            new CustomEvent("tha-core-smartdj-status", { detail: message })
+          );
+        }
+
+        return;
+      }
+
+      await fetch("/api/radio/bleep-job", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        cache: "no-store",
+        body: JSON.stringify({
+          action: "attach_track",
+          id: job?.id,
+          track: job?.track ?? {},
+        }),
+      }).catch(() => null);
+
+      await refreshBleepJobs();
+      await refreshSafetyCenter();
+
+      setState((current) => ({
+        ...current,
+        message:
+          "SMARTDJ CLEAN/BLEEP REQUESTED - job is HELD while SmartDJ/processor creates or finds a clean/bleeped copy. It will return to SmartDJ playlist when ready.",
+        lastUpdated: new Date().toLocaleTimeString(),
+      }));
+    } catch {
+      setState((current) => ({
+        ...current,
+        message: "SmartDJ one-button clean/return failed. Job remains HELD.",
+      }));
+    }
+  }
+
+
+
+  async function sendBleepJobToQueue(job: any) {
+    const safeUrl = getBleepJobSafeUrl(job);
+
+    if (!safeUrl) {
+      setState((current) => ({
+        ...current,
+        message:
+          "BLOCKED - no clean/bleeped audio attached. Job stays HELD.",
+      }));
+      return;
+    }
+
+    setState((current) => ({
+      ...current,
+      message: "Sending clean/bleeped job audio to safety queue...",
+    }));
+
+    try {
+      const response = await fetch("/api/radio/safe-action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        cache: "no-store",
+        body: JSON.stringify({
+          source: job?.source || "SMARTDJ",
+          action: "send_to_queue",
+          mode: "pre_broadcast",
+          requireClean: true,
+          track: getBleepJobReadyTrack(job),
+        }),
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      setState((current) => ({
+        ...current,
+        message:
+          data?.message ||
+          (data?.allowed
+            ? "Clean/bleeped audio queued."
+            : "Audio was not allowed to queue."),
+      }));
+
+      await refreshSafetyCenter();
+    } catch {
+      setState((current) => ({
+        ...current,
+        message: "Could not send bleep job to safety queue.",
+      }));
+    }
+  }
+
+  async function removeBleepJob(job: any) {
+    if (!window.confirm(`Remove bleep job: ${getBleepJobTitle(job)}?`)) return;
+
+    try {
+      const response = await fetch("/api/radio/bleep-job", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        cache: "no-store",
+        body: JSON.stringify({
+          action: "remove",
+          id: job?.id,
+        }),
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      setState((current) => ({
+        ...current,
+        message: data?.message || "Bleep job removed.",
+      }));
+
+      await refreshBleepJobs();
+      await refreshSafetyCenter();
+    } catch {
+      setState((current) => ({
+        ...current,
+        message: "Could not remove bleep job.",
+      }));
+    }
+  }
+
+
 
   async function refreshSafetyCenter() {
     setState((current) => ({
@@ -282,6 +558,12 @@ export default function AudioSafetyCenterPanel() {
   }
 
   async function playQueuedSafetyItem(item: SafetyQueueItem) {
+  setState((current) => ({
+    ...current,
+    message:
+      "RETURN ONLY - Audio Safety Center does not play audio. Use RETURN TO SOURCE so the cleaned track goes back to SmartDJ or its original lane.",
+  }));
+  return;
     const audioUrl = getTrackAudioUrl(item);
 
     if (!audioUrl) {
@@ -311,7 +593,7 @@ export default function AudioSafetyCenterPanel() {
     } catch {
       setState((current) => ({
         ...current,
-        message: "Could not play queued safe track.",
+        message: "Could not RETURN ONLY safe track.",
       }));
     }
   }
@@ -353,6 +635,70 @@ export default function AudioSafetyCenterPanel() {
     message: "Queued safety playback stopped and audio source cleared.",
   }));
 }
+
+async function returnQueuedSafetyItemToSource(item: SafetyQueueItem) {
+  const audioUrl = getTrackAudioUrl(item);
+  const track = item.track ?? {};
+  const sourceText = String(item.source || track.source || "SMARTDJ").toUpperCase();
+
+  if (!audioUrl) {
+    setState((current) => ({
+      ...current,
+      message:
+        "BLOCKED - no clean/bleeped/processed audio attached. This item cannot play or return yet.",
+    }));
+    return;
+  }
+
+  if (sourceText.includes("SMARTDJ")) {
+    try {
+      await fetch(`/api/smartdj/command?refresh=${Date.now()}`, {
+        method: "GET",
+        cache: "no-store",
+      }).catch(() => null);
+
+      await fetch(`/api/smartdj/latest-playlist?refresh=${Date.now()}`, {
+        method: "GET",
+        cache: "no-store",
+      }).catch(() => null);
+
+      await refreshBleepJobs();
+      await refreshSafetyCenter();
+
+      const message =
+        "RETURNED TO SMARTDJ - clean/bleeped audio is synced back to the SmartDJ playlist. Use SmartDJ playlist controls from the proper lane.";
+
+      setState((current) => ({
+        ...current,
+        message,
+        lastUpdated: new Date().toLocaleTimeString(),
+      }));
+
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("tha-core-smartdj-status", { detail: message })
+        );
+      }
+
+      return;
+    } catch {
+      setState((current) => ({
+        ...current,
+        message: "Could not return clean/bleeped audio to SmartDJ playlist.",
+      }));
+      return;
+    }
+  }
+
+  setState((current) => ({
+    ...current,
+    message:
+      "RETURN TO SOURCE parked - SmartDJ return is wired first. Other source lanes come next.",
+    lastUpdated: new Date().toLocaleTimeString(),
+  }));
+}
+// AUDIO_SAFETY_RETURN_TO_SOURCE_V1
+
 async function sendQueuedSafetyItemToBroadcast(item: SafetyQueueItem) {
     const audioUrl = getTrackAudioUrl(item);
 
@@ -490,11 +836,13 @@ async function sendQueuedSafetyItemToBroadcast(item: SafetyQueueItem) {
 
   useEffect(() => {
     refreshSafetyCenter();
+    refreshBleepJobs();
     refreshCurrentBroadcastOutput();
 
     const timer = window.setInterval(() => {
       refreshSafetyCenter();
-      refreshCurrentBroadcastOutput();
+    refreshBleepJobs();
+    refreshCurrentBroadcastOutput();
     }, 15000);
 
     return () => {
@@ -582,6 +930,56 @@ async function sendQueuedSafetyItemToBroadcast(item: SafetyQueueItem) {
         </div>
       </div>
 
+            <section className="audio-safety-center-jobs">
+        <div className="audio-safety-center-section-title">
+          <strong>Bleep / Clean Job Control</strong>
+          <small>
+            {bleepJobs.length} job(s). HELD jobs cannot queue or broadcast until clean/bleeped audio is attached.
+          </small>
+        </div>
+
+        {bleepJobs.length > 0 ? (
+          <div className="audio-safety-center-queue-list">
+            {bleepJobs.map((job: any) => {
+              const safeUrl = getBleepJobSafeUrl(job);
+              const isReady = Boolean(safeUrl);
+
+              return (
+                <div
+                  className={`audio-safety-center-queue-item ${
+                    isReady ? "ready" : "held"
+                  }`}
+                  key={job?.id || getBleepJobTitle(job)}
+                >
+                  <div>
+                    <strong>{getBleepJobTitle(job)}</strong>
+                    <small>
+                      Status: {job?.status || "BLEEP_JOB_CREATED"} {"ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢"}{" "}
+                      {isReady ? "READY - clean/bleeped audio attached" : "HELD - waiting for clean/bleeped copy"}
+                    </small>
+                    <small>{job?.message || "Waiting for clean/bleeped copy."}</small>
+                    {safeUrl ? <small>Safe audio: {safeUrl}</small> : null}
+                  </div>
+
+                  <div className="audio-safety-center-queue-actions">
+                    <button
+                      type="button"
+                      onClick={() => smartDjCleanAndReturn(job)}
+                    >
+                      SMARTDJ CLEAN + RETURN
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="audio-safety-center-empty">
+            No bleep/clean jobs waiting right now.
+          </p>
+        )}
+      </section>
+
       {state.queue.length > 0 ? (
         <div className="audio-safety-center-list">
           {state.queue.map((item, index) => (
@@ -600,15 +998,15 @@ async function sendQueuedSafetyItemToBroadcast(item: SafetyQueueItem) {
 
               <div className="audio-safety-center-item-actions">
                 <button type="button" onClick={() => playQueuedSafetyItem(item)}>
-                  PLAY QUEUED
+                  RETURN ONLY
                 </button>
 
                 <button type="button" onClick={stopQueuedPlayback}>
-                  STOP PLAYBACK
+                  STOP SAFETY AUDIO
                 </button>
 
-                <button type="button" onClick={() => sendQueuedSafetyItemToBroadcast(item)}>
-                  SEND TO BROADCAST
+                <button type="button" onClick={() => returnQueuedSafetyItemToSource(item)}>
+                  RETURN TO SOURCE
                 </button>
 
                 <button type="button" onClick={() => removeQueuedSafetyItem(item)}>
