@@ -1,216 +1,134 @@
-﻿import { existsSync, readFileSync } from "fs";
+﻿import { existsSync, readFileSync, writeFileSync } from "fs";
 import { join } from "path";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-type CurrentBroadcastState = {
-  ok?: boolean;
-  status?: string;
-  source?: string;
-  title?: string;
-  artist?: string;
-  audioUrl?: string;
-  url?: string;
-  streamUrl?: string;
-  track?: any;
-  updatedAt?: string;
-};
+const QUEUE_FILE = join(process.cwd(), ".data", "safe-rotation-queue.json");
 
-const DATA_DIR = join(process.cwd(), ".data");
-const CURRENT_BROADCAST_FILE = join(DATA_DIR, "current-broadcast.json");
-
-function readCurrentBroadcast(): CurrentBroadcastState {
+function readQueue() {
   try {
-    if (!existsSync(CURRENT_BROADCAST_FILE)) return {};
-
-    const parsed = JSON.parse(readFileSync(CURRENT_BROADCAST_FILE, "utf8"));
-    return parsed && typeof parsed === "object" ? parsed : {};
+    if (!existsSync(QUEUE_FILE)) return { cursor: 0, tracks: [] };
+    return JSON.parse(readFileSync(QUEUE_FILE, "utf8"));
   } catch {
-    return {};
+    return { cursor: 0, tracks: [] };
   }
 }
 
-function cleanText(value: unknown) {
-  return String(value ?? "").trim();
+function saveQueue(queue: any) {
+  try {
+    writeFileSync(QUEUE_FILE, JSON.stringify(queue, null, 2), "utf8");
+  } catch {}
 }
 
-function pickCurrentBroadcastUrl(state: CurrentBroadcastState) {
-  const track = state.track ?? {};
-
-  return cleanText(
-    state.audioUrl ||
-      state.streamUrl ||
-      state.url ||
-      track.safeAudioUrl ||
-      track.radioSafeAudioUrl ||
-      track.cleanAudioUrl ||
-      track.bleepedAudioUrl ||
-      track.processedAudioUrl ||
-      track.audioUrl ||
-      track.streamUrl ||
-      track.url
-  );
-}
-
-function isRawAzuraOrSourceUrl(url: string) {
-  const text = url.toLowerCase();
+function isSafeUrl(url: string) {
+  const u = String(url || "").toLowerCase();
+  if (!u) return false;
+  if (u.includes("/listen/")) return false;
+  if (u.includes("radio.mp3")) return false;
+  if (u.includes("/api/smartdj/audio?src=")) return false;
 
   return (
-    text.includes("/listen/") ||
-    text.includes("radio.mp3") ||
-    text.includes("/api/station/") ||
-    text.includes("/files/download") ||
-    text.includes("/api/smartdj/audio?src=")
+    u.startsWith("/audio/") ||
+    u.startsWith("/drops/") ||
+    u.includes("clean") ||
+    u.includes("bleep") ||
+    u.includes("processed") ||
+    u.includes("safe")
   );
 }
 
-function isSafeBroadcastUrl(url: string) {
-  const text = url.toLowerCase();
-
-  if (!url) return false;
-  if (isRawAzuraOrSourceUrl(url)) return false;
-
-  return (
-    text.includes("clean") ||
-    text.includes("bleep") ||
-    text.includes("processed") ||
-    text.includes("safe") ||
-    text.startsWith("/audio/")
-  );
-}
-
-function standbyResponse(message = "Safe broadcast standby. Raw fallback stream is blocked.") {
-  return NextResponse.json(
-    {
-      ok: true,
-      mode: "SAFE_STANDBY",
-      safety: "PUBLIC_RAW_FALLBACK_BLOCKED",
-      is_online: false,
-      audioUrl: "",
-      streamUrl: "",
-      listen_url: "",
-      station: {
-        name: "Tha Core Online Radio",
-        listen_url: "",
-        mounts: [],
+function standby(message: string) {
+  return NextResponse.json({
+    ok: true,
+    mode: "SAFE_STANDBY",
+    safety: "PUBLIC_RAW_FALLBACK_BLOCKED",
+    is_online: false,
+    audioUrl: "",
+    streamUrl: "",
+    listen_url: "",
+    station: { name: "Tha Core Online Radio", listen_url: "", mounts: [] },
+    listeners: { total: 0, unique: 0, current: 0 },
+    live: { is_live: false, streamer_name: "", broadcast_start: null, art: null },
+    now_playing: {
+      song: {
+        text: "Safe Broadcast Standby",
+        artist: "Tha Core Online Radio",
+        title: "Safe Broadcast Standby",
+        album: "",
+        art: null
       },
-      listeners: {
-        total: 0,
-        unique: 0,
-        current: 0,
-      },
-      live: {
-        is_live: false,
-        streamer_name: "",
-        broadcast_start: null,
-        art: null,
-      },
-      now_playing: {
-        song: {
-          text: "Safe Broadcast Standby",
-          artist: "Tha Core Online Radio",
-          title: "Safe Broadcast Standby",
-          album: "",
-          art: null,
-        },
-        playlist: "Safety Brain",
-        is_request: false,
-        elapsed: 0,
-        remaining: 0,
-      },
-      playing_next: null,
-      song_history: [],
-      cache: null,
-      message,
+      playlist: "Safety Brain",
+      is_request: false,
+      elapsed: 0,
+      remaining: 0
     },
-    {
-      status: 200,
-      headers: {
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      },
-    }
-  );
+    playing_next: null,
+    song_history: [],
+    cache: null,
+    message
+  }, { headers: { "Cache-Control": "no-store, no-cache, must-revalidate" } });
 }
 
-export async function GET() {
-  const current = readCurrentBroadcast();
-  const status = cleanText(current.status).toUpperCase();
-  const audioUrl = pickCurrentBroadcastUrl(current);
+export async function GET(request: NextRequest) {
+  const shouldAdvance = new URL(request.url).searchParams.get("advance") === "1";
+  const queue = readQueue();
 
-  const hasActiveBroadcast =
-    Boolean(audioUrl) && status !== "IDLE" && status !== "OFF_AIR";
+  const tracks = Array.isArray(queue.tracks)
+    ? queue.tracks.filter((track: any) => isSafeUrl(track.audioUrl || track.streamUrl || track.url))
+    : [];
 
-  if (!hasActiveBroadcast) {
-    return standbyResponse(
-      "No clean/bleeped Current Broadcast Output yet. Public raw Azura fallback is blocked."
-    );
+  if (!tracks.length) {
+    return standby("No approved tracks in safe rotation queue.");
   }
 
-  if (!isSafeBroadcastUrl(audioUrl)) {
-    return standbyResponse(
-      "Current broadcast audio was not verified as clean/bleeped/processed. Public playback blocked."
-    );
+  let cursor = Number.isFinite(Number(queue.cursor)) ? Number(queue.cursor) : 0;
+  cursor = Math.max(0, cursor) % tracks.length;
+
+  if (shouldAdvance) {
+    cursor = (cursor + 1) % tracks.length;
+    queue.cursor = cursor;
+    saveQueue(queue);
   }
 
-  const title = cleanText(current.title) || "Clean Broadcast";
-  const artist = cleanText(current.artist) || cleanText(current.source) || "Tha Core Online Radio";
+  const track = tracks[cursor];
+  const audioUrl = String(track.audioUrl || track.streamUrl || track.url || "").trim();
 
-  return NextResponse.json(
-    {
-      ok: true,
-      mode: "CURRENT_BROADCAST",
-      safety: "CLEAN_OR_BLEEPED_CURRENT_BROADCAST",
-      is_online: true,
-      audioUrl,
-      streamUrl: audioUrl,
+  if (!isSafeUrl(audioUrl)) {
+    return standby("Selected audio blocked by public safety gate.");
+  }
+
+  const title = String(track.title || "Safe Rotation Track").trim();
+  const artist = String(track.artist || "Tha Core Online Radio").trim();
+
+  return NextResponse.json({
+    ok: true,
+    mode: "CURRENT_BROADCAST",
+    safety: "CLEAN_OR_BLEEPED_SAFE_ROTATION",
+    is_online: true,
+    audioUrl,
+    streamUrl: audioUrl,
+    listen_url: audioUrl,
+    station: {
+      name: "Tha Core Online Radio",
       listen_url: audioUrl,
-      station: {
-        name: "Tha Core Online Radio",
-        listen_url: audioUrl,
-        mounts: [
-          {
-            name: "Clean/Bleeped Current Broadcast",
-            url: audioUrl,
-            is_default: true,
-          },
-        ],
-      },
-      listeners: {
-        total: 0,
-        unique: 0,
-        current: 0,
-      },
-      live: {
-        is_live: status.includes("LIVE"),
-        streamer_name: "",
-        broadcast_start: null,
-        art: null,
-      },
-      now_playing: {
-        song: {
-          text: `${artist} - ${title}`,
-          artist,
-          title,
-          album: "",
-          art: null,
-        },
-        playlist: "Current Broadcast Output",
-        is_request: false,
-        elapsed: 0,
-        remaining: 0,
-      },
-      playing_next: null,
-      song_history: [],
-      cache: null,
-      message: "Listener side is playing clean/bleeped Current Broadcast Output.",
+      mounts: [{ name: "Safe Rotation Output", url: audioUrl, is_default: true }]
     },
-    {
-      status: 200,
-      headers: {
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      },
-    }
-  );
+    listeners: { total: 0, unique: 0, current: 0 },
+    live: { is_live: true, streamer_name: "", broadcast_start: null, art: null },
+    now_playing: {
+      song: { text: `${artist} - ${title}`, artist, title, album: "", art: null },
+      playlist: "Safe Rotation Queue",
+      is_request: false,
+      elapsed: 0,
+      remaining: 0
+    },
+    playing_next: null,
+    song_history: [],
+    cache: null,
+    message: shouldAdvance
+      ? "Advanced to next approved safe track."
+      : "Playing approved safe rotation track. Raw Azura remains blocked."
+  }, { headers: { "Cache-Control": "no-store, no-cache, must-revalidate" } });
 }
