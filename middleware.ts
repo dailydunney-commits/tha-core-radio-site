@@ -25,7 +25,30 @@ function unauthorized() {
 }
 
 export function middleware(request: NextRequest) {
-  // REAL_BLEEP_PROCESSOR_DEV_ALLOWLIST
+  // SAFE_BACKEND_LOCAL_DEV_ALLOWLIST
+  // Local backend tests only. Production owner/security lock stays protected.
+  const safeBackendPathname =
+    request.nextUrl?.pathname || new URL(request.url).pathname;
+
+  if (
+    process.env.NODE_ENV !== "production" &&
+    (
+      safeBackendPathname === "/api/radio/safe-action" ||
+      safeBackendPathname.startsWith("/api/radio/safe-action/") ||
+      safeBackendPathname === "/api/radio/bleep-check" ||
+      safeBackendPathname.startsWith("/api/radio/bleep-check/") ||
+      safeBackendPathname === "/api/radio/bleep-job" ||
+      safeBackendPathname.startsWith("/api/radio/bleep-job/") ||
+      safeBackendPathname === "/api/radio/global-audio-gate" ||
+      safeBackendPathname.startsWith("/api/radio/global-audio-gate/") ||
+      safeBackendPathname === "/api/radio/current-broadcast" ||
+      safeBackendPathname.startsWith("/api/radio/current-broadcast/")
+    )
+  ) {
+    return NextResponse.next();
+  }
+
+// REAL_BLEEP_PROCESSOR_DEV_ALLOWLIST
   // Local backend test bypass only. Production owner/security lock stays protected.
   const realBleepProcessorPathname =
     request.nextUrl?.pathname || new URL(request.url).pathname;
@@ -35,7 +58,7 @@ export function middleware(request: NextRequest) {
     (
       realBleepProcessorPathname === "/api/radio/bleep-process" ||
       realBleepProcessorPathname.startsWith("/api/radio/bleep-process/") ||
-      realBleepProcessorPathname === "/api/radio/smartdj-local-clean-one" || realBleepProcessorPathname.startsWith("/api/radio/smartdj-local-clean-one/") || realBleepProcessorPathname === "/api/radio/bleep-local-transcribe-and-process" || realBleepProcessorPathname.startsWith("/api/radio/bleep-local-transcribe-and-process/") || realBleepProcessorPathname === "/api/radio/bleep-transcribe-and-process" || realBleepProcessorPathname.startsWith("/api/radio/bleep-transcribe-and-process/") || realBleepProcessorPathname === "/api/radio/bleep-processor" ||
+      realBleepProcessorPathname === "/api/radio/safe-action" || realBleepProcessorPathname.startsWith("/api/radio/safe-action/") || realBleepProcessorPathname === "/api/radio/smartdj-local-clean-one" || realBleepProcessorPathname.startsWith("/api/radio/smartdj-local-clean-one/") || realBleepProcessorPathname === "/api/radio/bleep-local-transcribe-and-process" || realBleepProcessorPathname.startsWith("/api/radio/bleep-local-transcribe-and-process/") || realBleepProcessorPathname === "/api/radio/bleep-transcribe-and-process" || realBleepProcessorPathname.startsWith("/api/radio/bleep-transcribe-and-process/") || realBleepProcessorPathname === "/api/radio/bleep-processor" ||
       realBleepProcessorPathname.startsWith("/api/radio/bleep-processor/")
     )
   ) {
@@ -100,6 +123,8 @@ export const config = {
     "/api/azuracast/control/:path*",
   ],
 };
+
+
 
 
 
