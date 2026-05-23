@@ -51,3 +51,16 @@ smartdj-engine/node_modules/
 smartdj-engine/.env
 
 smartdj-engine/package-lock.json
+
+# Tha Core local runtime/generated files
+.data/
+.venv-whisper/
+public/audio/smartdj/clean/
+
+# Local backup files created during PowerShell patching
+*.backup*
+*.before*
+*.before-*
+*.backup-*
+*.ts.backup*
+*.tsx.backup*
