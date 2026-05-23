@@ -25,6 +25,23 @@ function unauthorized() {
 }
 
 export function middleware(request: NextRequest) {
+  // REAL_BLEEP_PROCESSOR_DEV_ALLOWLIST
+  // Local backend test bypass only. Production owner/security lock stays protected.
+  const realBleepProcessorPathname =
+    request.nextUrl?.pathname || new URL(request.url).pathname;
+
+  if (
+    process.env.NODE_ENV !== "production" &&
+    (
+      realBleepProcessorPathname === "/api/radio/bleep-process" ||
+      realBleepProcessorPathname.startsWith("/api/radio/bleep-process/") ||
+      realBleepProcessorPathname === "/api/radio/bleep-transcribe-and-process" || realBleepProcessorPathname.startsWith("/api/radio/bleep-transcribe-and-process/") || realBleepProcessorPathname === "/api/radio/bleep-processor" ||
+      realBleepProcessorPathname.startsWith("/api/radio/bleep-processor/")
+    )
+  ) {
+    return NextResponse.next();
+  }
+
   const pathname = request.nextUrl.pathname;
 
   if (!isProtectedPath(pathname)) {
@@ -83,3 +100,5 @@ export const config = {
     "/api/azuracast/control/:path*",
   ],
 };
+
+
