@@ -35,7 +35,7 @@ export function middleware(request: NextRequest) {
     (
       realBleepProcessorPathname === "/api/radio/bleep-process" ||
       realBleepProcessorPathname.startsWith("/api/radio/bleep-process/") ||
-      realBleepProcessorPathname === "/api/radio/bleep-local-transcribe-and-process" || realBleepProcessorPathname.startsWith("/api/radio/bleep-local-transcribe-and-process/") || realBleepProcessorPathname === "/api/radio/bleep-transcribe-and-process" || realBleepProcessorPathname.startsWith("/api/radio/bleep-transcribe-and-process/") || realBleepProcessorPathname === "/api/radio/bleep-processor" ||
+      realBleepProcessorPathname === "/api/radio/smartdj-local-clean-one" || realBleepProcessorPathname.startsWith("/api/radio/smartdj-local-clean-one/") || realBleepProcessorPathname === "/api/radio/bleep-local-transcribe-and-process" || realBleepProcessorPathname.startsWith("/api/radio/bleep-local-transcribe-and-process/") || realBleepProcessorPathname === "/api/radio/bleep-transcribe-and-process" || realBleepProcessorPathname.startsWith("/api/radio/bleep-transcribe-and-process/") || realBleepProcessorPathname === "/api/radio/bleep-processor" ||
       realBleepProcessorPathname.startsWith("/api/radio/bleep-processor/")
     )
   ) {
@@ -100,6 +100,7 @@ export const config = {
     "/api/azuracast/control/:path*",
   ],
 };
+
 
 
 

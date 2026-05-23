@@ -217,14 +217,18 @@ function buildBleepCuesFromWords(words: AnyRecord[]) {
     .filter((item) => isExplicitWord(String(item.word ?? item.text ?? "")))
     .map((item) => {
       const start = Number(item.start ?? item.startTime);
-      const end = Number(item.end ?? item.endTime);
+      const rawEnd = Number(item.end ?? item.endTime);
       const word = String(item.word ?? item.text ?? "");
 
-      if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return null;
+      if (!Number.isFinite(start)) return null;
+
+      // Whisper can return zero-length word timestamps like 22.3 -> 22.3.
+      // Do not miss explicit words because of that. Give them a safe bleep window.
+      const end = Number.isFinite(rawEnd) && rawEnd > start ? rawEnd : start + 0.55;
 
       return {
-        start: Math.max(0, start - 0.04),
-        end: end + 0.08,
+        start: Math.max(0, start - 0.08),
+        end: end + 0.12,
         word,
         reason: "local_whisper_explicit_word_timestamp",
       };
@@ -392,3 +396,4 @@ export async function runLocalTranscribeAndProcess(body: AnyRecord) {
     cueCount: bleepCues.length,
   };
 }
+
