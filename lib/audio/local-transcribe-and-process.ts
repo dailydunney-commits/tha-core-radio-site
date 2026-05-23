@@ -339,16 +339,16 @@ export async function runLocalTranscribeAndProcess(body: AnyRecord) {
 
   if (!bleepCues.length) {
     const updatedList = updateJob(list, job, {
-      status: "LOCAL_TRANSCRIBED_NO_EXPLICIT_CUES_REVIEW_REQUIRED",
+      status: "SMARTDJ_SECOND_SCAN_RECOMMENDED",
       decision: "BLOCK_UNTIL_REVIEW",
       safe: false,
-      needsHumanReview: true,
+      needsSmartDjSecondScan: true,
       transcript: transcription.transcript || "",
       wordTimestamps: transcription.words,
       bleepCues: [],
       cueCount: 0,
       message:
-        "Local Whisper produced word timestamps, but no explicit cues were detected. Human review required before broadcast.",
+        "Local Whisper produced word timestamps, but no explicit cues were detected. SmartDJ second scan recommended before broadcast.",
     });
 
     safeJsonWrite(JOBS_FILE, shape.save(updatedList));
@@ -356,9 +356,9 @@ export async function runLocalTranscribeAndProcess(body: AnyRecord) {
     return {
       ok: false,
       jobId,
-      status: "LOCAL_TRANSCRIBED_NO_EXPLICIT_CUES_REVIEW_REQUIRED",
+      status: "SMARTDJ_SECOND_SCAN_RECOMMENDED",
       message:
-        "No explicit bleep cues were found. Track was not marked safe automatically. Human review required.",
+        "No explicit bleep cues were found. SmartDJ second scan recommended before release.",
       transcript: transcription.transcript || "",
       wordCount: transcription.words.length,
       cueCount: 0,
@@ -396,4 +396,5 @@ export async function runLocalTranscribeAndProcess(body: AnyRecord) {
     cueCount: bleepCues.length,
   };
 }
+
 

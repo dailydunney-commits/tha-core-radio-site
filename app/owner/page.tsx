@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 
 import AudioSafetyCenterPanel from "../../components/audio-safety-center-panel";
@@ -210,11 +210,116 @@ function SmartDjControlPlaylist() {
       audioUrl: String(track?.audioUrl ?? track?.streamUrl ?? track?.url ?? ""),
       streamUrl: String(track?.streamUrl ?? ""),
       url: String(track?.url ?? ""),
-    }));
+      status: String(track?.status ?? ""),
+      statusText: String(track?.statusText ?? ""),
+      cleanStatus: String(track?.cleanStatus ?? ""),
+      safetyStatus: String(track?.safetyStatus ?? ""),
+      bleepJobStatus: String(track?.bleepJobStatus ?? ""),
+      cleanAudioUrl: String(track?.cleanAudioUrl ?? ""),
+      processedAudioUrl: String(track?.processedAudioUrl ?? ""),
+      bleepedAudioUrl: String(track?.bleepedAudioUrl ?? ""),
+      radioSafeAudioUrl: String(track?.radioSafeAudioUrl ?? ""),
+      safeAudioUrl: String(track?.safeAudioUrl ?? ""),
+      rawAudioBlocked: Boolean(track?.rawAudioBlocked),
+      held: Boolean(track?.held),
+      needsBleep: Boolean(track?.needsBleep),
+      safetyNote: String(track?.safetyNote ?? ""),
+    } as any));
   }
 
   function getTrackAudioUrl(track: SmartDjControlPlaylistTrack) {
-    return track.audioUrl || track.streamUrl || track.url || "";
+    const item: any = track ?? {};
+    return (
+      item.safeAudioUrl ||
+      item.radioSafeAudioUrl ||
+      item.cleanAudioUrl ||
+      item.bleepedAudioUrl ||
+      item.processedAudioUrl ||
+      track.audioUrl ||
+      track.streamUrl ||
+      track.url ||
+      ""
+    );
+  }
+
+  // SMARTDJ_DETECTOR_LIGHT_V1
+  function getSmartDjDetectorState(track: SmartDjControlPlaylistTrack) {
+    const item: any = track ?? {};
+
+    const text = String(
+      [
+        item.status,
+        item.statusText,
+        item.cleanStatus,
+        item.safetyStatus,
+        item.bleepJobStatus,
+        item.reason,
+        item.safetyNote,
+        item.action,
+        item.message,
+        item.decision,
+      ]
+        .filter(Boolean)
+        .join(" ")
+    ).toLowerCase();
+
+    const hasCleanAudio = Boolean(
+      item.safeAudioUrl ||
+        item.radioSafeAudioUrl ||
+        item.cleanAudioUrl ||
+        item.bleepedAudioUrl ||
+        item.processedAudioUrl ||
+        text.includes("processed_audio_ready")
+    );
+
+    const secondScan =
+      text.includes("second_scan") ||
+      text.includes("no_explicit_cues") ||
+      text.includes("second scan") ||
+      text.includes("review");
+
+    const processing =
+      text.includes("processing") ||
+      text.includes("transcrib") ||
+      text.includes("local_whisper");
+
+    if (hasCleanAudio) {
+      return {
+        label: "CLEAN READY",
+        color: "#22c55e",
+        flash: false,
+      };
+    }
+
+    if (processing) {
+      return {
+        label: "SCANNING",
+        color: "#38bdf8",
+        flash: true,
+      };
+    }
+
+    if (secondScan) {
+      return {
+        label: "SECOND SCAN",
+        color: "#facc15",
+        flash: true,
+      };
+    }
+
+    if (isSmartDjTrackHeld(track)) {
+      return {
+        label: "HELD",
+        color: "#ef4444",
+        flash: true,
+      };
+    }
+
+    return {
+      label: "SCAN NEEDED",
+      color: "#facc15",
+      flash: true,
+    };
   }
 
 
@@ -760,6 +865,20 @@ return {
   return (
     <section className="owner-control-smartdj-playlist panel">
       <audio ref={audioRef} preload="none" />
+      <style jsx>{`
+        @keyframes smartDjDetectorBlink {
+          0%, 100% {
+            opacity: 1;
+            transform: scale(1);
+            box-shadow: 0 0 14px currentColor;
+          }
+          50% {
+            opacity: 0.35;
+            transform: scale(0.96);
+            box-shadow: 0 0 4px currentColor;
+          }
+        }
+      `}</style>
 
       <div className="owner-control-smartdj-playlist-head">
         <div>
@@ -795,6 +914,46 @@ return {
                     {index + 1}. {track.artist ?? "SmartDJ"} - {track.title}
                   </b>
                   <small>{track.source ?? "Tha Core SmartDJ"}</small>
+                  {(() => {
+                    const detector = getSmartDjDetectorState(track);
+
+                    return (
+                      <span
+                        title="SmartDJ clean/bleep detector"
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "7px",
+                          marginTop: "7px",
+                          width: "fit-content",
+                          borderRadius: "999px",
+                          border: `1px solid ${detector.color}`,
+                          color: detector.color,
+                          padding: "5px 10px",
+                          fontSize: "11px",
+                          fontWeight: 1000,
+                          letterSpacing: "0.08em",
+                          textTransform: "uppercase",
+                          background: "rgba(0,0,0,0.55)",
+                        }}
+                      >
+                        <span
+                          style={{
+                            width: "10px",
+                            height: "10px",
+                            borderRadius: "999px",
+                            background: detector.color,
+                            color: detector.color,
+                            display: "inline-block",
+                            animation: detector.flash
+                              ? "smartDjDetectorBlink 0.75s infinite"
+                              : "none",
+                          }}
+                        />
+                        {detector.label}
+                      </span>
+                    );
+                  })()}
                 </div>
 
                 <div className="owner-control-smartdj-row-actions">
@@ -3730,5 +3889,6 @@ function ControlSlider({
 
 
 // SMARTDJ_DISPATCH_LOADED_MESSAGE_COUNT_ONLY_V1
+
 
 

@@ -338,6 +338,38 @@ export async function runSmartDjLocalCleanOne(body: AnyRecord) {
     sourceFilePath: downloadResult.sourceFilePath,
   });
 
+  // SMARTDJ_SECOND_SCAN_STATE_V1
+  // If SmartDJ transcribed but found no explicit cue, do not release raw audio.
+  // Mark the row for SmartDJ second scan and flash detector light in owner panel.
+  if (
+    processed?.status === "SMARTDJ_SECOND_SCAN_RECOMMENDED" ||
+    processed?.status === "LOCAL_TRANSCRIBED_NO_EXPLICIT_CUES_REVIEW_REQUIRED"
+  ) {
+    const secondScanState = updateMatchingTrack(
+      safeJsonRead(SMARTDJ_STATE_FILE, state),
+      (track) => trackMatches(track, originalTrackId),
+      (track) => ({
+        ...track,
+        trackId: originalTrackId,
+        bleepJobId: jobId,
+        status: "SMARTDJ_SECOND_SCAN_RECOMMENDED",
+        safetyStatus: "SMARTDJ_SECOND_SCAN_RECOMMENDED",
+        cleanStatus: "SMARTDJ_SECOND_SCAN_RECOMMENDED",
+        needsBleep: true,
+        held: true,
+        rawAudioBlocked: true,
+        rawAudioUrl: originalAudioUrl,
+        audioUrl: "",
+        cleanAudioUrl: "",
+        processedAudioUrl: "",
+        safetyNote:
+          "SmartDJ first scan found no explicit cue. SmartDJ second scan recommended before release. Raw audio blocked.",
+      })
+    );
+
+    safeJsonWrite(SMARTDJ_STATE_FILE, secondScanState);
+  }
+
   return {
     ...processed,
     smartDjRealRowTest: true,
@@ -346,4 +378,5 @@ export async function runSmartDjLocalCleanOne(body: AnyRecord) {
     sourceSizeBytes: downloadResult.sizeBytes,
   };
 }
+
 
