@@ -115,13 +115,41 @@ function updateMatchingTrack(value: any, matcher: (track: AnyRecord) => boolean,
 function pickAudioUrl(track: AnyRecord) {
   return String(
     track.rawUrl ||
-    track.sourceDownloadUrl ||
-    track.downloadUrl ||
-    track.audioUrl ||
-    track.url ||
-    track.streamUrl ||
-    ""
+      track.sourceDownloadUrl ||
+      track.downloadUrl ||
+      track.audioUrl ||
+      track.url ||
+      track.streamUrl ||
+      ""
   ).trim();
+}
+
+function pickLocalSourceFilePath(track: AnyRecord, body: AnyRecord, trackId: string) {
+  const azuraMediaDir =
+    process.env.AZURACAST_MEDIA_DIR ||
+    "/var/lib/docker/volumes/azuracast_station_data/_data/tha-core-online/media";
+
+  const candidates = [
+    body.sourceFilePath,
+    body.sourcePath,
+    body.localAudioPath,
+    track.sourceFilePath,
+    track.sourcePath,
+    track.localAudioPath,
+    path.join(azuraMediaDir, trackId),
+  ]
+    .map((item) => String(item || "").trim())
+    .filter(Boolean);
+
+  return (
+    candidates.find((item) => {
+      try {
+        return fs.existsSync(item) && fs.statSync(item).isFile();
+      } catch {
+        return false;
+      }
+    }) || ""
+  );
 }
 
 function extensionFromContentType(contentType: string, fallbackUrl: string) {
@@ -378,5 +406,6 @@ export async function runSmartDjLocalCleanOne(body: AnyRecord) {
     sourceSizeBytes: downloadResult.sizeBytes,
   };
 }
+
 
 
