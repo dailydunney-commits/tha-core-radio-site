@@ -33,7 +33,10 @@ export function middleware(request: NextRequest) {
   if (
     process.env.NODE_ENV !== "production" &&
     (
-      safeBackendPathname === "/api/radio/smartdj-clean-next" || safeBackendPathname.startsWith("/api/radio/smartdj-clean-next/") || safeBackendPathname === "/api/radio/smartdj-second-scan" || safeBackendPathname.startsWith("/api/radio/smartdj-second-scan/") || safeBackendPathname === "/api/radio/smartdj-auto-clean" || safeBackendPathname.startsWith("/api/radio/smartdj-auto-clean/") || safeBackendPathname === "/api/radio/safe-action" ||
+      safeBackendPathname === "/api/radio/smartdj-clean-next" ||
+    safeBackendPathname.startsWith("/api/radio/smartdj-clean-next/") ||
+    safeBackendPathname === "/api/radio/smartdj-auto-brain" ||
+    safeBackendPathname.startsWith("/api/radio/smartdj-auto-brain/") || safeBackendPathname.startsWith("/api/radio/smartdj-clean-next/") || safeBackendPathname === "/api/radio/smartdj-second-scan" || safeBackendPathname.startsWith("/api/radio/smartdj-second-scan/") || safeBackendPathname === "/api/radio/smartdj-auto-clean" || safeBackendPathname.startsWith("/api/radio/smartdj-auto-clean/") || safeBackendPathname === "/api/radio/safe-action" ||
       safeBackendPathname.startsWith("/api/radio/safe-action/") ||
       safeBackendPathname === "/api/radio/bleep-check" ||
       safeBackendPathname.startsWith("/api/radio/bleep-check/") ||
@@ -123,6 +126,8 @@ export const config = {
     "/api/azuracast/control/:path*",
   ],
 };
+
+
 
 
 

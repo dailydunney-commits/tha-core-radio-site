@@ -1,6 +1,8 @@
 ﻿"use client";
 
 
+
+import SmartDJAutoBrain from "../../components/smartdj-auto-brain";
 import AudioSafetyCenterPanel from "../../components/audio-safety-center-panel";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import OwnerSmartDjCommand from "@/components/owner-smartdj-command";
@@ -2155,6 +2157,7 @@ const SELECTED_DISPLAY_MEMORY_KEY = "tha-core-owner-selected-display-v1";
 
   return (
     <main className="control-page">
+      <SmartDJAutoBrain />
       <audio ref={audioRef} src={STREAM_URL} preload="none" />
       <audio ref={overlayAudioRef} preload="auto" />
 
@@ -3983,6 +3986,7 @@ function ControlSlider({
 
 
 // SMARTDJ_DISPATCH_LOADED_MESSAGE_COUNT_ONLY_V1
+
 
 
 
