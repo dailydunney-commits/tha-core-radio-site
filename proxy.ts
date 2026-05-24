@@ -36,7 +36,7 @@ export function proxy(request: NextRequest) {
       safeBackendPathname === "/api/radio/smartdj-clean-next" ||
     safeBackendPathname.startsWith("/api/radio/smartdj-clean-next/") ||
     safeBackendPathname === "/api/radio/smartdj-auto-brain" ||
-    safeBackendPathname.startsWith("/api/radio/smartdj-auto-brain/") || safeBackendPathname.startsWith("/api/radio/smartdj-clean-next/") || safeBackendPathname === "/api/radio/smartdj-second-scan" || safeBackendPathname.startsWith("/api/radio/smartdj-second-scan/") || safeBackendPathname === "/api/radio/smartdj-background-clean" || safeBackendPathname.startsWith("/api/radio/smartdj-background-clean/") || safeBackendPathname === "/api/radio/smartdj-auto-clean" || safeBackendPathname.startsWith("/api/radio/smartdj-auto-clean/") || safeBackendPathname === "/api/radio/safe-action" ||
+    safeBackendPathname.startsWith("/api/radio/smartdj-auto-brain/") || safeBackendPathname.startsWith("/api/radio/smartdj-clean-next/") || safeBackendPathname === "/api/radio/smartdj-second-scan" || safeBackendPathname.startsWith("/api/radio/smartdj-second-scan/") || safeBackendPathname === "/api/radio/smartdj-azura-scan-load" || safeBackendPathname.startsWith("/api/radio/smartdj-azura-scan-load/") || safeBackendPathname === "/api/radio/smartdj-background-clean" || safeBackendPathname.startsWith("/api/radio/smartdj-background-clean/") || safeBackendPathname === "/api/radio/smartdj-auto-clean" || safeBackendPathname.startsWith("/api/radio/smartdj-auto-clean/") || safeBackendPathname === "/api/radio/safe-action" ||
       safeBackendPathname.startsWith("/api/radio/safe-action/") ||
       safeBackendPathname === "/api/radio/bleep-check" ||
       safeBackendPathname.startsWith("/api/radio/bleep-check/") ||
