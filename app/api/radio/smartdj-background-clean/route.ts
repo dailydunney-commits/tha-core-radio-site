@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
 import { runSmartDjLocalCleanOne } from "@/lib/audio/smartdj-local-clean-one";
@@ -83,7 +83,7 @@ function getTracks() {
 async function runLoop(options: AnyRecord) {
   const startedAt = new Date().toISOString();
   const target = String(options.target || "hip hop");
-  const limit = Math.max(1, Math.min(Number(options.limit || 5), 10));
+  const limit = Math.max(1, Math.min(Number(options.limit || 5), 25));
   const force = Boolean(options.force);
 
   running = true;
