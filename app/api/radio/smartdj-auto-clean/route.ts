@@ -1,18 +1,16 @@
-﻿import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import { join } from "path";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { runSmartDjLocalCleanOne } from "@/lib/audio/smartdj-local-clean-one";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 type AnyTrack = Record<string, any>;
-type AnyJob = Record<string, any>;
 type SmartDjState = Record<string, any>;
 
 const DATA_DIR = join(process.cwd(), ".data");
 const SMARTDJ_STATE_FILE = join(DATA_DIR, "smartdj-state.json");
-const BLEEP_JOBS_FILE = join(DATA_DIR, "bleep-jobs.json");
 
 function readJsonFile<T>(filePath: string, fallback: T): T {
   try {
@@ -33,48 +31,8 @@ function cleanText(value: unknown) {
   return String(value ?? "").trim();
 }
 
-function normalizeId(value: unknown) {
-  return cleanText(value)
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 80);
-}
-
-function getTrackKey(track: AnyTrack) {
-  return (
-    normalizeId(track.id) ||
-    normalizeId(`${track.artist ?? ""}-${track.title ?? ""}`) ||
-    normalizeId(track.title) ||
-    `track-${Date.now()}`
-  );
-}
-
-function pickSafeAudioUrl(item: AnyTrack) {
-  return cleanText(
-    item.safeAudioUrl ||
-      item.radioSafeAudioUrl ||
-      item.cleanAudioUrl ||
-      item.bleepedAudioUrl ||
-      item.processedAudioUrl ||
-      ""
-  );
-}
-
-function pickOriginalAudioUrl(item: AnyTrack) {
-  return cleanText(
-    item.rawUrl ||
-      item.sourceAudioUrl ||
-      item.originalAudioUrl ||
-      item.audioUrl ||
-      item.url ||
-      item.streamUrl ||
-      ""
-  );
-}
-
 function isRawAzuraOrSourceUrl(url: string) {
-  const text = url.toLowerCase();
+  const text = cleanText(url).toLowerCase();
 
   return (
     text.includes("/listen/") ||
@@ -85,23 +43,14 @@ function isRawAzuraOrSourceUrl(url: string) {
   );
 }
 
-function trackNeedsClean(track: AnyTrack) {
-  const safeUrl = pickSafeAudioUrl(track);
-  const text = cleanText(
-    `${track.action ?? ""} ${track.statusText ?? ""} ${track.reason ?? ""} ${track.source ?? ""}`
-  ).toLowerCase();
-
-  if (safeUrl && !isRawAzuraOrSourceUrl(safeUrl)) return false;
-
-  return (
-    !safeUrl ||
-    text.includes("held") ||
-    text.includes("source_search") ||
-    text.includes("source audio found") ||
-    text.includes("needs clean") ||
-    text.includes("needs bleep") ||
-    text.includes("explicit") ||
-    text.includes("dirty")
+function pickSafeAudioUrl(track: AnyTrack) {
+  return cleanText(
+    track.safeAudioUrl ||
+      track.radioSafeAudioUrl ||
+      track.cleanAudioUrl ||
+      track.bleepedAudioUrl ||
+      track.processedAudioUrl ||
+      ""
   );
 }
 
@@ -116,287 +65,326 @@ function getPlaylistTracks(state: SmartDjState): AnyTrack[] {
   return source.filter(Boolean);
 }
 
-function findExistingJob(jobs: AnyJob[], track: AnyTrack) {
-  const key = getTrackKey(track);
-  const title = cleanText(track.title).toLowerCase();
-
-  return (
-    jobs.find((job) => {
-      const jobTrack = job.track ?? {};
-      const jobKey = getTrackKey(jobTrack);
-      const jobTitle = cleanText(jobTrack.title || job.title).toLowerCase();
-
-      return (
-        key === jobKey ||
-        (title && jobTitle && title === jobTitle)
-      );
-    }) || null
+function getTrackId(track: AnyTrack) {
+  return cleanText(
+    track.trackId ||
+      track.id ||
+      track.filename ||
+      track.fileName ||
+      track.slug ||
+      track.title
   );
 }
 
-function makeBleepJob(track: AnyTrack): AnyJob {
-  const now = new Date().toISOString();
-  const key = getTrackKey(track);
-  const originalUrl = pickOriginalAudioUrl(track);
-
-  return {
-    id: `smartdj-clean-${key}`,
-    createdAt: now,
-    updatedAt: now,
-    status: originalUrl ? "READY_FOR_BLEEP_PROCESSING" : "BLEEP_JOB_CREATED",
-    source: "SMARTDJ",
-    mode: "auto_clean_return",
-    track: {
-      ...track,
-      rawUrl: originalUrl,
-      sourceAudioUrl: originalUrl,
-      originalAudioUrl: originalUrl,
-      statusText: "HELD - waiting for clean/bleep copy",
-      action: "held_for_clean_bleep",
-      audioUrl: "",
-      url: "",
-      streamUrl: "",
-    },
-    explicitWords: [],
-    cleanWords: [],
-    message: originalUrl
-      ? "SMARTDJ AUTO CLEAN - original audio attached. Processor must create clean/bleeped copy before return."
-      : "SMARTDJ AUTO CLEAN - direct audio URL missing. Track remains HELD until source audio is found.",
-  };
+function getStatusText(track: AnyTrack) {
+  return cleanText(
+    `${track.status ?? ""} ${track.statusText ?? ""} ${track.cleanStatus ?? ""} ${track.safetyStatus ?? ""} ${track.bleepJobStatus ?? ""} ${track.reason ?? ""} ${track.safetyNote ?? ""} ${track.action ?? ""}`
+  ).toLowerCase();
 }
 
-function updateJobForTrack(job: AnyJob, track: AnyTrack): AnyJob {
-  const originalUrl = pickOriginalAudioUrl(track);
-  const now = new Date().toISOString();
+function isCleanReady(track: AnyTrack) {
+  const safeUrl = pickSafeAudioUrl(track);
+  const statusText = getStatusText(track);
 
-  if (!originalUrl) {
-    return {
-      ...job,
-      updatedAt: now,
-      status: job.status || "BLEEP_JOB_CREATED",
-      message:
-        job.message ||
-        "SMARTDJ AUTO CLEAN - direct audio URL missing. Track remains HELD until source audio is found.",
-    };
-  }
-
-  return {
-    ...job,
-    updatedAt: now,
-    status:
-      pickSafeAudioUrl(job) || pickSafeAudioUrl(job.track ?? {})
-        ? "PROCESSED_AUDIO_READY"
-        : "READY_FOR_BLEEP_PROCESSING",
-    source: "SMARTDJ",
-    mode: "auto_clean_return",
-    track: {
-      ...(job.track ?? {}),
-      ...track,
-      rawUrl: originalUrl,
-      sourceAudioUrl: originalUrl,
-      originalAudioUrl: originalUrl,
-      statusText: "HELD - waiting for clean/bleep copy",
-      action: "held_for_clean_bleep",
-      audioUrl: "",
-      url: "",
-      streamUrl: "",
-    },
-    message:
-      job.message ||
-      "SMARTDJ AUTO CLEAN - original audio attached. Processor must create clean/bleeped copy before return.",
-  };
+  return (
+    Boolean(safeUrl && !isRawAzuraOrSourceUrl(safeUrl)) ||
+    statusText.includes("processed_audio_ready") ||
+    statusText.includes("processed audio ready") ||
+    statusText.includes("clean/bleeped ready") ||
+    statusText.includes("clean_or_bleeped") ||
+    statusText.includes("allow_safe_copy_only")
+  );
 }
 
-function syncReadyJobToTrack(track: AnyTrack, jobs: AnyJob[]) {
-  const matchingJob = findExistingJob(jobs, track);
-  if (!matchingJob) return track;
+function needsAutoClean(track: AnyTrack) {
+  if (isCleanReady(track)) return false;
 
-  const safeUrl =
-    pickSafeAudioUrl(matchingJob) ||
-    pickSafeAudioUrl(matchingJob.track ?? {});
+  const statusText = getStatusText(track);
+  const hasAnyAudio =
+    cleanText(track.audioUrl) ||
+    cleanText(track.rawUrl) ||
+    cleanText(track.sourceAudioUrl) ||
+    cleanText(track.originalAudioUrl) ||
+    cleanText(track.url) ||
+    cleanText(track.streamUrl);
 
-  if (!safeUrl || isRawAzuraOrSourceUrl(safeUrl)) return track;
-
-  return {
-    ...track,
-    audioUrl: safeUrl,
-    url: safeUrl,
-    streamUrl: safeUrl,
-    processedAudioUrl: safeUrl,
-    bleepedAudioUrl: safeUrl,
-    cleanAudioUrl: safeUrl,
-    radioSafeAudioUrl: safeUrl,
-    safeAudioUrl: safeUrl,
-    statusText: "CLEAN/BLEEPED READY",
-    action: "processed_audio_ready",
-    reason: "PROCESSED AUDIO READY - clean/bleeped copy returned to SmartDJ playlist row.",
-  };
+  return (
+    Boolean(hasAnyAudio) ||
+    statusText.includes("held") ||
+    statusText.includes("second scan") ||
+    statusText.includes("smartdj_second_scan_recommended") ||
+    statusText.includes("source_search") ||
+    statusText.includes("needs clean") ||
+    statusText.includes("needs bleep") ||
+    statusText.includes("explicit") ||
+    statusText.includes("dirty") ||
+    statusText.includes("unverified")
+  );
 }
 
-async function runSmartDjAutoClean() {
-  const startedAt = new Date().toISOString();
+async function callSecondScan(origin: string) {
+  try {
+    const response = await fetch(`${origin}/api/radio/smartdj-second-scan`, {
+      method: "POST",
+      cache: "no-store",
+    });
 
-  const initialState = readJsonFile<SmartDjState>(SMARTDJ_STATE_FILE, {});
-  const playlist = getPlaylistTracks(initialState);
-
-  let alreadyReady = 0;
-  let attempted = 0;
-  let processedReady = 0;
-  let secondScan = 0;
-  let failed = 0;
-
-  const results: any[] = [];
-
-  for (const track of playlist) {
-    const trackId = cleanText(track.trackId || track.id || track.title);
-
-    if (!trackId) {
-      failed++;
-      results.push({
-        ok: false,
-        status: "SMARTDJ_TRACK_ID_MISSING",
-        title: track.title || "Untitled SmartDJ track",
-      });
-      continue;
-    }
-
-    const safeUrl = pickSafeAudioUrl(track);
-    const statusText = cleanText(
-      `${track.status ?? ""} ${track.statusText ?? ""} ${track.cleanStatus ?? ""} ${track.safetyStatus ?? ""} ${track.bleepJobStatus ?? ""} ${track.reason ?? ""} ${track.safetyNote ?? ""}`
-    ).toLowerCase();
-
-    const isAlreadyClean =
-      Boolean(safeUrl && !isRawAzuraOrSourceUrl(safeUrl)) ||
-      statusText.includes("processed_audio_ready") ||
-      statusText.includes("clean/bleeped ready");
-
-    const isSecondScan =
-      statusText.includes("smartdj_second_scan_recommended") ||
-      statusText.includes("second scan");
-
-    if (isAlreadyClean) {
-      alreadyReady++;
-      results.push({
-        ok: true,
-        trackId,
-        status: "ALREADY_CLEAN_READY",
-        message: "SmartDJ skipped this row because clean/bleeped audio is already attached.",
-      });
-      continue;
-    }
-
-    if (isSecondScan) {
-      secondScan++;
-      results.push({
-        ok: true,
-        trackId,
-        status: "SMARTDJ_SECOND_SCAN_RECOMMENDED",
-        message: "SmartDJ skipped repeat processing for this row. Second-scan lane is already active.",
-      });
-      continue;
-    }
-
-    if (!trackNeedsClean(track)) {
-      alreadyReady++;
-      results.push({
-        ok: true,
-        trackId,
-        status: "NO_CLEAN_NEEDED",
-        message: "SmartDJ did not find a cleaning requirement for this row.",
-      });
-      continue;
-    }
-
-    attempted++;
+    const text = await response.text();
 
     try {
-      const result: any = await runSmartDjLocalCleanOne({ trackId });
+      return {
+        ok: response.ok,
+        httpStatus: response.status,
+        result: JSON.parse(text),
+      };
+    } catch {
+      return {
+        ok: response.ok,
+        httpStatus: response.status,
+        result: text,
+      };
+    }
+  } catch (error: any) {
+    return {
+      ok: false,
+      httpStatus: 0,
+      error: String(error?.message || error),
+    };
+  }
+}
 
-      results.push({
-        trackId,
-        ...result,
+function summarizePlaylist() {
+  const state = readJsonFile<SmartDjState>(SMARTDJ_STATE_FILE, {});
+  const playlist = getPlaylistTracks(state);
+
+  const ready = playlist.filter(isCleanReady);
+  const remaining = playlist.filter((track) => !isCleanReady(track) && needsAutoClean(track));
+
+  return {
+    state,
+    playlist,
+    playlistCount: playlist.length,
+    readyCount: ready.length,
+    remainingCount: remaining.length,
+    remaining,
+  };
+}
+
+async function runSmartDjAutoClean(origin: string) {
+  const startedAt = new Date().toISOString();
+
+  let totalAttempted = 0;
+  let totalProcessedReady = 0;
+  let totalSecondScanRuns = 0;
+  let totalFailed = 0;
+  let totalSkippedReady = 0;
+
+  const passes: any[] = [];
+  const maxPasses = 3;
+
+  for (let pass = 1; pass <= maxPasses; pass++) {
+    const before = summarizePlaylist();
+
+    if (!before.playlistCount) {
+      passes.push({
+        pass,
+        status: "NO_PLAYLIST",
+        message: "No SmartDJ playlist rows found.",
       });
+      break;
+    }
 
-      if (result?.status === "PROCESSED_AUDIO_READY" && result?.returnedToSmartDj) {
-        processedReady++;
-        continue;
-      }
+    totalSkippedReady += before.readyCount;
 
-      if (result?.status === "SMARTDJ_SECOND_SCAN_RECOMMENDED") {
-        secondScan++;
-        continue;
-      }
-
-      if (result?.status === "LOCAL_TRANSCRIBED_NO_EXPLICIT_CUES_REVIEW_REQUIRED") {
-        secondScan++;
-        continue;
-      }
-
-      failed++;
-    } catch (error: any) {
-      failed++;
-      results.push({
-        ok: false,
-        trackId,
-        status: "SMARTDJ_AUTO_CLEAN_ROW_FAILED",
-        message: String(error?.message || error),
+    if (!before.remainingCount) {
+      passes.push({
+        pass,
+        status: "ALL_ROWS_CLEAN_READY",
+        playlistCount: before.playlistCount,
+        readyCount: before.readyCount,
+        message: "All SmartDJ rows already have clean/bleeped safe audio attached.",
       });
+      break;
+    }
+
+    const passResult: any = {
+      pass,
+      playlistCount: before.playlistCount,
+      readyBefore: before.readyCount,
+      remainingBefore: before.remainingCount,
+      cleaned: 0,
+      secondScanRecommended: 0,
+      failed: 0,
+      rows: [],
+      secondScan: null,
+    };
+
+    for (const track of before.remaining) {
+      const trackId = getTrackId(track);
+
+      if (!trackId) {
+        totalFailed++;
+        passResult.failed++;
+        passResult.rows.push({
+          ok: false,
+          status: "SMARTDJ_TRACK_ID_MISSING",
+          title: track.title || "Untitled SmartDJ track",
+        });
+        continue;
+      }
+
+      totalAttempted++;
+
+      try {
+        const result: any = await runSmartDjLocalCleanOne({ trackId });
+
+        passResult.rows.push({
+          trackId,
+          title: track.title || "",
+          status: result?.status || "UNKNOWN",
+          returnedToSmartDj: Boolean(result?.returnedToSmartDj),
+          processedAudioUrl: result?.processedAudioUrl || result?.cleanAudioUrl || "",
+          result,
+        });
+
+        if (result?.status === "PROCESSED_AUDIO_READY" && result?.returnedToSmartDj) {
+          totalProcessedReady++;
+          passResult.cleaned++;
+          continue;
+        }
+
+        if (
+          result?.status === "SMARTDJ_SECOND_SCAN_RECOMMENDED" ||
+          result?.status === "LOCAL_TRANSCRIBED_NO_EXPLICIT_CUES_REVIEW_REQUIRED"
+        ) {
+          passResult.secondScanRecommended++;
+          continue;
+        }
+
+        if (result?.status !== "PROCESSED_AUDIO_READY") {
+          totalFailed++;
+          passResult.failed++;
+        }
+      } catch (error: any) {
+        totalFailed++;
+        passResult.failed++;
+        passResult.rows.push({
+          ok: false,
+          trackId,
+          status: "SMARTDJ_AUTO_CLEAN_ROW_FAILED",
+          message: String(error?.message || error),
+        });
+      }
+    }
+
+    const afterLocalClean = summarizePlaylist();
+    const secondScanNeeded = afterLocalClean.remaining.some((track) => {
+      const statusText = getStatusText(track);
+      return (
+        statusText.includes("second scan") ||
+        statusText.includes("smartdj_second_scan_recommended") ||
+        statusText.includes("local_transcribed_no_explicit_cues_review_required")
+      );
+    });
+
+    if (secondScanNeeded) {
+      totalSecondScanRuns++;
+      passResult.secondScan = await callSecondScan(origin);
+    }
+
+    const after = summarizePlaylist();
+
+    passResult.readyAfter = after.readyCount;
+    passResult.remainingAfter = after.remainingCount;
+
+    passes.push(passResult);
+
+    if (!after.remainingCount) break;
+
+    if (
+      after.remainingCount >= before.remainingCount &&
+      !secondScanNeeded &&
+      passResult.cleaned === 0
+    ) {
+      break;
     }
   }
 
-  const finalState = readJsonFile<SmartDjState>(SMARTDJ_STATE_FILE, {});
-  const finalPlaylist = getPlaylistTracks(finalState);
+  const final = summarizePlaylist();
 
   const nextState: SmartDjState = {
-    ...finalState,
-    resultCount: finalPlaylist.length,
-    resultLabel: `SmartDJ playlist loaded (${finalPlaylist.length})`,
+    ...final.state,
+    resultCount: final.playlistCount,
+    resultLabel: `SmartDJ playlist loaded (${final.playlistCount})`,
     statusText:
-      attempted > 0
-        ? `SmartDJ auto clean ran on ${attempted} track(s). ${processedReady} clean-ready, ${secondScan} second-scan, ${failed} failed.`
-        : `SmartDJ auto clean checked ${playlist.length} track(s). ${alreadyReady} already clean-ready, ${secondScan} second-scan.`,
+      final.remainingCount === 0
+        ? `SmartDJ auto clean loop complete. ${final.readyCount}/${final.playlistCount} row(s) are clean-ready.`
+        : `SmartDJ auto clean loop ran. ${final.readyCount}/${final.playlistCount} row(s) clean-ready, ${final.remainingCount} still blocked or waiting.`,
     message:
-      "SmartDJ auto clean + return ran as the worker. Raw audio remains blocked. Only clean/bleeped returned rows can queue or broadcast.",
+      "SmartDJ auto clean loop ran while broadcast stayed live. Raw Azura audio remains blocked. Only clean/bleeped returned rows can preview, queue, or broadcast.",
     reply:
-      "SmartDJ auto clean + return complete. Green rows are clean-ready. Yellow flashing rows stay in SmartDJ second-scan lane.",
+      final.remainingCount === 0
+        ? "SmartDJ auto clean complete. All available rows are clean-ready."
+        : "SmartDJ auto clean ran. Some rows still need source audio or another cleaning pass.",
+    autoCleanLoop: {
+      ok: final.remainingCount === 0,
+      startedAt,
+      finishedAt: new Date().toISOString(),
+      playlistCount: final.playlistCount,
+      readyCount: final.readyCount,
+      remainingCount: final.remainingCount,
+      totalAttempted,
+      totalProcessedReady,
+      totalSecondScanRuns,
+      totalFailed,
+    },
     timestamp: new Date().toISOString(),
   };
 
   writeJsonFile(SMARTDJ_STATE_FILE, nextState);
 
   return {
-    ok: true,
+    ok: final.remainingCount === 0,
     route: "/api/radio/smartdj-auto-clean",
-    action: "SMARTDJ_AUTO_CLEAN_RETURN_WORKER",
-    playlistCount: playlist.length,
-    attempted,
-    alreadyReady,
-    processedReady,
-    secondScan,
-    failed,
+    action: "SMARTDJ_AUTO_CLEAN_LOOP_ROW_RETURN",
+    broadcastPolicy: "DO_NOT_STOP_CURRENT_BROADCAST",
+    rawAudioPolicy: "BLOCK_RAW_AZURA_USE_CLEAN_OR_BLEEPED_ONLY",
+    playlistCount: final.playlistCount,
+    readyCount: final.readyCount,
+    remainingCount: final.remainingCount,
+    totalAttempted,
+    totalProcessedReady,
+    totalSecondScanRuns,
+    totalFailed,
+    totalSkippedReady,
     startedAt,
     finishedAt: new Date().toISOString(),
     message:
-      "SmartDJ auto clean + return finished. Clean-ready rows returned to playlist. Second-scan rows remain blocked with flashing detector light.",
-    results,
-    state: nextState,
+      final.remainingCount === 0
+        ? "SmartDJ auto clean loop finished. Clean/bleeped copies returned to SmartDJ rows."
+        : "SmartDJ auto clean loop finished with some rows still blocked. Broadcast was not stopped.",
+    passes,
   };
-}export async function GET() {
-  const result = await runSmartDjAutoClean();
+}
+
+export async function GET(req: NextRequest) {
+  const result = await runSmartDjAutoClean(req.nextUrl.origin);
+
   return NextResponse.json(result, {
+    status: result.ok ? 200 : 423,
     headers: {
       "Cache-Control": "no-store, no-cache, must-revalidate",
     },
   });
 }
 
-export async function POST() {
-  const result = await runSmartDjAutoClean();
+export async function POST(req: NextRequest) {
+  const result = await runSmartDjAutoClean(req.nextUrl.origin);
+
   return NextResponse.json(result, {
+    status: result.ok ? 200 : 423,
     headers: {
       "Cache-Control": "no-store, no-cache, must-revalidate",
     },
   });
 }
-
-
