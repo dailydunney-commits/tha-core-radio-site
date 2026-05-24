@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 const PROTECTED_PREFIXES = [
   "/owner",
@@ -24,7 +24,7 @@ function unauthorized() {
   });
 }
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   // SAFE_BACKEND_LOCAL_DEV_ALLOWLIST
   // Local backend tests only. Production owner/security lock stays protected.
   const safeBackendPathname =
@@ -36,7 +36,7 @@ export function middleware(request: NextRequest) {
       safeBackendPathname === "/api/radio/smartdj-clean-next" ||
     safeBackendPathname.startsWith("/api/radio/smartdj-clean-next/") ||
     safeBackendPathname === "/api/radio/smartdj-auto-brain" ||
-    safeBackendPathname.startsWith("/api/radio/smartdj-auto-brain/") || safeBackendPathname.startsWith("/api/radio/smartdj-clean-next/") || safeBackendPathname === "/api/radio/smartdj-second-scan" || safeBackendPathname.startsWith("/api/radio/smartdj-second-scan/") || safeBackendPathname === "/api/radio/smartdj-auto-clean" || safeBackendPathname.startsWith("/api/radio/smartdj-auto-clean/") || safeBackendPathname === "/api/radio/safe-action" ||
+    safeBackendPathname.startsWith("/api/radio/smartdj-auto-brain/") || safeBackendPathname.startsWith("/api/radio/smartdj-clean-next/") || safeBackendPathname === "/api/radio/smartdj-second-scan" || safeBackendPathname.startsWith("/api/radio/smartdj-second-scan/") || safeBackendPathname === "/api/radio/smartdj-background-clean" || safeBackendPathname.startsWith("/api/radio/smartdj-background-clean/") || safeBackendPathname === "/api/radio/smartdj-auto-clean" || safeBackendPathname.startsWith("/api/radio/smartdj-auto-clean/") || safeBackendPathname === "/api/radio/safe-action" ||
       safeBackendPathname.startsWith("/api/radio/safe-action/") ||
       safeBackendPathname === "/api/radio/bleep-check" ||
       safeBackendPathname.startsWith("/api/radio/bleep-check/") ||
