@@ -1,4 +1,4 @@
-﻿import fs from "fs";
+import fs from "fs";
 import path from "path";
 import { spawn } from "child_process";
 import { runRealBleepProcessor } from "@/lib/audio/real-bleep-processor";
@@ -139,8 +139,11 @@ function getPythonExe() {
   const fromEnv = process.env.LOCAL_WHISPER_PYTHON;
   if (fromEnv && fromEnv.trim()) return fromEnv.trim();
 
-  const venvPython = path.join(ROOT, ".venv-whisper", "Scripts", "python.exe");
-  if (fs.existsSync(venvPython)) return venvPython;
+  const linuxVenvPython = path.join(ROOT, ".venv", "bin", "python");
+  if (fs.existsSync(linuxVenvPython)) return linuxVenvPython;
+
+  const windowsVenvPython = path.join(ROOT, ".venv-whisper", "Scripts", "python.exe");
+  if (fs.existsSync(windowsVenvPython)) return windowsVenvPython;
 
   return "python";
 }
