@@ -257,9 +257,43 @@ export async function runSmartDjLocalCleanOne(body: AnyRecord) {
     return id !== "local-real-bleep-test-001";
   });
 
-  const targetTrack = wantedId
+  let targetTrack = wantedId
     ? tracks.find((track) => trackMatches(track, wantedId))
     : tracks.find((track) => pickAudioUrl(track));
+
+  // SMARTZJ_SCANNED_AZURA_ROW_FALLBACK_V1
+  // Background scanner rows may be HELD with no audioUrl yet.
+  // If the background cleaner passes trackId + sourceFilePath/localAudioPath,
+  // accept it as a valid SmartZJ row and process the local source.
+  if (!targetTrack && wantedId) {
+    const fallbackSourcePath = String(
+      body.sourceFilePath ||
+        body.localAudioPath ||
+        body.sourcePath ||
+        ""
+    ).trim();
+
+    if (fallbackSourcePath && fs.existsSync(fallbackSourcePath)) {
+      targetTrack = {
+        id: wantedId,
+        trackId: wantedId,
+        title: body.title || wantedId,
+        artist: body.artist || "AzuraCast",
+        source: body.source || "SMARTZJ_AZURA_SCAN",
+        sourceFilePath: fallbackSourcePath,
+        localAudioPath: fallbackSourcePath,
+        rawAudioBlocked: true,
+        status: "HELD",
+        safetyStatus: "HELD",
+        cleanStatus: "LOCAL_SOURCE_ATTACHED",
+        needsBleep: true,
+        held: true,
+        audioUrl: "",
+        cleanAudioUrl: "",
+        processedAudioUrl: "",
+      };
+    }
+  }
 
   if (!targetTrack) {
     return {
