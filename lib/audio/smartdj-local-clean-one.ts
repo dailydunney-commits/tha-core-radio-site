@@ -1,4 +1,4 @@
-﻿import fs from "fs";
+import fs from "fs";
 import path from "path";
 import { runLocalTranscribeAndProcess } from "@/lib/audio/local-transcribe-and-process";
 
@@ -287,8 +287,25 @@ export async function runSmartDjLocalCleanOne(body: AnyRecord) {
 
   let downloadResult: AnyRecord;
 
+  const existingLocalSourcePath = pickLocalSourceFilePath(targetTrack, body, originalTrackId);
+
   try {
-    downloadResult = await downloadSmartDjTrackAudio(originalAudioUrl, origin, jobId);
+    if (existingLocalSourcePath && fs.existsSync(existingLocalSourcePath)) {
+      const stat = fs.statSync(existingLocalSourcePath);
+
+      if (!stat.isFile() || stat.size < 1024) {
+        throw new Error(`Local SmartDJ source file is missing or too small: ${existingLocalSourcePath}`);
+      }
+
+      downloadResult = {
+        sourceFilePath: existingLocalSourcePath,
+        sourceDownloadUrl: originalAudioUrl,
+        sizeBytes: stat.size,
+        usedLocalSource: true,
+      };
+    } else {
+      downloadResult = await downloadSmartDjTrackAudio(originalAudioUrl, origin, jobId);
+    }
   } catch (error: any) {
     const failedState = updateMatchingTrack(
       state,
@@ -373,6 +390,134 @@ export async function runSmartDjLocalCleanOne(body: AnyRecord) {
     processed?.status === "SMARTDJ_SECOND_SCAN_RECOMMENDED" ||
     processed?.status === "LOCAL_TRANSCRIBED_NO_EXPLICIT_CUES_REVIEW_REQUIRED"
   ) {
+    // SMARTDJ_NO_CUE_VERIFIED_CLEAN_RETURN_V1
+    // No raw Azura release. If no blocked terms are found, make a safe copied file and return it to the row.
+    const blockedTerms = [
+      "bloodcloth",
+      "bloodclaat",
+      "bloodclart",
+      "bloodclot",
+      "rascloth",
+      "rasclaat",
+      "rasclart",
+      "rasscloth",
+      "rassclaat",
+      "rassclart",
+      "pussy",
+      "pussycloth",
+      "pussyclaat",
+      "pussyclart",
+      "bombocloth",
+      "bomboclaat",
+      "bomboclat",
+      "bumbocloth",
+      "bumboclaat",
+      "bumboclat",
+      "bumboclot",
+      "bumboclart",
+      "bumbo",
+      "bombo",
+      "battyboy",
+      "battybwoy",
+      "battyman",
+      "battyboi",
+    ];
+
+    const transcriptText = String(
+      processed?.transcript ||
+        processed?.text ||
+        processed?.localWhisperResult?.transcript ||
+        processed?.localWhisperResult?.text ||
+        ""
+    );
+
+    const normalizedTranscript = transcriptText.toLowerCase().replace(/[^a-z0-9]+/g, "");
+    const blockedHit = blockedTerms.find((term) =>
+      normalizedTranscript.includes(term.replace(/[^a-z0-9]+/g, ""))
+    );
+
+    if (!blockedHit) {
+      const cleanDir = path.join(process.cwd(), "public", "audio", "smartdj", "clean");
+      fs.mkdirSync(cleanDir, { recursive: true });
+
+      const verifiedFileName = `${safeSegment(jobId)}-verified-clean.mp3`;
+      const verifiedFilePath = path.join(cleanDir, verifiedFileName);
+      const verifiedAudioUrl = `/audio/smartdj/clean/${verifiedFileName}`;
+
+      fs.copyFileSync(downloadResult.sourceFilePath, verifiedFilePath);
+
+      if (!fs.existsSync(verifiedFilePath) || fs.statSync(verifiedFilePath).size < 1024) {
+        throw new Error("Verified clean SmartDJ copy was not created or is too small.");
+      }
+
+      const verifiedState = updateMatchingTrack(
+        safeJsonRead(SMARTDJ_STATE_FILE, state),
+        (track) => trackMatches(track, originalTrackId),
+        (track) => ({
+          ...track,
+          trackId: originalTrackId,
+          bleepJobId: jobId,
+          status: "READY",
+          safetyStatus: "READY",
+          cleanStatus: "PROCESSED_AUDIO_READY",
+          needsBleep: false,
+          held: false,
+          rawAudioBlocked: true,
+          rawAudioUrl: originalAudioUrl,
+          audioUrl: verifiedAudioUrl,
+          url: verifiedAudioUrl,
+          streamUrl: verifiedAudioUrl,
+          safeAudioUrl: verifiedAudioUrl,
+          radioSafeAudioUrl: verifiedAudioUrl,
+          cleanAudioUrl: verifiedAudioUrl,
+          processedAudioUrl: verifiedAudioUrl,
+          safetyNote: "Local Whisper and blocked-term scan found no blocked explicit cue. Verified clean copy returned to SmartDJ row. Raw Azura remains blocked.",
+        })
+      );
+
+      safeJsonWrite(SMARTDJ_STATE_FILE, verifiedState);
+
+      upsertBleepJob({
+        id: jobId,
+        jobId,
+        bleepJobId: jobId,
+        trackId: originalTrackId,
+        source: "SMARTDJ",
+        title: targetTrack.title || originalTrackId,
+        artist: targetTrack.artist || "SmartDJ",
+        status: "PROCESSED_AUDIO_READY",
+        cleanStatus: "PROCESSED_AUDIO_READY",
+        decision: "ALLOW_SAFE_COPY_ONLY",
+        safe: true,
+        needsBleep: false,
+        sourceFilePath: downloadResult.sourceFilePath,
+        localAudioPath: downloadResult.sourceFilePath,
+        rawAudioUrl: originalAudioUrl,
+        sourceDownloadUrl: downloadResult.sourceDownloadUrl,
+        processedAudioUrl: verifiedAudioUrl,
+        cleanAudioUrl: verifiedAudioUrl,
+        verifiedNoCueCleanCopy: true,
+        updatedAt: new Date().toISOString(),
+        message: "Verified clean SmartDJ copy created after no blocked explicit terms were found.",
+      });
+
+      return {
+        ok: true,
+        jobId,
+        status: "PROCESSED_AUDIO_READY",
+        decision: "ALLOW_SAFE_COPY_ONLY",
+        message: "Verified clean SmartDJ copy created and returned to row. Raw Azura remains blocked.",
+        returnedToSmartDj: true,
+        processedAudioUrl: verifiedAudioUrl,
+        cleanAudioUrl: verifiedAudioUrl,
+        verifiedNoCueCleanCopy: true,
+        smartDjRealRowTest: true,
+        selectedTrackId: originalTrackId,
+        selectedTitle: targetTrack.title || originalTrackId,
+        sourceSizeBytes: downloadResult.sizeBytes,
+      };
+    }
+
     const secondScanState = updateMatchingTrack(
       safeJsonRead(SMARTDJ_STATE_FILE, state),
       (track) => trackMatches(track, originalTrackId),
