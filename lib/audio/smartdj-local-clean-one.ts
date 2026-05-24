@@ -309,19 +309,21 @@ export async function runSmartDjLocalCleanOne(body: AnyRecord) {
   const jobId = `smartdj-local-clean-${safeSegment(originalTrackId)}`;
   const originalAudioUrl = pickAudioUrl(targetTrack);
 
-  if (!originalAudioUrl) {
+  const existingLocalSourcePath = pickLocalSourceFilePath(targetTrack, body, originalTrackId);
+
+  // SMARTZJ_LOCAL_SOURCE_WITHOUT_AUDIO_URL_V1
+  // Scanned Azura rows may have no audioUrl yet, but they are valid if sourceFilePath/localAudioPath exists.
+  if (!originalAudioUrl && !existingLocalSourcePath) {
     return {
       ok: false,
       status: "SMARTDJ_TRACK_HAS_NO_AUDIO",
-      message: "The selected SmartDJ track has no audio URL.",
+      message: "The selected SmartDJ track has no audio URL or local source file.",
       originalTrackId,
       title: targetTrack.title || "",
     };
   }
 
   let downloadResult: AnyRecord;
-
-  const existingLocalSourcePath = pickLocalSourceFilePath(targetTrack, body, originalTrackId);
 
   try {
     if (existingLocalSourcePath && fs.existsSync(existingLocalSourcePath)) {
