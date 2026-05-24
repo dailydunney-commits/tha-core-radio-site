@@ -139,11 +139,10 @@ function getPythonExe() {
   const fromEnv = process.env.LOCAL_WHISPER_PYTHON;
   if (fromEnv && fromEnv.trim()) return fromEnv.trim();
 
-  const linuxVenvPython = path.join(ROOT, ".venv", "bin", "python");
-  if (fs.existsSync(linuxVenvPython)) return linuxVenvPython;
-
   const windowsVenvPython = path.join(ROOT, ".venv-whisper", "Scripts", "python.exe");
-  if (fs.existsSync(windowsVenvPython)) return windowsVenvPython;
+  if (process.platform === "win32" && fs.existsSync(windowsVenvPython)) {
+    return windowsVenvPython;
+  }
 
   return "python";
 }
