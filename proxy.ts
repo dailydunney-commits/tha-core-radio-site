@@ -25,6 +25,30 @@ function unauthorized() {
 }
 
 export function proxy(request: NextRequest) {
+  // SMARTZJ_INTERNAL_BACKEND_ALLOW_V1
+  // Allows only server-local backend jobs through. Public /api/radio routes stay locked.
+  const smartZjPathname =
+    request.nextUrl?.pathname || new URL(request.url).pathname;
+
+  const smartZjHost = String(request.headers.get("host") || "").toLowerCase();
+  const smartZjForwardedHost = String(request.headers.get("x-forwarded-host") || "").toLowerCase();
+
+  const smartZjInternalHost =
+    smartZjHost.startsWith("127.0.0.1") ||
+    smartZjHost.startsWith("localhost") ||
+    smartZjForwardedHost.startsWith("127.0.0.1") ||
+    smartZjForwardedHost.startsWith("localhost");
+
+  const smartZjInternalPath =
+    smartZjPathname === "/api/radio/smartdj-azura-scan-load" ||
+    smartZjPathname.startsWith("/api/radio/smartdj-azura-scan-load/") ||
+    smartZjPathname === "/api/radio/smartdj-background-clean" ||
+    smartZjPathname.startsWith("/api/radio/smartdj-background-clean/");
+
+  if (smartZjInternalHost && smartZjInternalPath) {
+    return NextResponse.next();
+  }
+
   // SAFE_BACKEND_LOCAL_DEV_ALLOWLIST
   // Local backend tests only. Production owner/security lock stays protected.
   const safeBackendPathname =
