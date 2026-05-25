@@ -11,6 +11,7 @@ const DATA_DIR = join(process.cwd(), ".data");
 const SMARTDJ_STATE_FILE = join(DATA_DIR, "smartdj-state.json");
 const CURRENT_BROADCAST_FILE = join(DATA_DIR, "current-broadcast.json");
 const PLAYER_STATE_FILE = join(DATA_DIR, "smartzj-mini-autonext.json");
+const FRESH_FIRST_STATE_FILE = join(DATA_DIR, "smartzj-fresh-first-queue.json");
 
 function readJson<T>(filePath: string, fallback: T): T {
   try {
@@ -143,6 +144,135 @@ function artistFromTrack(track: AnyTrack) {
   return cleanText(track.artist || "AzuraCast");
 }
 
+
+// SMARTZJ_FRESH_FIRST_QUEUE_V1
+function getFreshReadyTime(track: AnyTrack) {
+  const fields = [
+    track.processedAt,
+    track.cleanReadyAt,
+    track.cleanedAt,
+    track.completedAt,
+    track.returnedAt,
+    track.updatedAt,
+    track.createdAt,
+    track.bleepJobUpdatedAt,
+    track.bleepJobCompletedAt,
+  ];
+
+  for (const value of fields) {
+    const time = Date.parse(String(value || ""));
+    if (Number.isFinite(time)) return time;
+  }
+
+  return 0;
+}
+
+function readFreshFirstState() {
+  return readJson<Record<string, any>>(FRESH_FIRST_STATE_FILE, {
+    knownKeys: [],
+    recentKeys: [],
+    updatedAt: "",
+  });
+}
+
+function chooseSmartZjFreshFirstNext(cleanTracks: AnyTrack[], currentKey: string, playerState: Record<string, any>) {
+  const freshState = readFreshFirstState();
+
+  const knownKeys = new Set(
+    Array.isArray(freshState.knownKeys) ? freshState.knownKeys.map(String) : []
+  );
+
+  const recentKeys = new Set(
+    Array.isArray(freshState.recentKeys) ? freshState.recentKeys.map(String) : []
+  );
+
+  const hasKnownHistory = knownKeys.size > 0;
+
+  const freshNewTracks = hasKnownHistory
+    ? cleanTracks.filter((track) => {
+        const key = getTrackKey(track);
+        return key && key !== currentKey && !knownKeys.has(key);
+      })
+    : [];
+
+  if (freshNewTracks.length > 0) {
+    freshNewTracks.sort((a, b) => getFreshReadyTime(b) - getFreshReadyTime(a));
+
+    const picked = freshNewTracks[0];
+    const pickedKey = getTrackKey(picked);
+    const index = cleanTracks.findIndex((track) => getTrackKey(track) === pickedKey);
+
+    return {
+      track: picked,
+      index: index >= 0 ? index : 0,
+      reason: "FRESH_NEW_CLEAN_TRACK_FIRST",
+    };
+  }
+
+  const unplayedTracks = cleanTracks.filter((track) => {
+    const key = getTrackKey(track);
+    return key && key !== currentKey && !recentKeys.has(key);
+  });
+
+  if (unplayedTracks.length > 0) {
+    const picked = unplayedTracks[0];
+    const pickedKey = getTrackKey(picked);
+    const index = cleanTracks.findIndex((track) => getTrackKey(track) === pickedKey);
+
+    return {
+      track: picked,
+      index: index >= 0 ? index : 0,
+      reason: "ROTATE_UNPLAYED_CLEAN_TRACK",
+    };
+  }
+
+  let currentIndex = cleanTracks.findIndex((track) => getTrackKey(track) === currentKey);
+
+  if (currentIndex < 0 && typeof playerState.index === "number") {
+    currentIndex = playerState.index;
+  }
+
+  let nextIndex = ((currentIndex + 1) % cleanTracks.length + cleanTracks.length) % cleanTracks.length;
+
+  if (cleanTracks.length > 1 && getTrackKey(cleanTracks[nextIndex]) === currentKey) {
+    nextIndex = (nextIndex + 1) % cleanTracks.length;
+  }
+
+  return {
+    track: cleanTracks[nextIndex],
+    index: nextIndex,
+    reason: "NORMAL_CLEAN_ROTATION",
+  };
+}
+
+function rememberSmartZjFreshFirstPlay(track: AnyTrack, cleanTracks: AnyTrack[]) {
+  const freshState = readFreshFirstState();
+  const playedKey = getTrackKey(track);
+  const allKeys = cleanTracks.map(getTrackKey).filter(Boolean);
+
+  const previousKnown = Array.isArray(freshState.knownKeys) ? freshState.knownKeys.map(String) : [];
+  const previousRecent = Array.isArray(freshState.recentKeys) ? freshState.recentKeys.map(String) : [];
+
+  const knownKeys = Array.from(new Set([...previousKnown, ...allKeys])).slice(-2000);
+
+  const recentLimit = Math.max(1, Math.min(100, cleanTracks.length > 1 ? cleanTracks.length - 1 : 1));
+  const recentKeys = [
+    playedKey,
+    ...previousRecent.filter((key) => key && key !== playedKey),
+  ].filter(Boolean).slice(0, recentLimit);
+
+  writeJson(FRESH_FIRST_STATE_FILE, {
+    ok: true,
+    policy: "Fresh clean READY tracks go to the front. Raw Azura blocked.",
+    lastPlayedKey: playedKey,
+    lastPlayedTitle: titleFromTrack(track),
+    cleanTrackCount: cleanTracks.length,
+    knownKeys,
+    recentKeys,
+    updatedAt: new Date().toISOString(),
+  });
+}
+
 function runMiniAutoNext() {
   const cleanTracks = readSmartTracks();
 
@@ -165,14 +295,10 @@ function runMiniAutoNext() {
   const playerState = readJson<Record<string, any>>(PLAYER_STATE_FILE, {});
   const currentKey = getCurrentKey();
 
-  let currentIndex = cleanTracks.findIndex((track) => getTrackKey(track) === currentKey);
-
-  if (currentIndex < 0 && typeof playerState.index === "number") {
-    currentIndex = playerState.index;
-  }
-
-  const nextIndex = ((currentIndex + 1) % cleanTracks.length + cleanTracks.length) % cleanTracks.length;
-  const track = cleanTracks[nextIndex];
+  const selection = chooseSmartZjFreshFirstNext(cleanTracks, currentKey, playerState);
+  const nextIndex = selection.index;
+  const track = selection.track;
+  const selectionReason = selection.reason;
   const audioUrl = pickSafeUrl(track);
   const now = new Date().toISOString();
 
@@ -190,13 +316,14 @@ function runMiniAutoNext() {
     listen_url: audioUrl,
     startedAt: now,
     updatedAt: now,
-    message: `SmartZJ Mini AutoNext item ${nextIndex + 1} of ${cleanTracks.length}. Raw Azura blocked.`,
+    message: `SmartZJ Mini AutoNext item ${nextIndex + 1} of ${cleanTracks.length}. Fresh-first: ${selectionReason}. Raw Azura blocked.`,
     sequence: {
       mode: "SMARTZJ_MINI_AUTONEXT",
       index: nextIndex,
       itemNumber: nextIndex + 1,
       total: cleanTracks.length,
       isLast: nextIndex + 1 === cleanTracks.length,
+      selectionReason,
     },
     track: {
       ...track,
@@ -219,6 +346,8 @@ function runMiniAutoNext() {
   };
 
   writeJson(CURRENT_BROADCAST_FILE, broadcast);
+  rememberSmartZjFreshFirstPlay(track, cleanTracks);
+
   writeJson(PLAYER_STATE_FILE, {
     ok: true,
     mode: "SMARTZJ_MINI_AUTONEXT",
@@ -239,6 +368,7 @@ function runMiniAutoNext() {
       index: nextIndex,
       itemNumber: nextIndex + 1,
       isLast: nextIndex + 1 === cleanTracks.length,
+      selectionReason,
       title,
       artist,
       audioUrl,
@@ -260,3 +390,4 @@ export async function GET() {
 export async function POST() {
   return runMiniAutoNext();
 }
+
