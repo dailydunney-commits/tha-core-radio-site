@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import type { CSSProperties } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -186,6 +186,40 @@ export default function HomePage() {
       loadNowPlaying();
     }, 10000);
 
+  // SMARTZJ_HOME_PLAYER_AUTONEXT_V1
+  async function handleSmartZjHomeEnded() {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    try {
+      const response = await fetch(`/api/listener/smartzj-clean-next?homeEnded=${Date.now()}`, {
+        method: "POST",
+        cache: "no-store",
+      });
+
+      const data = await response.json().catch(() => null);
+      const nextUrl = String(data?.streamUrl || data?.audioUrl || data?.listen_url || "").trim();
+
+      if (!response.ok || !nextUrl) {
+        setStatusText("SmartZJ could not find the next clean track.");
+        setIsPlaying(false);
+        return;
+      }
+
+      const separator = nextUrl.includes("?") ? "&" : "?";
+      audio.src = `${nextUrl}${separator}smartzjHomeAutoNext=${Date.now()}`;
+      audio.load();
+
+      await audio.play();
+      setIsPlaying(true);
+      setStatusText(`SmartZJ AutoNext: ${data?.title || "Next clean track"}`);
+    } catch {
+      setStatusText("SmartZJ AutoNext failed. Press Play Live to retry.");
+      setIsPlaying(false);
+    }
+  }
+
+
     return () => {
       window.clearInterval(timer);
     };
@@ -221,6 +255,40 @@ export default function HomePage() {
     audio.addEventListener("play", handlePlay);
     audio.addEventListener("pause", handlePause);
     audio.addEventListener("error", handleError);
+
+  // SMARTZJ_HOME_PLAYER_AUTONEXT_V1
+  async function handleSmartZjHomeEnded() {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    try {
+      const response = await fetch(`/api/listener/smartzj-clean-next?homeEnded=${Date.now()}`, {
+        method: "POST",
+        cache: "no-store",
+      });
+
+      const data = await response.json().catch(() => null);
+      const nextUrl = String(data?.streamUrl || data?.audioUrl || data?.listen_url || "").trim();
+
+      if (!response.ok || !nextUrl) {
+        setStatusText("SmartZJ could not find the next clean track.");
+        setIsPlaying(false);
+        return;
+      }
+
+      const separator = nextUrl.includes("?") ? "&" : "?";
+      audio.src = `${nextUrl}${separator}smartzjHomeAutoNext=${Date.now()}`;
+      audio.load();
+
+      await audio.play();
+      setIsPlaying(true);
+      setStatusText(`SmartZJ AutoNext: ${data?.title || "Next clean track"}`);
+    } catch {
+      setStatusText("SmartZJ AutoNext failed. Press Play Live to retry.");
+      setIsPlaying(false);
+    }
+  }
+
 
     return () => {
       audio.removeEventListener("play", handlePlay);
@@ -276,9 +344,49 @@ export default function HomePage() {
     }
   }
 
+  // SMARTZJ_HOME_PLAYER_AUTONEXT_V1
+  async function handleSmartZjHomeEnded() {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    try {
+      const response = await fetch(`/api/listener/smartzj-clean-next?homeEnded=${Date.now()}`, {
+        method: "POST",
+        cache: "no-store",
+      });
+
+      const data = await response.json().catch(() => null);
+      const nextUrl = String(data?.streamUrl || data?.audioUrl || data?.listen_url || "").trim();
+
+      if (!response.ok || !nextUrl) {
+        setStatusText("SmartZJ could not find the next clean track.");
+        setIsPlaying(false);
+        return;
+      }
+
+      const separator = nextUrl.includes("?") ? "&" : "?";
+      audio.src = `${nextUrl}${separator}smartzjHomeAutoNext=${Date.now()}`;
+      audio.load();
+
+      await audio.play();
+      setIsPlaying(true);
+      setStatusText(`SmartZJ AutoNext: ${data?.title || "Next clean track"}`);
+    } catch {
+      setStatusText("SmartZJ AutoNext failed. Press Play Live to retry.");
+      setIsPlaying(false);
+    }
+  }
+
+
   return (
     <main style={styles.page}>
-      <audio ref={audioRef} preload="none" />
+      <audio
+            ref={audioRef}
+            preload="none"
+            onEnded={() => {
+              void handleSmartZjHomeEnded();
+            }}
+          />
 
       <section style={styles.shell}>
         <section style={styles.topTicker}>
@@ -1201,4 +1309,5 @@ const styles: Record<string, CSSProperties> = {
 
 
 // REAL_LOGO_CIRCLE_FILE_FINAL_V1
+
 
