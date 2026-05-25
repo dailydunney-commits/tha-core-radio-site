@@ -177,7 +177,14 @@ export default function PersistentRadioPlayer() {
 
   return (
     <div style={styles.player}>
-      <audio ref={audioRef} src={STREAM_URL} preload="none" />
+      <audio
+      ref={audioRef}
+      src={STREAM_URL}
+      preload="none"
+      onEnded={() => {
+        void playNextSmartZjCleanTrack();
+      }}
+    />
 
       <div style={styles.left}>
         <div style={isPlaying ? styles.liveDotOn : styles.liveDotOff} />
@@ -342,3 +349,4 @@ const styles: Record<string, CSSProperties> = {
     boxShadow: "0 0 18px #ff1744",
   },
 };
+
