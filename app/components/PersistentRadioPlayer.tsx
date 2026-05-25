@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
@@ -7,6 +7,50 @@ const STREAM_URL = "";
 
 export default function PersistentRadioPlayer() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
+
+// SMARTZJ_MINI_AUTONEXT_PLAYER_V1
+  async function playNextSmartZjCleanTrack() {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    try {
+      const response = await fetch(`/api/listener/smartzj-clean-next?ended=${Date.now()}`, {
+        method: "POST",
+        cache: "no-store",
+      });
+
+      const data = await response.json().catch(() => null);
+      const nextUrl = String(data?.streamUrl || data?.audioUrl || data?.listen_url || "").trim();
+
+      if (!response.ok || !nextUrl) {
+        audio.pause();
+        return;
+      }
+
+      const separator = nextUrl.includes("?") ? "&" : "?";
+      audio.src = `${nextUrl}${separator}smartzjAutoNext=${Date.now()}`;
+      audio.load();
+      await audio.play();
+    } catch {
+      audio.pause();
+    }
+  }
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    const handleEnded = () => {
+      void playNextSmartZjCleanTrack();
+    };
+
+    audio.addEventListener("ended", handleEnded);
+
+    return () => {
+      audio.removeEventListener("ended", handleEnded);
+    };
+  }, []);
+
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [volume, setVolume] = useState(0.85);
@@ -142,7 +186,7 @@ export default function PersistentRadioPlayer() {
           <p style={styles.label}>THA CORE ONLINE RADIO</p>
           <p style={styles.nowPlaying}>{nowPlaying}</p>
           <p style={styles.status}>
-            {message} Â· Listeners: {listeners}
+            {message} Ã‚Â· Listeners: {listeners}
           </p>
         </div>
       </div>
