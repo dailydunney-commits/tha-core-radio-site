@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
 import { runSmartDjLocalCleanOne } from "@/lib/audio/smartdj-local-clean-one";
@@ -80,6 +80,81 @@ function getTracks() {
   return tracks;
 }
 
+
+// SMARTZJ_TARGET_LANE_CLEANER_V1
+function normalizeLane(value: unknown) {
+  return String(value ?? "")
+    .toLowerCase()
+    .replace(/&/g, "n")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function trackSearchText(track: AnyRecord) {
+  return [
+    track.genreLane,
+    track.genre,
+    track.lane,
+    track.target,
+    track.folder,
+    track.id,
+    track.trackId,
+    track.title,
+    track.azuraRelativePath,
+    track.sourceFilePath,
+    track.localAudioPath,
+    track.audioUrl,
+    track.cleanAudioUrl,
+    track.processedAudioUrl,
+  ]
+    .map((value) => String(value ?? "").toLowerCase())
+    .join(" ");
+}
+
+function trackMatchesTarget(track: AnyRecord, target: string) {
+  const wanted = normalizeLane(target);
+  const text = trackSearchText(track);
+
+  if (!wanted || wanted === "all" || wanted === "azura feeder" || wanted === "smartzj clean mix") {
+    return true;
+  }
+
+  if (wanted.includes("r n b") || wanted === "rnb") {
+    return text.includes("r-n-b") || text.includes("r&b") || text.includes("rnb") || text.includes("r n b");
+  }
+
+  if (wanted.includes("hip hop")) {
+    return text.includes("hip-hop") || text.includes("hip hop");
+  }
+
+  if (wanted.includes("fresh dancehall")) {
+    return text.includes("fresh-dancehall") || text.includes("fresh dancehall");
+  }
+
+  if (wanted.includes("ole school dancehall") || wanted.includes("old school dancehall")) {
+    return text.includes("ole-school-dancehall") || text.includes("old school dancehall") || text.includes("ole school dancehall");
+  }
+
+  if (wanted.includes("dancehall")) {
+    return text.includes("dancehall");
+  }
+
+  if (wanted.includes("reggae")) {
+    return text.includes("reggae");
+  }
+
+  return text.includes(wanted);
+}
+
+function pickPendingForTarget(allTracks: AnyRecord[], target: string, force: boolean, limit: number) {
+  const notReady = allTracks.filter((track) => force || !isReady(track));
+
+  const targetPending = notReady.filter((track) => trackMatchesTarget(track, target));
+  const otherPending = notReady.filter((track) => !trackMatchesTarget(track, target));
+
+  return [...targetPending, ...otherPending].slice(0, limit);
+}
+
 async function runLoop(options: AnyRecord) {
   const startedAt = new Date().toISOString();
   const target = String(options.target || "hip hop");
@@ -89,7 +164,7 @@ async function runLoop(options: AnyRecord) {
   running = true;
 
   const allTracks = getTracks();
-  const pending = allTracks.filter((track) => force || !isReady(track)).slice(0, limit);
+  const pending = pickPendingForTarget(allTracks, target, force, limit);
   const results: AnyRecord[] = [];
 
   writeJson(LOOP_STATE_FILE, {
@@ -229,3 +304,4 @@ export async function POST(req: NextRequest) {
     headers: { "Cache-Control": "no-store" },
   });
 }
+
