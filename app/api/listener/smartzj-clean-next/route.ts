@@ -401,6 +401,35 @@ function rememberSmartZjFreshFirstPlay(track: AnyTrack, cleanTracks: AnyTrack[])
   });
 }
 
+
+// SMARTZJ_GENRE_LANE_OUTPUT_V1
+function getSmartZjGenreLane(track: AnyTrack) {
+  const combined = [
+    track.genreLane,
+    track.genre,
+    track.lane,
+    track.folder,
+    track.azuraRelativePath,
+    track.sourceFilePath,
+    track.localAudioPath,
+    track.id,
+    track.trackId,
+    track.title,
+  ]
+    .map((value) => cleanText(value).toLowerCase())
+    .join(" ");
+
+  if (combined.includes("hip-hop") || combined.includes("hip hop")) return "Hip-Hop";
+  if (combined.includes("r-n-b") || combined.includes("r&b") || combined.includes("rnb")) return "R-n-B";
+  if (combined.includes("fresh-dancehall") || combined.includes("fresh dancehall")) return "Fresh-Dancehall";
+  if (combined.includes("ole-school-dancehall") || combined.includes("old school dancehall") || combined.includes("ole school dancehall")) return "Ole-School-Dancehall";
+  if (combined.includes("dancehall")) return "Dancehall";
+  if (combined.includes("reggae")) return "Reggae";
+  if (combined.includes("jingles")) return "Jingles";
+
+  return cleanText(track.genreLane || track.genre || track.lane || "SmartZJ Clean Mix");
+}
+
 function runMiniAutoNext() {
   const cleanTracks = readSmartTracks();
 
@@ -432,19 +461,22 @@ function runMiniAutoNext() {
 
   const title = titleFromTrack(track);
   const artist = artistFromTrack(track);
+  const genreLane = getSmartZjGenreLane(track);
 
   const broadcast = {
     ok: true,
     status: "SMARTDJ_BROADCASTING",
     source: "SMARTDJ",
     title,
-    artist,
+      artist,
+      genreLane,
     audioUrl,
     streamUrl: audioUrl,
     listen_url: audioUrl,
     startedAt: now,
     updatedAt: now,
-    message: `SmartZJ Mini AutoNext item ${nextIndex + 1} of ${cleanTracks.length}. Fresh-first: ${selectionReason}. Raw Azura blocked.`,
+    genreLane,
+    message: `SmartZJ Mini AutoNext ${genreLane} item ${nextIndex + 1} of ${cleanTracks.length}. Fresh-first: ${selectionReason}. Raw Azura blocked.`,
     sequence: {
       mode: "SMARTZJ_MINI_AUTONEXT",
       index: nextIndex,
@@ -455,10 +487,12 @@ function runMiniAutoNext() {
     },
     track: {
       ...track,
+      genreLane,
       id: cleanText(track.id || track.trackId || title),
       trackId: cleanText(track.trackId || track.id || title),
       title,
       artist,
+      genreLane,
       source: "SMARTDJ",
       audioUrl,
       cleanAudioUrl: audioUrl,
@@ -499,6 +533,7 @@ function runMiniAutoNext() {
       selectionReason,
       title,
       artist,
+      genreLane,
       audioUrl,
       streamUrl: audioUrl,
       listen_url: audioUrl,
@@ -518,6 +553,7 @@ export async function GET() {
 export async function POST() {
   return runMiniAutoNext();
 }
+
 
 
 
