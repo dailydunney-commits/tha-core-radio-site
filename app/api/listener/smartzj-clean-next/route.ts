@@ -475,7 +475,6 @@ function runMiniAutoNext() {
     listen_url: audioUrl,
     startedAt: now,
     updatedAt: now,
-    genreLane,
     message: `SmartZJ Mini AutoNext ${genreLane} item ${nextIndex + 1} of ${cleanTracks.length}. Fresh-first: ${selectionReason}. Raw Azura blocked.`,
     sequence: {
       mode: "SMARTZJ_MINI_AUTONEXT",
@@ -492,7 +491,6 @@ function runMiniAutoNext() {
       trackId: cleanText(track.trackId || track.id || title),
       title,
       artist,
-      genreLane,
       source: "SMARTDJ",
       audioUrl,
       cleanAudioUrl: audioUrl,
@@ -553,6 +551,8 @@ export async function GET() {
 export async function POST() {
   return runMiniAutoNext();
 }
+
+
 
 
 
