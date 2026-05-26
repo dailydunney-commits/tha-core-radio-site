@@ -10,6 +10,7 @@ type R = Record<string, any>;
 const DATA = path.join(process.cwd(), ".data");
 const STATE = path.join(DATA, "smartdj-state.json");
 const SCAN = path.join(DATA, "smartdj-azura-scan-load-state.json");
+const SCAN_MEMORY = path.join(DATA, "smartzj-scan-memory.json");
 const MEDIA = process.env.AZURACAST_MEDIA_DIR || "/var/lib/docker/volumes/azuracast_station_data/_data/tha-core-online/media";
 const EXTS = new Set([".mp3", ".wav", ".m4a", ".aac", ".ogg", ".flac"]);
 
@@ -128,6 +129,47 @@ export async function GET() {
   }), { headers: { "Cache-Control": "no-store" } });
 }
 
+
+// SMARTZJ_SCAN_MEMORY_V1
+function fileKey(file: string, mediaDir: string) {
+  return path.relative(mediaDir, file).replace(/\\/g, "/");
+}
+
+function fileFingerprint(file: string) {
+  try {
+    const stat = fs.statSync(file);
+    return `${stat.size}:${Math.floor(stat.mtimeMs)}`;
+  } catch {
+    return "";
+  }
+}
+
+function readScanMemory() {
+  return read(SCAN_MEMORY, { ok: true, cursor: 0, files: {}, updatedAt: "" });
+}
+
+function writeScanMemory(memory: R) {
+  memory.ok = true;
+  memory.updatedAt = new Date().toISOString();
+  write(SCAN_MEMORY, memory);
+}
+
+function isAlreadyKnownCleanOrHeld(memory: R, key: string, fingerprint: string) {
+  const record = memory.files?.[key];
+  if (!record) return false;
+  if (record.fingerprint !== fingerprint) return false;
+
+  const status = String(record.status || "").toUpperCase();
+
+  return (
+    status === "READY" ||
+    status === "PROCESSED_AUDIO_READY" ||
+    status === "HELD" ||
+    status === "FAILED" ||
+    status === "BLOCKED"
+  );
+}
+
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
   const mediaDir = String(body.mediaDir || MEDIA);
@@ -140,7 +182,28 @@ export async function POST(req: NextRequest) {
   }
 
   const scanned = walk(mediaDir, maxScan);
-  const matched = scanned.filter((file) => match(file, mediaDir, target)).slice(0, limit);
+    const memory = readScanMemory();
+  const allMatched = scanned
+    .filter((file) => match(file, mediaDir, target))
+    .sort();
+
+  const startCursor = Math.max(0, Number(memory.cursor || 0));
+  const rotated = [...allMatched.slice(startCursor), ...allMatched.slice(0, startCursor)];
+
+  const matched = [];
+
+  for (const file of rotated) {
+    const key = fileKey(file, mediaDir);
+    const fingerprint = fileFingerprint(file);
+
+    if (isAlreadyKnownCleanOrHeld(memory, key, fingerprint)) continue;
+
+    matched.push(file);
+
+    if (matched.length >= limit) break;
+  }
+
+  memory.cursor = allMatched.length > 0 ? (startCursor + Math.max(1, matched.length)) % allMatched.length : 0;
   const state = read(STATE, {});
   ensure(state);
 
@@ -149,7 +212,8 @@ export async function POST(req: NextRequest) {
   const now = new Date().toISOString();
 
   const rows = matched.map((file) => {
-    const rel = path.relative(mediaDir, file).replace(/\\/g, "/");
+    const rel = fileKey(file, mediaDir);
+      const fingerprint = fileFingerprint(file);
     return {
       id: rel,
       trackId: rel,
@@ -171,6 +235,7 @@ export async function POST(req: NextRequest) {
       statusText: "HELD - Azura source attached for SmartZJ background clean.",
       createdAt: now,
       updatedAt: now,
+      fingerprint,
     };
   });
 
@@ -204,6 +269,22 @@ export async function POST(req: NextRequest) {
     rows: rows.map((r) => ({ id: r.id, title: r.title, sourceFilePath: r.sourceFilePath, cleanStatus: r.cleanStatus })),
   };
 
+    if (!memory.files || typeof memory.files !== "object") memory.files = {};
+
+  for (const row of rows) {
+    memory.files[row.id] = {
+      id: row.id,
+      title: row.title,
+      fingerprint: row.fingerprint,
+      status: "HELD",
+      reason: "Loaded for SmartZJ clean/bleep scan.",
+      updatedAt: now,
+    };
+  }
+
+  writeScanMemory(memory);
+
   write(SCAN, result);
   return NextResponse.json(result, { headers: { "Cache-Control": "no-store" } });
 }
+
