@@ -13,6 +13,7 @@ const CURRENT_BROADCAST_FILE = join(DATA_DIR, "current-broadcast.json");
 const PLAYER_STATE_FILE = join(DATA_DIR, "smartzj-mini-autonext.json");
 const FRESH_FIRST_STATE_FILE = join(DATA_DIR, "smartzj-fresh-first-queue.json");
 const BACKGROUND_CLEAN_STATE_FILE = join(DATA_DIR, "smartdj-background-clean-state.json");
+const SMARTZJ_LIVE_READY_POOL_FILE = join(DATA_DIR, "smartzj-live-ready-pool.json");
 
 function readJson<T>(filePath: string, fallback: T): T {
   try {
@@ -75,48 +76,85 @@ function isSafeCleanUrl(url: string) {
 }
 
 
-// SMARTZJ_BACKGROUND_CLEAN_RESULTS_POOL_V1
+// SMARTZJ_BACKGROUND_CLEAN_RESULTS_POOL_V2
+// Keeps every successful background-clean result in a persistent live READY pool.
 function readBackgroundCleanReadyTracks() {
   const loopState = readJson<Record<string, any>>(BACKGROUND_CLEAN_STATE_FILE, {});
+  const poolState = readJson<Record<string, any>>(SMARTZJ_LIVE_READY_POOL_FILE, { tracks: [] });
+
+  const existingPool = Array.isArray(poolState.tracks) ? poolState.tracks : [];
   const results = Array.isArray(loopState.results) ? loopState.results : [];
 
-  return results
-    .filter((result) => {
-      const status = String(result?.status || "").toUpperCase();
-      const cleanAudioUrl = cleanText(result?.cleanAudioUrl || result?.processedAudioUrl || result?.audioUrl);
+  function keyOf(track: Record<string, any>) {
+    return cleanText(
+      track.trackId ||
+        track.id ||
+        track.title ||
+        track.cleanAudioUrl ||
+        track.processedAudioUrl ||
+        track.audioUrl ||
+        ""
+    );
+  }
 
-      return (
-        status === "PROCESSED_AUDIO_READY" &&
-        cleanAudioUrl.startsWith("/audio/smartdj/clean/")
-      );
-    })
-    .map((result) => {
-      const cleanAudioUrl = cleanText(result.cleanAudioUrl || result.processedAudioUrl || result.audioUrl);
-      const trackId = cleanText(result.trackId || result.id || result.title || cleanAudioUrl);
-      const title = cleanText(result.title || result.trackTitle || trackId);
+  function normalizeReady(input: Record<string, any>) {
+    const cleanAudioUrl = cleanText(input.cleanAudioUrl || input.processedAudioUrl || input.audioUrl);
+    const trackId = cleanText(input.trackId || input.id || input.title || cleanAudioUrl);
+    const title = cleanText(input.title || input.trackTitle || trackId);
 
-      return {
-        id: trackId,
-        trackId,
-        title,
-        artist: cleanText(result.artist || "AzuraCast"),
-        source: "SMARTZJ_BACKGROUND_CLEAN",
-        audioUrl: cleanAudioUrl,
-        streamUrl: cleanAudioUrl,
-        cleanAudioUrl,
-        processedAudioUrl: cleanAudioUrl,
-        status: "READY",
-        safetyStatus: "READY",
-        cleanStatus: "PROCESSED_AUDIO_READY",
-        bleepJobStatus: "PROCESSED_AUDIO_READY",
-        needsBleep: false,
-        held: false,
-        rawAudioBlocked: true,
-        returnedToSmartDj: result.returnedToSmartDj ?? true,
-        updatedAt: result.updatedAt || result.completedAt || loopState.updatedAt || new Date().toISOString(),
-        safetyNote: "Loaded from SmartZJ background clean results pool. Only processed clean audio is allowed.",
-      };
-    });
+    if (!trackId || !cleanAudioUrl.startsWith("/audio/smartdj/clean/")) return null;
+
+    const status = cleanText(input.status || input.cleanStatus || input.bleepJobStatus).toUpperCase();
+    if (status && status !== "PROCESSED_AUDIO_READY" && status !== "READY") return null;
+
+    return {
+      id: trackId,
+      trackId,
+      title,
+      artist: cleanText(input.artist || "AzuraCast"),
+      source: "SMARTZJ_LIVE_READY_POOL",
+      audioUrl: cleanAudioUrl,
+      streamUrl: cleanAudioUrl,
+      cleanAudioUrl,
+      processedAudioUrl: cleanAudioUrl,
+      status: "READY",
+      safetyStatus: "READY",
+      cleanStatus: "PROCESSED_AUDIO_READY",
+      bleepJobStatus: "PROCESSED_AUDIO_READY",
+      needsBleep: false,
+      held: false,
+      rawAudioBlocked: true,
+      returnedToSmartDj: input.returnedToSmartDj ?? true,
+      updatedAt: input.updatedAt || input.completedAt || loopState.updatedAt || new Date().toISOString(),
+      safetyNote: "Persistent SmartZJ live READY pool. Only processed clean audio is allowed.",
+    };
+  }
+
+  const byKey = new Map<string, Record<string, any>>();
+
+  for (const track of existingPool) {
+    const ready = normalizeReady(track);
+    if (!ready) continue;
+    byKey.set(keyOf(ready), ready);
+  }
+
+  for (const result of results) {
+    const ready = normalizeReady(result);
+    if (!ready) continue;
+    byKey.set(keyOf(ready), ready);
+  }
+
+  const tracks = Array.from(byKey.values()).slice(-5000);
+
+  writeJson(SMARTZJ_LIVE_READY_POOL_FILE, {
+    ok: true,
+    count: tracks.length,
+    policy: "Persistent live SmartZJ READY pool. Raw Azura blocked.",
+    updatedAt: new Date().toISOString(),
+    tracks,
+  });
+
+  return tracks;
 }
 
 function readSmartTracks() {
@@ -437,5 +475,6 @@ export async function GET() {
 export async function POST() {
   return runMiniAutoNext();
 }
+
 
 
