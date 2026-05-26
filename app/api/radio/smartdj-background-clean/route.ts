@@ -194,6 +194,13 @@ async function runLoop(options: AnyRecord) {
           source: "SMARTZJ_BACKGROUND_CLEAN",
           target,
           backgroundClean: true,
+          // SMARTZJ_PASS_FULL_TRACK_ROW_V1
+          track,
+          title: track.title,
+          audioUrl: track.audioUrl,
+          cleanAudioUrl: track.cleanAudioUrl,
+          processedAudioUrl: track.processedAudioUrl,
+          genreLane: track.genreLane || target,
         });
 
         results.push({
@@ -304,4 +311,5 @@ export async function POST(req: NextRequest) {
     headers: { "Cache-Control": "no-store" },
   });
 }
+
 

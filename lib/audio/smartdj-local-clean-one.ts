@@ -1,4 +1,4 @@
-import fs from "fs";
+﻿import fs from "fs";
 import path from "path";
 import { runLocalTranscribeAndProcess } from "@/lib/audio/local-transcribe-and-process";
 
@@ -234,6 +234,59 @@ function upsertBleepJob(job: AnyRecord) {
 
   filtered.push(job);
   safeJsonWrite(JOBS_FILE, shape.save(filtered));
+}
+
+
+// SMARTZJ_DIRECT_LOCAL_ROW_CLEAN_V1
+function hasDirectLocalAudioInput(input: any) {
+  return Boolean(
+    input?.sourceFilePath ||
+    input?.localAudioPath ||
+    input?.track?.sourceFilePath ||
+    input?.track?.localAudioPath
+  );
+}
+
+function directLocalTrackFallback(input: any) {
+  const sourceFilePath =
+    input?.sourceFilePath ||
+    input?.localAudioPath ||
+    input?.track?.sourceFilePath ||
+    input?.track?.localAudioPath ||
+    "";
+
+  const trackId =
+    input?.trackId ||
+    input?.id ||
+    input?.track?.trackId ||
+    input?.track?.id ||
+    sourceFilePath;
+
+  const title =
+    input?.title ||
+    input?.trackTitle ||
+    input?.track?.title ||
+    String(trackId).split(/[\\/]/).pop() ||
+    "SmartZJ local audio";
+
+  return {
+    id: trackId,
+    trackId,
+    title,
+    source: input?.source || "SMARTZJ_DIRECT_LOCAL_ROW",
+    sourceFilePath,
+    localAudioPath: sourceFilePath,
+    audioUrl: input?.audioUrl || input?.track?.audioUrl || "",
+    cleanAudioUrl: input?.cleanAudioUrl || input?.track?.cleanAudioUrl || "",
+    processedAudioUrl: input?.processedAudioUrl || input?.track?.processedAudioUrl || "",
+    rawAudioBlocked: true,
+    needsBleep: true,
+    held: true,
+    status: "HELD",
+    safetyStatus: "HELD",
+    cleanStatus: "LOCAL_SOURCE_ATTACHED",
+    statusText: "HELD - direct local source attached for SmartZJ clean/bleep processing.",
+  };
 }
 
 export async function runSmartDjLocalCleanOne(body: AnyRecord) {
@@ -587,6 +640,7 @@ export async function runSmartDjLocalCleanOne(body: AnyRecord) {
     sourceSizeBytes: downloadResult.sizeBytes,
   };
 }
+
 
 
 
