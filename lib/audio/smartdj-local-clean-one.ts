@@ -349,13 +349,17 @@ export async function runSmartDjLocalCleanOne(body: AnyRecord) {
   }
 
   if (!targetTrack) {
-    return {
-      ok: false,
-      status: "SMARTDJ_TRACK_NOT_FOUND",
-      message: "No matching real SmartDJ playlist track was found.",
-      wantedId,
-      foundCount: tracks.length,
-    };
+    if (hasDirectLocalAudioInput(body)) {
+      targetTrack = directLocalTrackFallback(body);
+    } else {
+      return {
+        ok: false,
+        status: "SMARTDJ_TRACK_NOT_FOUND",
+        message: "No matching real SmartDJ playlist track was found.",
+        wantedId,
+        foundCount: tracks.length,
+      };
+    }
   }
 
   const originalTrackId = String(targetTrack.id || targetTrack.trackId || safeSegment(targetTrack.title || "smartdj-track"));
@@ -640,6 +644,7 @@ export async function runSmartDjLocalCleanOne(body: AnyRecord) {
     sourceSizeBytes: downloadResult.sizeBytes,
   };
 }
+
 
 
 
