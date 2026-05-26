@@ -40,10 +40,14 @@ export function proxy(request: NextRequest) {
     smartZjForwardedHost.startsWith("localhost");
 
   const smartZjInternalPath =
+    smartZjPathname === "/api/radio/smartdj-clean-next" ||
+    smartZjPathname.startsWith("/api/radio/smartdj-clean-next/") ||
     smartZjPathname === "/api/radio/smartdj-azura-scan-load" ||
     smartZjPathname.startsWith("/api/radio/smartdj-azura-scan-load/") ||
     smartZjPathname === "/api/radio/smartdj-background-clean" ||
-    smartZjPathname.startsWith("/api/radio/smartdj-background-clean/");
+    smartZjPathname.startsWith("/api/radio/smartdj-background-clean/") ||
+    smartZjPathname === "/api/radio/smartzj-folder-rotation" ||
+    smartZjPathname.startsWith("/api/radio/smartzj-folder-rotation/");
 
   if (smartZjInternalHost && smartZjInternalPath) {
     return NextResponse.next();
@@ -150,14 +154,3 @@ export const config = {
     "/api/azuracast/control/:path*",
   ],
 };
-
-
-
-
-
-
-
-
-
-
-
