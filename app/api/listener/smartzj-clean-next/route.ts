@@ -14,6 +14,7 @@ const PLAYER_STATE_FILE = join(DATA_DIR, "smartzj-mini-autonext.json");
 const FRESH_FIRST_STATE_FILE = join(DATA_DIR, "smartzj-fresh-first-queue.json");
 const BACKGROUND_CLEAN_STATE_FILE = join(DATA_DIR, "smartdj-background-clean-state.json");
 const SMARTZJ_LIVE_READY_POOL_FILE = join(DATA_DIR, "smartzj-live-ready-pool.json");
+const SMARTZJ_EMERGENCY_HOLD_FILE = join(DATA_DIR, "smartzj-emergency-hold.json");
 
 function readJson<T>(filePath: string, fallback: T): T {
   try {
@@ -157,6 +158,46 @@ function readBackgroundCleanReadyTracks() {
   return tracks;
 }
 
+
+// SMARTZJ_EMERGENCY_HOLD_GATE_V1
+function getEmergencyHoldKeys() {
+  const hold = readJson<Record<string, any>>(SMARTZJ_EMERGENCY_HOLD_FILE, { blocked: [] });
+  const blocked = Array.isArray(hold.blocked) ? hold.blocked : [];
+
+  return new Set(
+    blocked
+      .map((item) =>
+        cleanText(
+          item.key ||
+            item.trackId ||
+            item.id ||
+            item.title ||
+            item.audioUrl ||
+            item.cleanAudioUrl ||
+            item.processedAudioUrl
+        )
+      )
+      .filter(Boolean)
+  );
+}
+
+function isEmergencyHeldTrack(track: AnyTrack, holdKeys: Set<string>) {
+  const keys = [
+    track.key,
+    track.trackId,
+    track.id,
+    track.title,
+    track.audioUrl,
+    track.cleanAudioUrl,
+    track.processedAudioUrl,
+    track.streamUrl,
+  ]
+    .map(cleanText)
+    .filter(Boolean);
+
+  return keys.some((key) => holdKeys.has(key));
+}
+
 function readSmartTracks() {
   const state = readJson<Record<string, any>>(SMARTDJ_STATE_FILE, {});
   const buckets = [
@@ -175,8 +216,10 @@ function readSmartTracks() {
   }
 
   const seen = new Set<string>();
+  const holdKeys = getEmergencyHoldKeys();
 
   return merged.filter((track) => {
+    if (isEmergencyHeldTrack(track, holdKeys)) return false;
     const audioUrl = pickSafeUrl(track);
     const id = cleanText(track.id || track.trackId || track.title || audioUrl);
     const key = `${id}|${audioUrl}`;
@@ -475,6 +518,7 @@ export async function GET() {
 export async function POST() {
   return runMiniAutoNext();
 }
+
 
 
 
