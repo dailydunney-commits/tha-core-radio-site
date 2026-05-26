@@ -11,6 +11,7 @@ type AnyRecord = Record<string, any>;
 const DATA_DIR = path.join(process.cwd(), ".data");
 const SMARTDJ_STATE_FILE = path.join(DATA_DIR, "smartdj-state.json");
 const LOOP_STATE_FILE = path.join(DATA_DIR, "smartdj-background-clean-state.json");
+const SMARTZJ_LIVE_READY_POOL_FILE = path.join(DATA_DIR, "smartzj-live-ready-pool.json");
 
 let running = false;
 
@@ -153,6 +154,97 @@ function pickPendingForTarget(allTracks: AnyRecord[], target: string, force: boo
   const otherPending = notReady.filter((track) => !trackMatchesTarget(track, target));
 
   return [...targetPending, ...otherPending].slice(0, limit);
+}
+
+
+// SMARTZJ_APPEND_READY_TO_LIVE_POOL_V1
+function smartZjText(value: unknown) {
+  return String(value ?? "").trim();
+}
+
+function inferSmartZjGenreLane(track: AnyRecord, target: string) {
+  const combined = [
+    track.genreLane,
+    track.genre,
+    track.lane,
+    track.folder,
+    target,
+    track.id,
+    track.trackId,
+    track.title,
+    track.azuraRelativePath,
+    track.sourceFilePath,
+    track.localAudioPath,
+  ]
+    .map((value) => smartZjText(value).toLowerCase())
+    .join(" ");
+
+  if (combined.includes("r-n-b") || combined.includes("r&b") || combined.includes("r n b") || combined.includes("rnb")) return "R-n-B";
+  if (combined.includes("hip-hop") || combined.includes("hip hop")) return "Hip-Hop";
+  if (combined.includes("fresh-dancehall") || combined.includes("fresh dancehall")) return "Fresh-Dancehall";
+  if (combined.includes("ole-school-dancehall") || combined.includes("old school dancehall") || combined.includes("ole school dancehall")) return "Ole-School-Dancehall";
+  if (combined.includes("dancehall")) return "Dancehall";
+  if (combined.includes("reggae")) return "Reggae";
+
+  return smartZjText(track.genreLane || target || "SmartZJ Clean Mix");
+}
+
+function appendReadyToSmartZjLivePool(track: AnyRecord, result: AnyRecord, target: string) {
+  const status = smartZjText(result.status || result.cleanStatus || result.bleepJobStatus).toUpperCase();
+  const cleanAudioUrl = smartZjText(result.cleanAudioUrl || result.processedAudioUrl || result.audioUrl);
+
+  if (status !== "PROCESSED_AUDIO_READY" && status !== "READY") return null;
+  if (!cleanAudioUrl.startsWith("/audio/smartdj/clean/")) return null;
+
+  const trackId = smartZjText(result.trackId || result.selectedTrackId || track.trackId || track.id || cleanAudioUrl);
+  const title = smartZjText(result.title || result.selectedTitle || track.title || trackId);
+  const genreLane = inferSmartZjGenreLane(track, target);
+
+  const readyRow: AnyRecord = {
+    ...track,
+    id: trackId,
+    trackId,
+    title,
+    artist: smartZjText(track.artist || result.artist || "AzuraCast"),
+    source: "SMARTZJ_LIVE_READY_POOL",
+    genreLane,
+    audioUrl: cleanAudioUrl,
+    streamUrl: cleanAudioUrl,
+    listen_url: cleanAudioUrl,
+    cleanAudioUrl,
+    processedAudioUrl: cleanAudioUrl,
+    status: "READY",
+    safetyStatus: "READY",
+    cleanStatus: "PROCESSED_AUDIO_READY",
+    bleepJobStatus: "PROCESSED_AUDIO_READY",
+    needsBleep: false,
+    held: false,
+    rawAudioBlocked: true,
+    returnedToSmartDj: true,
+    updatedAt: new Date().toISOString(),
+    safetyNote: "Added directly by SmartZJ background cleaner after successful clean/bleep processing. Raw Azura blocked.",
+  };
+
+  const pool = readJson(SMARTZJ_LIVE_READY_POOL_FILE, { ok: true, tracks: [] });
+  const existing = Array.isArray(pool.tracks) ? pool.tracks : [];
+
+  const key = `${trackId}|${cleanAudioUrl}`;
+  const filtered = existing.filter((item: AnyRecord) => {
+    const itemKey = `${smartZjText(item.trackId || item.id)}|${smartZjText(item.cleanAudioUrl || item.processedAudioUrl || item.audioUrl)}`;
+    return itemKey !== key;
+  });
+
+  const tracks = [...filtered, readyRow].slice(-5000);
+
+  writeJson(SMARTZJ_LIVE_READY_POOL_FILE, {
+    ok: true,
+    count: tracks.length,
+    policy: "Persistent SmartZJ live READY pool. Raw Azura blocked.",
+    updatedAt: new Date().toISOString(),
+    tracks,
+  });
+
+  return readyRow;
 }
 
 async function runLoop(options: AnyRecord) {
@@ -311,6 +403,7 @@ export async function POST(req: NextRequest) {
     headers: { "Cache-Control": "no-store" },
   });
 }
+
 
 
 
