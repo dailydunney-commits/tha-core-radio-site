@@ -12,6 +12,7 @@ const SMARTDJ_STATE_FILE = join(DATA_DIR, "smartdj-state.json");
 const CURRENT_BROADCAST_FILE = join(DATA_DIR, "current-broadcast.json");
 const PLAYER_STATE_FILE = join(DATA_DIR, "smartzj-mini-autonext.json");
 const FRESH_FIRST_STATE_FILE = join(DATA_DIR, "smartzj-fresh-first-queue.json");
+const BACKGROUND_CLEAN_STATE_FILE = join(DATA_DIR, "smartdj-background-clean-state.json");
 
 function readJson<T>(filePath: string, fallback: T): T {
   try {
@@ -73,6 +74,51 @@ function isSafeCleanUrl(url: string) {
   );
 }
 
+
+// SMARTZJ_BACKGROUND_CLEAN_RESULTS_POOL_V1
+function readBackgroundCleanReadyTracks() {
+  const loopState = readJson<Record<string, any>>(BACKGROUND_CLEAN_STATE_FILE, {});
+  const results = Array.isArray(loopState.results) ? loopState.results : [];
+
+  return results
+    .filter((result) => {
+      const status = String(result?.status || "").toUpperCase();
+      const cleanAudioUrl = cleanText(result?.cleanAudioUrl || result?.processedAudioUrl || result?.audioUrl);
+
+      return (
+        status === "PROCESSED_AUDIO_READY" &&
+        cleanAudioUrl.startsWith("/audio/smartdj/clean/")
+      );
+    })
+    .map((result) => {
+      const cleanAudioUrl = cleanText(result.cleanAudioUrl || result.processedAudioUrl || result.audioUrl);
+      const trackId = cleanText(result.trackId || result.id || result.title || cleanAudioUrl);
+      const title = cleanText(result.title || result.trackTitle || trackId);
+
+      return {
+        id: trackId,
+        trackId,
+        title,
+        artist: cleanText(result.artist || "AzuraCast"),
+        source: "SMARTZJ_BACKGROUND_CLEAN",
+        audioUrl: cleanAudioUrl,
+        streamUrl: cleanAudioUrl,
+        cleanAudioUrl,
+        processedAudioUrl: cleanAudioUrl,
+        status: "READY",
+        safetyStatus: "READY",
+        cleanStatus: "PROCESSED_AUDIO_READY",
+        bleepJobStatus: "PROCESSED_AUDIO_READY",
+        needsBleep: false,
+        held: false,
+        rawAudioBlocked: true,
+        returnedToSmartDj: result.returnedToSmartDj ?? true,
+        updatedAt: result.updatedAt || result.completedAt || loopState.updatedAt || new Date().toISOString(),
+        safetyNote: "Loaded from SmartZJ background clean results pool. Only processed clean audio is allowed.",
+      };
+    });
+}
+
 function readSmartTracks() {
   const state = readJson<Record<string, any>>(SMARTDJ_STATE_FILE, {});
   const buckets = [
@@ -81,6 +127,7 @@ function readSmartTracks() {
     state.tracks,
     state.lastResult?.playlist,
     state.result?.playlist,
+    readBackgroundCleanReadyTracks(),
   ];
 
   const merged: AnyTrack[] = [];
@@ -390,4 +437,5 @@ export async function GET() {
 export async function POST() {
   return runMiniAutoNext();
 }
+
 
