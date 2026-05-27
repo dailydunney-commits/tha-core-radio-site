@@ -156,15 +156,26 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function waitForBackgroundClean(timeoutMs: number) {
+async function waitForBackgroundClean(timeoutMs: number, target: string, requestedAt: string) {
   const deadline = Date.now() + timeoutMs;
+  const requestedTime = new Date(requestedAt).getTime();
   let lastState: AnyRecord = {};
+  let sawMatchingRun = false;
 
   while (Date.now() < deadline) {
     lastState = await getJson("/api/radio/smartdj-background-clean");
 
-    if (!lastState.running) {
-      return lastState;
+    const stateTarget = String(lastState.target || "");
+    const stateStartedTime = new Date(String(lastState.startedAt || "")).getTime();
+    const targetMatches = stateTarget.toLowerCase() === String(target).toLowerCase();
+    const runIsFresh = Number.isFinite(stateStartedTime) && stateStartedTime >= requestedTime;
+
+    if (targetMatches && runIsFresh) {
+      sawMatchingRun = true;
+
+      if (!lastState.running) {
+        return lastState;
+      }
     }
 
     await sleep(2000);
@@ -173,6 +184,9 @@ async function waitForBackgroundClean(timeoutMs: number) {
   return {
     ok: false,
     status: "BACKGROUND_CLEAN_WAIT_TIMEOUT",
+    target,
+    requestedAt,
+    sawMatchingRun,
     state: lastState,
   };
 }
@@ -251,7 +265,7 @@ async function runRotationLoop(options: AnyRecord) {
         action: "SMARTZJ_FOLDER_ROTATION_BRAIN",
         status: "RUNNING_FOLDER",
         currentFolder: target,
-        currentfolderIndex: Number(pickedRow.index),
+        currentFolderIndex: Number(pickedRow.index),
         mediaDir,
         limit,
         folderCount: folders.length,
@@ -280,13 +294,15 @@ async function runRotationLoop(options: AnyRecord) {
       let cleanFinal: AnyRecord = cleanStart;
 
       if (rowsLoaded > 0) {
+        const cleanRequestedAt = new Date().toISOString();
+
         cleanStart = await postJson("/api/radio/smartdj-background-clean", {
           target,
           limit,
           force: Boolean(options.force),
         });
 
-        cleanFinal = await waitForBackgroundClean(cleanerTimeoutMs);
+        cleanFinal = await waitForBackgroundClean(cleanerTimeoutMs, target, cleanRequestedAt);
         emptyLoads = 0;
       } else {
         emptyLoads++;
