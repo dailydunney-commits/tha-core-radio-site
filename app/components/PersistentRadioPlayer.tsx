@@ -151,7 +151,7 @@ export default function PersistentRadioPlayer() {
     return () => window.clearInterval(timer);
   }, []);
 
-    // SMARTZJ_MINI_AUTONEXT_WATCHDOG_DISABLED_STABILITY_V1
+  // SMARTZJ_MINI_AUTONEXT_WATCHDOG_DISABLED_STABILITY_V1
   // Disabled because pause/error/near-end watchdog can force early SmartZJ skips.
   // The audio element's normal ended handler remains responsible for moving to the next clean track.
   async function togglePlay() {
@@ -203,7 +203,7 @@ export default function PersistentRadioPlayer() {
           <p style={styles.label}>THA CORE ONLINE RADIO</p>
           <p style={styles.nowPlaying}>{nowPlaying}</p>
           <p style={styles.status}>
-            {message} Ãƒâ€šÃ‚Â· Listeners: {listeners}
+            {message} - Listeners: {listeners}
           </p>
         </div>
       </div>
