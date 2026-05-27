@@ -15,10 +15,9 @@ const DEFAULT_MEDIA_DIR =
   process.env.AZURACAST_MEDIA_DIR ||
   "/var/azuracast/stations/tha_core_online_radio/media";
 
-const INTERNAL_BASE_URL =
-  process.env.SMARTZJ_INTERNAL_BASE_URL ||
-  process.env.NEXT_PUBLIC_SITE_URL ||
-  "http://127.0.0.1:3101";
+function internalBaseUrl() {
+  return String(process.env.SMARTZJ_INTERNAL_BASE_URL || "http://127.0.0.1:3101").replace(/\/+$/, "");
+}
 
 let running = false;
 
@@ -109,7 +108,7 @@ function pickNextFolder(folders: AnyRecord[], state: AnyRecord) {
 }
 
 async function postJson(route: string, body: AnyRecord) {
-  const res = await fetch(`${INTERNAL_BASE_URL}${route}`, {
+  const res = await fetch(`${internalBaseUrl()}${route}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -132,7 +131,7 @@ async function postJson(route: string, body: AnyRecord) {
 }
 
 async function getJson(route: string) {
-  const res = await fetch(`${INTERNAL_BASE_URL}${route}`, {
+  const res = await fetch(`${internalBaseUrl()}${route}`, {
     method: "GET",
     headers: { "Cache-Control": "no-store" },
   });
@@ -417,4 +416,5 @@ export async function POST(req: NextRequest) {
     headers: { "Cache-Control": "no-store" },
   });
 }
+
 
