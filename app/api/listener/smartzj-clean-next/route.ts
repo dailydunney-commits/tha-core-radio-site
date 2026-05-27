@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import { join } from "path";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -33,6 +33,76 @@ function writeJson(filePath: string, value: unknown) {
 
 function cleanText(value: unknown) {
   return String(value ?? "").trim();
+}
+
+function canonicalSmartZjLane(value: unknown) {
+  const text = cleanText(value)
+    .replace(/[_/\\]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  const lower = text.toLowerCase();
+
+  if (!lower) return "";
+
+  if (
+    lower.includes("ole school dancehall") ||
+    lower.includes("old school dancehall") ||
+    lower.includes("ole-school-dancehall")
+  ) {
+    return "Ole-School-Dancehall";
+  }
+
+  if (lower.includes("fresh dancehall") || lower.includes("fresh-dancehall")) {
+    return "Fresh-Dancehall";
+  }
+
+  if (lower.includes("dancehall")) return "Dancehall";
+  if (lower.includes("reggae")) return "Reggae";
+  if (lower.includes("hip hop") || lower.includes("hip-hop")) return "Hip-Hop";
+  if (lower.includes("r n b") || lower.includes("r-n-b") || lower.includes("r&b") || lower.includes("rnb")) return "R-n-B";
+
+  return text
+    .split(" ")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join("-");
+}
+
+function laneKey(value: unknown) {
+  return canonicalSmartZjLane(value).toLowerCase().replace(/[^a-z0-9]+/g, "");
+}
+
+function getRequestedLane(req?: NextRequest) {
+  try {
+    const url = new URL(req?.url || "http://localhost");
+
+    return canonicalSmartZjLane(
+      url.searchParams.get("lane") ||
+        url.searchParams.get("genreLane") ||
+        url.searchParams.get("target") ||
+        ""
+    );
+  } catch {
+    return "";
+  }
+}
+
+function trackMatchesLane(track: AnyTrack, requestedLane: string) {
+  if (!requestedLane) return true;
+
+  return laneKey(getSmartZjGenreLane(track)) === laneKey(requestedLane);
+}
+
+function getLaneCounts(tracks: AnyTrack[]) {
+  const counts: Record<string, number> = {};
+
+  for (const track of tracks) {
+    const lane = canonicalSmartZjLane(getSmartZjGenreLane(track) || "SmartZJ Clean Mix");
+    counts[lane] = (counts[lane] || 0) + 1;
+  }
+
+  return counts;
 }
 
 function pickSafeUrl(track: AnyTrack) {
@@ -443,8 +513,12 @@ function getSmartZjGenreLane(track: AnyTrack) {
   return cleanText(track.genreLane || track.genre || track.lane || "SmartZJ Clean Mix");
 }
 
-function runMiniAutoNext() {
-  const cleanTracks = readSmartTracks();
+function runMiniAutoNext(req?: NextRequest) {
+  const allCleanTracks = readSmartTracks();
+  const requestedLane = getRequestedLane(req);
+  const cleanTracks = requestedLane
+    ? allCleanTracks.filter((track) => trackMatchesLane(track, requestedLane))
+    : allCleanTracks;
 
   if (!cleanTracks.length) {
     return NextResponse.json(
