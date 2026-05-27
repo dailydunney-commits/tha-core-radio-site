@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
 
@@ -13,7 +13,7 @@ const ROTATION_STATE_FILE = path.join(DATA_DIR, "smartzj-folder-rotation-state.j
 const DEFAULT_MEDIA_DIR =
   process.env.SMARTZJ_MEDIA_DIR ||
   process.env.AZURACAST_MEDIA_DIR ||
-  "/var/azuracast/stations/tha_core_online_radio/media";
+  path.join(process.cwd(), ".data", "azura-source-cache");
 
 function internalBaseUrl() {
   return String(process.env.SMARTZJ_INTERNAL_BASE_URL || "http://127.0.0.1:3101").replace(/\/+$/, "");
@@ -416,5 +416,3 @@ export async function POST(req: NextRequest) {
     headers: { "Cache-Control": "no-store" },
   });
 }
-
-
