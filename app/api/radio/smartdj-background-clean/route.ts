@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
 import { runSmartDjLocalCleanOne } from "@/lib/audio/smartdj-local-clean-one";
@@ -250,7 +250,7 @@ function appendReadyToSmartZjLivePool(track: AnyRecord, result: AnyRecord, targe
 async function runLoop(options: AnyRecord) {
   const startedAt = new Date().toISOString();
   const target = String(options.target || "hip hop");
-  const limit = Math.max(1, Math.min(Number(options.limit || 5), 25));
+  const limit = Math.max(1, Math.min(Number(options.limit || 25), 50));
   const force = Boolean(options.force);
 
   running = true;
@@ -295,6 +295,8 @@ async function runLoop(options: AnyRecord) {
           genreLane: track.genreLane || target,
         });
 
+        const livePoolRow = appendReadyToSmartZjLivePool(track, result, target);
+
         results.push({
           trackId,
           title: track.title || trackId,
@@ -302,6 +304,8 @@ async function runLoop(options: AnyRecord) {
           status: result.status || "",
           cleanAudioUrl: result.cleanAudioUrl || result.processedAudioUrl || "",
           returnedToSmartDj: Boolean(result.returnedToSmartDj),
+          returnedToLiveReadyPool: Boolean(livePoolRow),
+          genreLane: livePoolRow?.genreLane || track.genreLane || target,
           message: result.message || "",
         });
       } catch (error: any) {
@@ -397,14 +401,10 @@ export async function POST(req: NextRequest) {
     status: "STARTED",
     action: "SMARTZJ_BACKGROUND_CLEAN_MVP",
     target: String(body.target || "hip hop"),
+    limit: Math.max(1, Math.min(Number(body.limit || 25), 50)),
     message: "SmartZJ background clean started. Current broadcast will not stop. Raw Azura remains blocked.",
   }, {
     status: 202,
     headers: { "Cache-Control": "no-store" },
   });
 }
-
-
-
-
-
