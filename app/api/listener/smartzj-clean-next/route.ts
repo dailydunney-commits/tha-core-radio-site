@@ -631,10 +631,10 @@ function runMiniAutoNext(req?: NextRequest) {
   );
 }
 
-export async function GET() {
-  return runMiniAutoNext();
+export async function GET(req: NextRequest) {
+  return runMiniAutoNext(req);
 }
 
-export async function POST() {
-  return runMiniAutoNext();
+export async function POST(req: NextRequest) {
+  return runMiniAutoNext(req);
 }
