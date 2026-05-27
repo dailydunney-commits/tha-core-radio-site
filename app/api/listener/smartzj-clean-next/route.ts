@@ -15,6 +15,7 @@ const FRESH_FIRST_STATE_FILE = join(DATA_DIR, "smartzj-fresh-first-queue.json");
 const BACKGROUND_CLEAN_STATE_FILE = join(DATA_DIR, "smartdj-background-clean-state.json");
 const SMARTZJ_LIVE_READY_POOL_FILE = join(DATA_DIR, "smartzj-live-ready-pool.json");
 const SMARTZJ_EMERGENCY_HOLD_FILE = join(DATA_DIR, "smartzj-emergency-hold.json");
+const SMARTZJ_BROADCAST_MODE_FILE = join(DATA_DIR, "smartzj-broadcast-mode.json");
 
 function readJson<T>(filePath: string, fallback: T): T {
   try {
@@ -74,18 +75,53 @@ function laneKey(value: unknown) {
 }
 
 function getRequestedLane(req?: NextRequest) {
+  const modeState = readJson<Record<string, any>>(SMARTZJ_BROADCAST_MODE_FILE, {});
+
   try {
     const url = new URL(req?.url || "http://localhost");
-
-    return canonicalSmartZjLane(
+    const rawLane = cleanText(
       url.searchParams.get("lane") ||
         url.searchParams.get("genreLane") ||
         url.searchParams.get("target") ||
         ""
     );
+
+    const rawLaneKey = rawLane.toLowerCase().replace(/[^a-z0-9]+/g, "");
+
+    if (rawLaneKey === "auto" || rawLaneKey === "all" || rawLaneKey === "mix" || rawLaneKey === "clear") {
+      writeJson(SMARTZJ_BROADCAST_MODE_FILE, {
+        ok: true,
+        mode: "AUTO_ROTATE",
+        selectedLane: "",
+        updatedAt: new Date().toISOString(),
+        message: "SmartZJ lane lock cleared. Auto rotate enabled.",
+      });
+
+      return "";
+    }
+
+    const requestedLane = canonicalSmartZjLane(rawLane);
+
+    if (requestedLane) {
+      writeJson(SMARTZJ_BROADCAST_MODE_FILE, {
+        ok: true,
+        mode: "SELECTED_LANE",
+        selectedLane: requestedLane,
+        updatedAt: new Date().toISOString(),
+        message: `SmartZJ lane lock saved: ${requestedLane}`,
+      });
+
+      return requestedLane;
+    }
   } catch {
-    return "";
+    // Fall through to saved state.
   }
+
+  if (cleanText(modeState.mode).toUpperCase() === "SELECTED_LANE") {
+    return canonicalSmartZjLane(modeState.selectedLane);
+  }
+
+  return "";
 }
 
 function trackMatchesLane(track: AnyTrack, requestedLane: string) {
