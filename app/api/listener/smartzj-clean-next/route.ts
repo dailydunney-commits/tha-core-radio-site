@@ -552,9 +552,17 @@ function getSmartZjGenreLane(track: AnyTrack) {
 function runMiniAutoNext(req?: NextRequest) {
   const allCleanTracks = readSmartTracks();
   const requestedLane = getRequestedLane(req);
-  const cleanTracks = requestedLane
+
+  const laneCleanTracks = requestedLane
     ? allCleanTracks.filter((track) => trackMatchesLane(track, requestedLane))
     : allCleanTracks;
+
+  const cleanTracks = laneCleanTracks.filter((track) => {
+    const audioUrl = pickSafeUrl(track);
+    return publicCleanAudioExists(audioUrl);
+  });
+
+  const skippedMissingAudioCount = laneCleanTracks.length - cleanTracks.length;
 
   if (!cleanTracks.length) {
     return NextResponse.json(
@@ -562,8 +570,16 @@ function runMiniAutoNext(req?: NextRequest) {
         ok: false,
         route: "/api/listener/smartzj-clean-next",
         action: "SMARTZJ_MINI_AUTONEXT",
-        status: "NO_READY_CLEAN_TRACKS",
-        message: "No READY clean/bleeped SmartZJ rows found. Raw Azura remains blocked.",
+        status: skippedMissingAudioCount > 0 ? "NO_PLAYABLE_CLEAN_AUDIO_FILES" : "NO_READY_CLEAN_TRACKS",
+        requestedLane,
+        laneLocked: Boolean(requestedLane),
+        allCleanTrackCount: allCleanTracks.length,
+        laneTrackCount: laneCleanTracks.length,
+        skippedMissingAudioCount,
+        laneCounts: getLaneCounts(allCleanTracks),
+        message: skippedMissingAudioCount > 0
+          ? "SmartZJ found READY rows, but their clean audio files are missing on disk. Raw Azura remains blocked."
+          : "No READY clean/bleeped SmartZJ rows found. Raw Azura remains blocked.",
       },
       {
         status: 423,
@@ -572,7 +588,10 @@ function runMiniAutoNext(req?: NextRequest) {
     );
   }
 
-  const playerState = readJson<Record<string, any>>(PLAYER_STATE_FILE, {});
+  const playerState = readJson<Record<string, any>>(PLAYER_STATE_FILE, {
+    index: -1,
+  });
+
   const currentKey = getCurrentKey();
 
   const selection = chooseSmartZjFreshFirstNext(cleanTracks, currentKey, playerState);
@@ -591,8 +610,8 @@ function runMiniAutoNext(req?: NextRequest) {
     status: "SMARTDJ_BROADCASTING",
     source: "SMARTDJ",
     title,
-      artist,
-      genreLane,
+    artist,
+    genreLane,
     audioUrl,
     streamUrl: audioUrl,
     listen_url: audioUrl,
@@ -606,6 +625,9 @@ function runMiniAutoNext(req?: NextRequest) {
       total: cleanTracks.length,
       isLast: nextIndex + 1 === cleanTracks.length,
       selectionReason,
+      requestedLane,
+      laneLocked: Boolean(requestedLane),
+      skippedMissingAudioCount,
     },
     track: {
       ...track,
@@ -639,6 +661,9 @@ function runMiniAutoNext(req?: NextRequest) {
     currentTitle: title,
     currentArtist: artist,
     currentAudioUrl: audioUrl,
+    selectedLane: requestedLane,
+    laneLocked: Boolean(requestedLane),
+    skippedMissingAudioCount,
     updatedAt: now,
   });
 
@@ -648,17 +673,22 @@ function runMiniAutoNext(req?: NextRequest) {
       route: "/api/listener/smartzj-clean-next",
       action: "SMARTZJ_MINI_AUTONEXT",
       cleanTrackCount: cleanTracks.length,
+      allCleanTrackCount: allCleanTracks.length,
+      laneTrackCount: laneCleanTracks.length,
+      skippedMissingAudioCount,
       index: nextIndex,
       itemNumber: nextIndex + 1,
       isLast: nextIndex + 1 === cleanTracks.length,
       selectionReason,
+      requestedLane,
+      laneLocked: Boolean(requestedLane),
       title,
       artist,
       genreLane,
       audioUrl,
       streamUrl: audioUrl,
       listen_url: audioUrl,
-      message: "SmartZJ Mini AutoNext handed off the next READY clean/bleeped track.",
+      message: "SmartZJ Mini AutoNext handed off the next existing READY clean/bleeped track.",
       currentBroadcast: broadcast,
     },
     {
