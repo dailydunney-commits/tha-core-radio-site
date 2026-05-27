@@ -1,4 +1,4 @@
-﻿import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import { join } from "path";
 import { NextResponse } from "next/server";
 
@@ -47,6 +47,19 @@ function pickSafeUrl(track: AnyTrack) {
       track.url ||
       ""
   );
+}
+
+function publicCleanAudioExists(url: string) {
+  const cleanUrl = cleanText(url).split("?")[0];
+
+  if (!cleanUrl.startsWith("/audio/smartdj/clean/")) {
+    return false;
+  }
+
+  const parts = cleanUrl.replace(/^\/+/, "").split(/[\\/]+/).filter(Boolean);
+  const filePath = join(process.cwd(), "public", ...parts);
+
+  return existsSync(filePath);
 }
 
 function isRawAzuraUrl(url: string) {
@@ -551,11 +564,3 @@ export async function GET() {
 export async function POST() {
   return runMiniAutoNext();
 }
-
-
-
-
-
-
-
-
