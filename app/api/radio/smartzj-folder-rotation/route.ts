@@ -195,7 +195,7 @@ async function runRotationLoop(options: AnyRecord) {
   const startedAt = new Date().toISOString();
 
   const mediaDir = String(options.mediaDir || DEFAULT_MEDIA_DIR);
-  const limit = Math.max(1, Math.min(Number(options.limit || 25), 25));
+  const limit = Math.max(1, Math.min(Number(options.limit || 50), 50));
   const maxScan = Math.max(100, Math.min(Number(options.maxScan || 20000), 100000));
   const cleanerTimeoutMs = Math.max(30000, Number(options.cleanerTimeoutMs || 30 * 60 * 1000));
 
@@ -215,10 +215,13 @@ async function runRotationLoop(options: AnyRecord) {
   }
 
   const folders = collectFolders(mediaDir, maxScan);
+  const requestedMaxFolders = Number(options.maxFolders || 0);
   const maxFolders = Math.max(
     1,
     Math.min(
-      Number(options.maxFolders || (options.continuous ? folders.length : 1)),
+      Number.isFinite(requestedMaxFolders) && requestedMaxFolders > 0
+        ? requestedMaxFolders
+        : folders.length,
       Math.max(folders.length, 1)
     )
   );
@@ -244,7 +247,7 @@ async function runRotationLoop(options: AnyRecord) {
     maxFolders,
     folderCount: folders.length,
     startedAt,
-    message: "SmartZJ folder rotation started. It will scan/load 25 from one folder/lane, clean/bleep them, then move to the next folder/lane.",
+    message: `SmartZJ folder rotation started. It will scan/load ${limit} from each folder/lane, clean/bleep them, then move across all folders unless maxFolders is specified.`,
   });
 
   try {
@@ -424,9 +427,9 @@ export async function POST(req: NextRequest) {
     running: true,
     status: "STARTED",
     action: "SMARTZJ_FOLDER_ROTATION_BRAIN",
-    limit: Math.max(1, Math.min(Number(body.limit || 25), 25)),
-    maxFolders: Number(body.maxFolders || 1),
-    message: "SmartZJ folder rotation started. It will load/clean 25 from the current folder, then move to the next folder on the next batch.",
+    limit: Math.max(1, Math.min(Number(body.limit || 50), 50)),
+    maxFolders: Number(body.maxFolders || 0) || "ALL_FOLDERS",
+    message: "SmartZJ folder rotation started. It will load/clean up to 50 from each folder/lane and move folder-to-folder unless maxFolders is specified.",
   }, {
     status: 202,
     headers: { "Cache-Control": "no-store" },
