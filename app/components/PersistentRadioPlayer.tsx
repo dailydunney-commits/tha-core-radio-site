@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
@@ -12,6 +12,13 @@ export default function PersistentRadioPlayer() {
   async function playNextSmartZjCleanTrack() {
     const audio = audioRef.current;
     if (!audio) return;
+
+    // SMARTZJ_MINI_AUTONEXT_THROTTLE_V1
+    if ((audio as any).__smartZjAutoNextLock) return;
+    (audio as any).__smartZjAutoNextLock = true;
+    window.setTimeout(() => {
+      (audio as any).__smartZjAutoNextLock = false;
+    }, 2500);
 
     try {
       const response = await fetch(`/api/listener/smartzj-clean-next?ended=${Date.now()}`, {
@@ -144,6 +151,9 @@ export default function PersistentRadioPlayer() {
     return () => window.clearInterval(timer);
   }, []);
 
+    // SMARTZJ_MINI_AUTONEXT_WATCHDOG_DISABLED_STABILITY_V1
+  // Disabled because pause/error/near-end watchdog can force early SmartZJ skips.
+  // The audio element's normal ended handler remains responsible for moving to the next clean track.
   async function togglePlay() {
     const audio = audioRef.current;
     if (!audio) return;
@@ -193,7 +203,7 @@ export default function PersistentRadioPlayer() {
           <p style={styles.label}>THA CORE ONLINE RADIO</p>
           <p style={styles.nowPlaying}>{nowPlaying}</p>
           <p style={styles.status}>
-            {message} Ã‚Â· Listeners: {listeners}
+            {message} Ãƒâ€šÃ‚Â· Listeners: {listeners}
           </p>
         </div>
       </div>
@@ -349,4 +359,3 @@ const styles: Record<string, CSSProperties> = {
     boxShadow: "0 0 18px #ff1744",
   },
 };
-
