@@ -183,15 +183,28 @@ function hasLocalAudioSource(track: AnyRecord) {
   );
 }
 
+function isOpenCleanTarget(target: string) {
+  const wanted = normalizeLane(target);
+
+  return (
+    !wanted ||
+    wanted === "all" ||
+    wanted === "azura feeder" ||
+    wanted === "smartzj clean mix"
+  );
+}
+
 function pickPendingForTarget(allTracks: AnyRecord[], target: string, force: boolean, limit: number) {
   const notReady = allTracks.filter((track) => force || !isReady(track));
-
   const withLocalAudio = notReady.filter(hasLocalAudioSource);
 
-  const targetPending = withLocalAudio.filter((track) => trackMatchesTarget(track, target));
-  const otherPending = withLocalAudio.filter((track) => !trackMatchesTarget(track, target));
+  if (isOpenCleanTarget(target)) {
+    return withLocalAudio.slice(0, limit);
+  }
 
-  return [...targetPending, ...otherPending].slice(0, limit);
+  return withLocalAudio
+    .filter((track) => trackMatchesTarget(track, target))
+    .slice(0, limit);
 }
 
 
