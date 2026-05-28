@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 
 
@@ -1688,7 +1688,7 @@ const SELECTED_DISPLAY_MEMORY_KEY = "tha-core-owner-selected-display-v1";
 
   async function refreshNowPlaying() {
     try {
-      const response = await fetch("/api/radio/now-playing", {
+      const response = await fetch("/api/listener/now-playing", {
         cache: "no-store",
       });
 

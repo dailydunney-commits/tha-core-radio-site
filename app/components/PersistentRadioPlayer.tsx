@@ -122,7 +122,7 @@ export default function PersistentRadioPlayer() {
   useEffect(() => {
     async function loadNowPlaying() {
       try {
-        const res = await fetch("/api/now-playing", {
+        const res = await fetch("/api/listener/now-playing", {
           cache: "no-store",
         });
 
