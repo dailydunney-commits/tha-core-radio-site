@@ -187,28 +187,34 @@ function pickNextFolder(
 ) {
   if (!folders.length) return null;
 
-  const lastIndexRaw = Number(state.folderIndex);
-  const lastIndex = Number.isFinite(lastIndexRaw) ? lastIndexRaw : -1;
+  const candidates = folders
+    .map((folder, index) => {
+      const lane = stockLaneKey(folder?.lane || folder?.folder || folder?.name || "Root");
+      const readyCount = readyCounts[lane] || 0;
+      const sourceCount = Number(folder?.count || folder?.audioFiles || 0);
 
-  for (let step = 1; step <= folders.length; step++) {
-    const nextIndex = (lastIndex + step) % folders.length;
-    const folder = folders[nextIndex];
-    const lane = stockLaneKey(folder?.lane || folder?.folder || folder?.name || "Root");
-    const readyCount = readyCounts[lane] || 0;
-
-    if (readyCount < targetReadyPerLane) {
       return {
         ...folder,
         lane,
         readyCount,
+        sourceCount,
         targetReadyPerLane,
         neededToTarget: Math.max(targetReadyPerLane - readyCount, 0),
-        index: nextIndex,
+        index,
       };
-    }
-  }
+    })
+    .filter((folder) => {
+      if (folder.lane === "Root") return false;
+      if (folder.sourceCount <= 0) return false;
+      return folder.readyCount < targetReadyPerLane;
+    })
+    .sort((a, b) => {
+      if (a.readyCount !== b.readyCount) return a.readyCount - b.readyCount;
+      if (b.neededToTarget !== a.neededToTarget) return b.neededToTarget - a.neededToTarget;
+      return String(a.lane).localeCompare(String(b.lane));
+    });
 
-  return null;
+  return candidates[0] || null;
 }
 
 async function postJson(route: string, body: AnyRecord) {
