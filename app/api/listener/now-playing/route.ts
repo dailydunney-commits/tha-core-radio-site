@@ -1,4 +1,4 @@
-﻿import { existsSync, readFileSync, writeFileSync } from "fs";
+import { existsSync, readFileSync, writeFileSync } from "fs";
 import { join } from "path";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -39,6 +39,28 @@ function isSafeUrl(url: string) {
   );
 }
 
+function publicAudioFileExists(url: string) {
+  const cleanUrl = String(url || "").split("?")[0].trim();
+
+  if (!cleanUrl.startsWith("/audio/")) {
+    return false;
+  }
+
+  const parts = cleanUrl.replace(/^\/+/, "").split(/[\\/]+/).filter(Boolean);
+  const filePath = join(process.cwd(), "public", ...parts);
+
+  return existsSync(filePath);
+}
+
+function pickHealLane(current: any, track: any) {
+  return String(
+    current?.sequence?.requestedLane ||
+      current?.genreLane ||
+      track?.genreLane ||
+      track?.genre ||
+      "Ole-School-Dancehall"
+  ).trim();
+}
 function standby(message: string) {
   return NextResponse.json({
     ok: true,
@@ -83,9 +105,9 @@ export async function GET(request: NextRequest) {
     const currentBroadcastPath = path.join(process.cwd(), ".data", "current-broadcast.json");
 
     if (fs.existsSync(currentBroadcastPath)) {
-      const current = JSON.parse(fs.readFileSync(currentBroadcastPath, "utf8"));
-      const track = current?.track ?? {};
-      const currentAudioUrl = String(
+      let current = JSON.parse(fs.readFileSync(currentBroadcastPath, "utf8"));
+      let track = current?.track ?? {};
+      let currentAudioUrl = String(
         current?.audioUrl ||
           track?.safeAudioUrl ||
           track?.radioSafeAudioUrl ||
@@ -96,11 +118,43 @@ export async function GET(request: NextRequest) {
           ""
       ).trim();
 
-      const currentStatus = String(current?.status || "").trim();
+      let currentStatus = String(current?.status || "").trim();
 
       if (
         currentStatus === "SMARTDJ_BROADCASTING" &&
-        isSafeUrl(currentAudioUrl)
+        isSafeUrl(currentAudioUrl) &&
+        !publicAudioFileExists(currentAudioUrl)
+      ) {
+        try {
+          const healLane = pickHealLane(current, track);
+
+          await fetch(`http://127.0.0.1:3101/api/listener/smartzj-clean-next?lane=${encodeURIComponent(healLane)}`, {
+            method: "POST",
+            cache: "no-store",
+          });
+
+          current = JSON.parse(fs.readFileSync(currentBroadcastPath, "utf8"));
+          track = current?.track ?? {};
+          currentAudioUrl = String(
+            current?.audioUrl ||
+              track?.safeAudioUrl ||
+              track?.radioSafeAudioUrl ||
+              track?.cleanAudioUrl ||
+              track?.bleepedAudioUrl ||
+              track?.processedAudioUrl ||
+              track?.audioUrl ||
+              ""
+          ).trim();
+          currentStatus = String(current?.status || "").trim();
+        } catch {
+          // If self-heal fails, do not serve the dead file.
+        }
+      }
+
+      if (
+        currentStatus === "SMARTDJ_BROADCASTING" &&
+        isSafeUrl(currentAudioUrl) &&
+        publicAudioFileExists(currentAudioUrl)
       ) {
         const title = String(
           track?.title ||
@@ -214,4 +268,3 @@ export async function GET(request: NextRequest) {
       : "Playing approved safe rotation track. Raw Azura remains blocked."
   }, { headers: { "Cache-Control": "no-store, no-cache, must-revalidate" } });
 }
-
