@@ -112,36 +112,61 @@ function trackSearchText(track: AnyRecord) {
     .join(" ");
 }
 
+function targetLaneText(track: AnyRecord) {
+  return [
+    track.genreLane,
+    track.genre,
+    track.lane,
+    track.folder,
+    track.id,
+    track.trackId,
+    track.azuraRelativePath,
+    track.sourceFilePath,
+    track.localAudioPath,
+  ]
+    .map((value) => String(value ?? "").toLowerCase())
+    .join(" ");
+}
+
 function trackMatchesTarget(track: AnyRecord, target: string) {
   const wanted = normalizeLane(target);
-  const text = trackSearchText(track);
 
   if (!wanted || wanted === "all" || wanted === "azura feeder" || wanted === "smartzj clean mix") {
     return true;
   }
 
-  if (wanted.includes("r n b") || wanted === "rnb") {
-    return text.includes("r-n-b") || text.includes("r&b") || text.includes("rnb") || text.includes("r n b");
+  const text = targetLaneText(track);
+
+  if (wanted.includes("ole school dancehall") || wanted.includes("old school dancehall")) {
+    return text.includes("ole-school-dancehall") ||
+      text.includes("ole school dancehall") ||
+      text.includes("old-school-dancehall") ||
+      text.includes("old school dancehall");
   }
 
-  if (wanted.includes("hip hop")) {
-    return text.includes("hip-hop") || text.includes("hip hop");
+  if (wanted.includes("hip hop") || wanted === "hiphop") {
+    return text.includes("hip-hop") || text.includes("hip hop") || text.includes("hiphop");
   }
 
   if (wanted.includes("fresh dancehall")) {
     return text.includes("fresh-dancehall") || text.includes("fresh dancehall");
   }
 
-  if (wanted.includes("ole school dancehall") || wanted.includes("old school dancehall")) {
-    return text.includes("ole-school-dancehall") || text.includes("old school dancehall") || text.includes("ole school dancehall");
+  if (wanted === "dancehall") {
+    return text.includes("dancehall") &&
+      !text.includes("ole-school-dancehall") &&
+      !text.includes("fresh-dancehall");
   }
 
-  if (wanted.includes("dancehall")) {
-    return text.includes("dancehall");
+  if (wanted.includes("r n b") || wanted === "rnb") {
+    return text.includes("r-n-b") || text.includes("r&b") || text.includes("rnb") || text.includes("r n b");
   }
 
-  if (wanted.includes("reggae")) {
-    return text.includes("reggae");
+  if (wanted === "reggae") {
+    return text.includes("reggae") &&
+      !text.includes("fresh-dancehall") &&
+      !text.includes("ole-school-dancehall") &&
+      !text.includes("dancehall");
   }
 
   return text.includes(wanted);
