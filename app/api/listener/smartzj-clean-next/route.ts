@@ -12,6 +12,7 @@ const SMARTDJ_STATE_FILE = join(DATA_DIR, "smartdj-state.json");
 const CURRENT_BROADCAST_FILE = join(DATA_DIR, "current-broadcast.json");
 const PLAYER_STATE_FILE = join(DATA_DIR, "smartzj-mini-autonext.json");
 const FRESH_FIRST_STATE_FILE = join(DATA_DIR, "smartzj-fresh-first-queue.json");
+const LANE_PLAY_HISTORY_FILE = join(DATA_DIR, "smartzj-lane-play-history.json");
 const BACKGROUND_CLEAN_STATE_FILE = join(DATA_DIR, "smartdj-background-clean-state.json");
 const SMARTZJ_LIVE_READY_POOL_FILE = join(DATA_DIR, "smartzj-live-ready-pool.json");
 const SMARTZJ_EMERGENCY_HOLD_FILE = join(DATA_DIR, "smartzj-emergency-hold.json");
@@ -422,46 +423,85 @@ function readFreshFirstState() {
   });
 }
 
+function readLanePlayHistory() {
+  return readJson<Record<string, any>>(LANE_PLAY_HISTORY_FILE, {
+    ok: true,
+    policy: "Per-lane SmartZJ play history. Every clean READY track plays once before repeat.",
+    lanes: {},
+  });
+}
+
+function uniqueTrackKeys(cleanTracks: AnyTrack[]) {
+  const keys: string[] = [];
+  const seen = new Set<string>();
+
+  for (const track of cleanTracks) {
+    const key = getTrackKey(track);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    keys.push(key);
+  }
+
+  return keys;
+}
+
+function laneHistoryName(cleanTracks: AnyTrack[], track?: AnyTrack) {
+  const sourceTrack = track || cleanTracks[0] || {};
+  return canonicalSmartZjLane(getSmartZjGenreLane(sourceTrack) || sourceTrack.genreLane || "SmartZJ Clean Mix") || "SmartZJ-Clean-Mix";
+}
+
 function chooseSmartZjFreshFirstNext(cleanTracks: AnyTrack[], currentKey: string, playerState: Record<string, any>) {
   const freshState = readFreshFirstState();
+  const laneHistory = readLanePlayHistory();
+
+  const lane = laneHistoryName(cleanTracks);
+  const allKeys = uniqueTrackKeys(cleanTracks);
+  const allKeySet = new Set(allKeys);
+
+  const laneStates = laneHistory.lanes && typeof laneHistory.lanes === "object"
+    ? laneHistory.lanes
+    : {};
+
+  const laneState = laneStates[lane] || {};
+  const playedKeys = Array.isArray(laneState.playedKeys)
+    ? laneState.playedKeys.map(String).filter((key: string) => allKeySet.has(key))
+    : [];
+
+  const playedSet = new Set(playedKeys);
 
   const knownKeys = new Set(
     Array.isArray(freshState.knownKeys) ? freshState.knownKeys.map(String) : []
   );
 
-  const recentKeys = new Set(
-    Array.isArray(freshState.recentKeys) ? freshState.recentKeys.map(String) : []
-  );
-
   const hasKnownHistory = knownKeys.size > 0;
-
-  const freshNewTracks = hasKnownHistory
-    ? cleanTracks.filter((track) => {
-        const key = getTrackKey(track);
-        return key && key !== currentKey && !knownKeys.has(key);
-      })
-    : [];
-
-  if (freshNewTracks.length > 0) {
-    freshNewTracks.sort((a, b) => getFreshReadyTime(b) - getFreshReadyTime(a));
-
-    const picked = freshNewTracks[0];
-    const pickedKey = getTrackKey(picked);
-    const index = cleanTracks.findIndex((track) => getTrackKey(track) === pickedKey);
-
-    return {
-      track: picked,
-      index: index >= 0 ? index : 0,
-      reason: "FRESH_NEW_CLEAN_TRACK_FIRST",
-    };
-  }
 
   const unplayedTracks = cleanTracks.filter((track) => {
     const key = getTrackKey(track);
-    return key && key !== currentKey && !recentKeys.has(key);
+    return key && key !== currentKey && !playedSet.has(key);
   });
 
   if (unplayedTracks.length > 0) {
+    const freshNewTracks = hasKnownHistory
+      ? unplayedTracks.filter((track) => {
+          const key = getTrackKey(track);
+          return key && !knownKeys.has(key);
+        })
+      : [];
+
+    if (freshNewTracks.length > 0) {
+      freshNewTracks.sort((a, b) => getFreshReadyTime(b) - getFreshReadyTime(a));
+
+      const picked = freshNewTracks[0];
+      const pickedKey = getTrackKey(picked);
+      const index = cleanTracks.findIndex((track) => getTrackKey(track) === pickedKey);
+
+      return {
+        track: picked,
+        index: index >= 0 ? index : 0,
+        reason: "FRESH_NEW_CLEAN_TRACK_FIRST",
+      };
+    }
+
     const picked = unplayedTracks[0];
     const pickedKey = getTrackKey(picked);
     const index = cleanTracks.findIndex((track) => getTrackKey(track) === pickedKey);
@@ -469,54 +509,101 @@ function chooseSmartZjFreshFirstNext(cleanTracks: AnyTrack[], currentKey: string
     return {
       track: picked,
       index: index >= 0 ? index : 0,
-      reason: "ROTATE_UNPLAYED_CLEAN_TRACK",
+      reason: "LANE_ROUND_UNPLAYED_CLEAN_TRACK",
     };
   }
 
-  let currentIndex = cleanTracks.findIndex((track) => getTrackKey(track) === currentKey);
+  const resetTracks = cleanTracks.filter((track) => {
+    const key = getTrackKey(track);
+    return key && key !== currentKey;
+  });
 
-  if (currentIndex < 0 && typeof playerState.index === "number") {
-    currentIndex = playerState.index;
-  }
-
-  let nextIndex = ((currentIndex + 1) % cleanTracks.length + cleanTracks.length) % cleanTracks.length;
-
-  if (cleanTracks.length > 1 && getTrackKey(cleanTracks[nextIndex]) === currentKey) {
-    nextIndex = (nextIndex + 1) % cleanTracks.length;
-  }
+  const picked = resetTracks[0] || cleanTracks[0];
+  const pickedKey = getTrackKey(picked);
+  const index = cleanTracks.findIndex((track) => getTrackKey(track) === pickedKey);
 
   return {
-    track: cleanTracks[nextIndex],
-    index: nextIndex,
-    reason: "NORMAL_CLEAN_ROTATION",
+    track: picked,
+    index: index >= 0 ? index : 0,
+    reason: "LANE_ROUND_COMPLETE_RESET",
   };
 }
 
 function rememberSmartZjFreshFirstPlay(track: AnyTrack, cleanTracks: AnyTrack[]) {
   const freshState = readFreshFirstState();
+  const laneHistory = readLanePlayHistory();
+
   const playedKey = getTrackKey(track);
-  const allKeys = cleanTracks.map(getTrackKey).filter(Boolean);
+  const allKeys = uniqueTrackKeys(cleanTracks);
+  const allKeySet = new Set(allKeys);
+  const lane = laneHistoryName(cleanTracks, track);
+  const now = new Date().toISOString();
+
+  const laneStates = laneHistory.lanes && typeof laneHistory.lanes === "object"
+    ? laneHistory.lanes
+    : {};
+
+  const previousLaneState = laneStates[lane] || {};
+  let round = Number(previousLaneState.round || 1);
+  let playedKeys = Array.isArray(previousLaneState.playedKeys)
+    ? previousLaneState.playedKeys.map(String).filter((key: string) => allKeySet.has(key))
+    : [];
+
+  if (allKeys.length > 0 && playedKeys.length >= allKeys.length) {
+    round += 1;
+    playedKeys = [];
+  }
+
+  if (playedKey && allKeySet.has(playedKey) && !playedKeys.includes(playedKey)) {
+    playedKeys.push(playedKey);
+  }
 
   const previousKnown = Array.isArray(freshState.knownKeys) ? freshState.knownKeys.map(String) : [];
   const previousRecent = Array.isArray(freshState.recentKeys) ? freshState.recentKeys.map(String) : [];
 
-  const knownKeys = Array.from(new Set([...previousKnown, ...allKeys])).slice(-2000);
-
-  const recentLimit = Math.max(1, Math.min(100, cleanTracks.length > 1 ? cleanTracks.length - 1 : 1));
+  const knownKeys = Array.from(new Set([...previousKnown, ...allKeys])).slice(-5000);
+  const recentLimit = Math.max(1, Math.min(500, cleanTracks.length || 1));
   const recentKeys = [
     playedKey,
     ...previousRecent.filter((key) => key && key !== playedKey),
   ].filter(Boolean).slice(0, recentLimit);
 
+  const updatedLaneState = {
+    ok: true,
+    lane,
+    round,
+    playableCount: allKeys.length,
+    playedCount: playedKeys.length,
+    remainingCount: Math.max(allKeys.length - playedKeys.length, 0),
+    lastPlayedKey: playedKey,
+    lastPlayedTitle: titleFromTrack(track),
+    playedKeys,
+    updatedAt: now,
+  };
+
+  writeJson(LANE_PLAY_HISTORY_FILE, {
+    ok: true,
+    policy: "Per-lane SmartZJ play history. Every clean READY track plays once before repeat.",
+    updatedAt: now,
+    lanes: {
+      ...laneStates,
+      [lane]: updatedLaneState,
+    },
+  });
+
   writeJson(FRESH_FIRST_STATE_FILE, {
     ok: true,
-    policy: "Fresh clean READY tracks go to the front. Raw Azura blocked.",
+    policy: "Fresh clean READY tracks go to the front. Raw Azura blocked. Per-lane history prevents repeats before full lane round.",
     lastPlayedKey: playedKey,
     lastPlayedTitle: titleFromTrack(track),
     cleanTrackCount: cleanTracks.length,
+    lane,
+    laneRound: round,
+    lanePlayedCount: playedKeys.length,
+    laneRemainingCount: Math.max(allKeys.length - playedKeys.length, 0),
     knownKeys,
     recentKeys,
-    updatedAt: new Date().toISOString(),
+    updatedAt: now,
   });
 }
 
