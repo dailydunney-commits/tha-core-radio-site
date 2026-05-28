@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState } from "react";
 
@@ -65,6 +65,34 @@ export default function SmartZjSchedulePage() {
         <h1 style={{ fontSize: "38px", margin: "8px 0 18px" }}>
           SmartZJ Schedule Brain
         </h1>
+
+        <div style={{
+          display: "flex",
+          flexWrap: "wrap",
+          gap: "12px",
+          marginBottom: "18px",
+        }}>
+          <a href="/owner" style={buttonLinkStyle}>
+            Open Owner Control Panel
+          </a>
+
+          <a href="/owner?panel=smartzj-clean-bleep" style={buttonLinkStyle}>
+            SmartZJ Clean / Bleep Tracks
+          </a>
+
+          <a href="/owner?panel=audio-safety" style={buttonLinkStyle}>
+            Audio Safety Center
+          </a>
+        </div>
+
+        <p style={{
+          color: "#bbb",
+          marginTop: "-4px",
+          marginBottom: "18px",
+          lineHeight: 1.5,
+        }}>
+          Public pages should only show normal now-playing information. SmartZJ clean/bleep tools stay inside the owner control area.
+        </p>
 
         <div style={{
           display: "grid",
@@ -150,4 +178,16 @@ const bigStyle = {
   fontSize: "22px",
   fontWeight: 900,
   margin: "0 0 10px",
+} as const;
+
+const buttonLinkStyle = {
+  display: "inline-block",
+  padding: "12px 16px",
+  borderRadius: "999px",
+  background: "#b00000",
+  color: "#fff",
+  textDecoration: "none",
+  fontWeight: 900,
+  border: "1px solid rgba(255,255,255,0.18)",
+  boxShadow: "0 0 16px rgba(255,0,0,0.22)",
 } as const;
