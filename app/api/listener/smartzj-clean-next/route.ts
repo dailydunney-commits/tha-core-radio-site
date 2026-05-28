@@ -636,9 +636,9 @@ function getSmartZjGenreLane(track: AnyTrack) {
   return cleanText(track.genreLane || track.genre || track.lane || "SmartZJ Clean Mix");
 }
 
-function runMiniAutoNext(req?: NextRequest) {
+async function runMiniAutoNext(req?: NextRequest) {
   const allCleanTracks = readSmartTracks();
-  const requestedLane = getRequestedLane(req);
+  const requestedLane = await getRequestedLane(req);
 
   const laneCleanTracks = requestedLane
     ? allCleanTracks.filter((track) => trackMatchesLane(track, requestedLane))
