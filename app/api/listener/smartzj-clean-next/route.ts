@@ -75,7 +75,28 @@ function laneKey(value: unknown) {
   return canonicalSmartZjLane(value).toLowerCase().replace(/[^a-z0-9]+/g, "");
 }
 
-function getRequestedLane(req?: NextRequest) {
+function internalBaseUrl() {
+  return String(process.env.SMARTZJ_INTERNAL_BASE_URL || "http://127.0.0.1:3101").replace(/\/+$/, "");
+}
+
+async function getScheduleSelectedLane() {
+  try {
+    const res = await fetch(`${internalBaseUrl()}/api/radio/smartzj-schedule`, {
+      method: "GET",
+      cache: "no-store",
+      headers: { "Cache-Control": "no-store" },
+    });
+
+    const data = await res.json();
+    const lane = canonicalSmartZjLane(data?.selectedLane || data?.activeBlock?.selectedLane || "");
+
+    return lane || "";
+  } catch {
+    return "";
+  }
+}
+
+async function getRequestedLane(req?: NextRequest) {
   const modeState = readJson<Record<string, any>>(SMARTZJ_BROADCAST_MODE_FILE, {});
 
   try {
@@ -88,6 +109,22 @@ function getRequestedLane(req?: NextRequest) {
     );
 
     const rawLaneKey = rawLane.toLowerCase().replace(/[^a-z0-9]+/g, "");
+
+    if (rawLaneKey === "schedule" || rawLaneKey === "smartzjschedule" || rawLaneKey === "auto_schedule") {
+      const scheduledLane = await getScheduleSelectedLane();
+
+      writeJson(SMARTZJ_BROADCAST_MODE_FILE, {
+        ok: true,
+        mode: "SCHEDULE",
+        selectedLane: scheduledLane,
+        updatedAt: new Date().toISOString(),
+        message: scheduledLane
+          ? `SmartZJ schedule mode enabled. Schedule selected lane: ${scheduledLane}`
+          : "SmartZJ schedule mode enabled, but no schedule lane was available. Auto clean mix will be used.",
+      });
+
+      return scheduledLane;
+    }
 
     if (rawLaneKey === "auto" || rawLaneKey === "all" || rawLaneKey === "mix" || rawLaneKey === "clear") {
       writeJson(SMARTZJ_BROADCAST_MODE_FILE, {
@@ -118,8 +155,14 @@ function getRequestedLane(req?: NextRequest) {
     // Fall through to saved state.
   }
 
-  if (cleanText(modeState.mode).toUpperCase() === "SELECTED_LANE") {
+  const savedMode = cleanText(modeState.mode).toUpperCase();
+
+  if (savedMode === "SELECTED_LANE") {
     return canonicalSmartZjLane(modeState.selectedLane);
+  }
+
+  if (savedMode === "SCHEDULE" || savedMode === "AUTO_SCHEDULE") {
+    return await getScheduleSelectedLane();
   }
 
   return "";
