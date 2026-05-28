@@ -171,7 +171,19 @@ async function getRequestedLane(req?: NextRequest) {
 function trackMatchesLane(track: AnyTrack, requestedLane: string) {
   if (!requestedLane) return true;
 
-  return laneKey(getSmartZjGenreLane(track)) === laneKey(requestedLane);
+  const trackLane = laneKey(getSmartZjGenreLane(track));
+  const requested = laneKey(requestedLane);
+
+  if (trackLane === requested) return true;
+
+  // Schedule may select broad "Dancehall" while the clean live pool stores
+  // new dancehall as "Fresh-Dancehall". Ole-School stays separate unless
+  // schedule requests Ole-School-Dancehall directly.
+  if (requested === "dancehall" && trackLane === "freshdancehall") {
+    return true;
+  }
+
+  return false;
 }
 
 function getLaneCounts(tracks: AnyTrack[]) {
