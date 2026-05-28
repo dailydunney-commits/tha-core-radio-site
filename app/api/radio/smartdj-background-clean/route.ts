@@ -1,3 +1,4 @@
+import { existsSync } from "fs";
 import { NextRequest, NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
@@ -173,9 +174,12 @@ function trackMatchesTarget(track: AnyRecord, target: string) {
 }
 
 function hasLocalAudioSource(track: AnyRecord) {
+  const sourceFilePath = smartZjText(track.sourceFilePath);
+  const localAudioPath = smartZjText(track.localAudioPath);
+
   return Boolean(
-    smartZjText(track.sourceFilePath) ||
-    smartZjText(track.localAudioPath)
+    (sourceFilePath && existsSync(sourceFilePath)) ||
+    (localAudioPath && existsSync(localAudioPath))
   );
 }
 
