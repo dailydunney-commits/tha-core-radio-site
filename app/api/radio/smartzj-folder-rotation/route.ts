@@ -9,6 +9,8 @@ type AnyRecord = Record<string, any>;
 
 const DATA_DIR = path.join(process.cwd(), ".data");
 const ROTATION_STATE_FILE = path.join(DATA_DIR, "smartzj-folder-rotation-state.json");
+const LIVE_READY_POOL_FILE = path.join(DATA_DIR, "smartzj-live-ready-pool.json");
+const SMARTDJ_STATE_FILE = path.join(DATA_DIR, "smartdj-state.json");
 
 const DEFAULT_MEDIA_DIR =
   process.env.SMARTZJ_MEDIA_DIR ||
@@ -94,17 +96,119 @@ function collectFolders(mediaDir: string, maxScan: number) {
     .sort((a, b) => a.lane.localeCompare(b.lane));
 }
 
-function pickNextFolder(folders: AnyRecord[], state: AnyRecord) {
+function stockLaneKey(value: unknown) {
+  const text = String(value ?? "")
+    .replace(/[_/\\]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+
+  if (!text) return "unknown";
+  if (text.includes("ole school dancehall") || text.includes("old school dancehall")) return "Ole-School-Dancehall";
+  if (text.includes("fresh dancehall")) return "Fresh-Dancehall";
+  if (text.includes("hip hop") || text.includes("hip-hop") || text.includes("hiphop")) return "Hip-Hop";
+  if (text.includes("r n b") || text.includes("r-n-b") || text.includes("r&b") || text.includes("rnb")) return "R-n-B";
+  if (text.includes("reggae")) return "Reggae";
+  if (text.includes("dancehall")) return "Dancehall";
+
+  return text
+    .split(" ")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join("-");
+}
+
+function rowLane(row: AnyRecord) {
+  const idPath = String(row.id || row.trackId || row.azuraRelativePath || row.sourceFilePath || row.localAudioPath || "");
+  const firstPathPart = idPath.includes("/") || idPath.includes("\\")
+    ? idPath.split(/[\\/]+/).filter(Boolean)[0]
+    : "";
+
+  return stockLaneKey(
+    firstPathPart ||
+      row.genreLane ||
+      row.genre ||
+      row.lane ||
+      row.folder ||
+      "unknown"
+  );
+}
+
+function isReadyStockRow(row: AnyRecord) {
+  const url = String(row.cleanAudioUrl || row.processedAudioUrl || row.bleepedAudioUrl || row.safeAudioUrl || "").trim();
+  const statusText = String(`${row.status || ""} ${row.cleanStatus || ""} ${row.bleepJobStatus || ""}`).toUpperCase();
+
+  return Boolean(
+    url &&
+      (
+        statusText.includes("PROCESSED_AUDIO_READY") ||
+        statusText.includes("READY")
+      )
+  );
+}
+
+function countReadyByLane() {
+  const counts: Record<string, number> = {};
+  const seen = new Set<string>();
+
+  for (const filePath of [LIVE_READY_POOL_FILE, SMARTDJ_STATE_FILE]) {
+    const data = readJson(filePath, {});
+
+    const buckets = [
+      data.tracks,
+      data.playlist,
+      data.lastPlaylist,
+      data.lastResult?.playlist,
+      data.result?.playlist,
+    ].filter(Array.isArray) as AnyRecord[][];
+
+    for (const row of buckets.flat()) {
+      if (!row || !isReadyStockRow(row)) continue;
+
+      const url = String(row.cleanAudioUrl || row.processedAudioUrl || row.bleepedAudioUrl || row.safeAudioUrl || "");
+      const key = `${row.id || row.trackId || row.title || url}|${url}`;
+
+      if (seen.has(key)) continue;
+      seen.add(key);
+
+      const lane = rowLane(row);
+      counts[lane] = (counts[lane] || 0) + 1;
+    }
+  }
+
+  return counts;
+}
+
+function pickNextFolder(
+  folders: AnyRecord[],
+  state: AnyRecord,
+  readyCounts: Record<string, number>,
+  targetReadyPerLane: number
+) {
   if (!folders.length) return null;
 
   const lastIndexRaw = Number(state.folderIndex);
   const lastIndex = Number.isFinite(lastIndexRaw) ? lastIndexRaw : -1;
-  const nextIndex = (lastIndex + 1) % folders.length;
 
-  return {
-    ...folders[nextIndex],
-    index: nextIndex,
-  };
+  for (let step = 1; step <= folders.length; step++) {
+    const nextIndex = (lastIndex + step) % folders.length;
+    const folder = folders[nextIndex];
+    const lane = stockLaneKey(folder?.lane || folder?.folder || folder?.name || "Root");
+    const readyCount = readyCounts[lane] || 0;
+
+    if (readyCount < targetReadyPerLane) {
+      return {
+        ...folder,
+        lane,
+        readyCount,
+        targetReadyPerLane,
+        neededToTarget: Math.max(targetReadyPerLane - readyCount, 0),
+        index: nextIndex,
+      };
+    }
+  }
+
+  return null;
 }
 
 async function postJson(route: string, body: AnyRecord) {
@@ -195,9 +299,11 @@ async function runRotationLoop(options: AnyRecord) {
   const startedAt = new Date().toISOString();
 
   const mediaDir = String(options.mediaDir || DEFAULT_MEDIA_DIR);
-  const limit = Math.max(1, Math.min(Number(options.limit || 50), 50));
+  const limit = Math.max(1, Math.min(Number(options.limit || 25), 25));
   const maxScan = Math.max(100, Math.min(Number(options.maxScan || 20000), 100000));
   const cleanerTimeoutMs = Math.max(30000, Number(options.cleanerTimeoutMs || 30 * 60 * 1000));
+  const targetReadyPerLane = Math.max(1, Math.min(Number(options.targetReadyPerLane || 200), 1000));
+  const maxStockPasses = Math.max(1, Math.min(Number(options.maxStockPasses || 10), 50));
 
   running = true;
 
@@ -221,8 +327,8 @@ async function runRotationLoop(options: AnyRecord) {
     Math.min(
       Number.isFinite(requestedMaxFolders) && requestedMaxFolders > 0
         ? requestedMaxFolders
-        : folders.length,
-      Math.max(folders.length, 1)
+        : folders.length * maxStockPasses,
+      Math.max(folders.length * maxStockPasses, 1)
     )
   );
 
@@ -253,9 +359,23 @@ async function runRotationLoop(options: AnyRecord) {
   try {
     for (let i = 0; i < maxFolders; i++) {
       state = readJson(ROTATION_STATE_FILE, state);
-      const picked = pickNextFolder(folders, state);
+      const readyCounts = countReadyByLane();
+      const picked = pickNextFolder(folders, state, readyCounts, targetReadyPerLane);
 
-      if (!picked) break;
+      if (!picked) {
+        writeJson(ROTATION_STATE_FILE, {
+          ...state,
+          ok: true,
+          running: false,
+          action: "SMARTZJ_FOLDER_ROTATION_BRAIN",
+          status: "ALL_LANES_STOCKED",
+          targetReadyPerLane,
+          readyCounts,
+          updatedAt: new Date().toISOString(),
+          message: `All SmartZJ folders/lanes reached ${targetReadyPerLane} READY clean/playable tracks.`,
+        });
+        break;
+      }
 
       const pickedRow = picked as AnyRecord;
       const target = String(pickedRow.lane || pickedRow.folder || pickedRow.name || "Root");
@@ -269,6 +389,9 @@ async function runRotationLoop(options: AnyRecord) {
         status: "RUNNING_FOLDER",
         currentFolder: target,
         currentFolderIndex: Number(pickedRow.index),
+        currentReadyCount: Number(pickedRow.readyCount || 0),
+        targetReadyPerLane,
+        neededToTarget: Number(pickedRow.neededToTarget || 0),
         mediaDir,
         limit,
         folderCount: folders.length,
@@ -315,6 +438,9 @@ async function runRotationLoop(options: AnyRecord) {
         folder: target,
         folderIndex: Number(pickedRow.index),
         folderAudioCount: Number(pickedRow.count || 0),
+        readyBefore: Number(pickedRow.readyCount || 0),
+        targetReadyPerLane,
+        neededToTarget: Number(pickedRow.neededToTarget || 0),
         rowsLoaded,
         scanStatus: scanResult.status || scanResult.action || "",
         cleanStartStatus: cleanStart.status || cleanStart.action || "",
@@ -427,9 +553,10 @@ export async function POST(req: NextRequest) {
     running: true,
     status: "STARTED",
     action: "SMARTZJ_FOLDER_ROTATION_BRAIN",
-    limit: Math.max(1, Math.min(Number(body.limit || 50), 50)),
+    limit: Math.max(1, Math.min(Number(body.limit || 25), 25)),
+    targetReadyPerLane: Math.max(1, Math.min(Number(body.targetReadyPerLane || 200), 1000)),
     maxFolders: Number(body.maxFolders || 0) || "ALL_FOLDERS",
-    message: "SmartZJ folder rotation started. It will load/clean up to 50 from each folder/lane and move folder-to-folder unless maxFolders is specified.",
+    message: "SmartZJ stock feeder started. It will clean/bleep 25 per folder/lane and keep rotating until each lane reaches the target READY count.",
   }, {
     status: 202,
     headers: { "Cache-Control": "no-store" },
