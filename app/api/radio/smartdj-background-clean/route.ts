@@ -172,11 +172,20 @@ function trackMatchesTarget(track: AnyRecord, target: string) {
   return text.includes(wanted);
 }
 
+function hasLocalAudioSource(track: AnyRecord) {
+  return Boolean(
+    smartZjText(track.sourceFilePath) ||
+    smartZjText(track.localAudioPath)
+  );
+}
+
 function pickPendingForTarget(allTracks: AnyRecord[], target: string, force: boolean, limit: number) {
   const notReady = allTracks.filter((track) => force || !isReady(track));
 
-  const targetPending = notReady.filter((track) => trackMatchesTarget(track, target));
-  const otherPending = notReady.filter((track) => !trackMatchesTarget(track, target));
+  const withLocalAudio = notReady.filter(hasLocalAudioSource);
+
+  const targetPending = withLocalAudio.filter((track) => trackMatchesTarget(track, target));
+  const otherPending = withLocalAudio.filter((track) => !trackMatchesTarget(track, target));
 
   return [...targetPending, ...otherPending].slice(0, limit);
 }
