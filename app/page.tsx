@@ -265,30 +265,46 @@ export default function HomePage() {
     if (!audio) return;
 
     try {
-      const response = await fetch(`/api/listener/smartzj-clean-next?homeEnded=${Date.now()}`, {
-        method: "POST",
-        cache: "no-store",
-      });
+      setStatusText("Track ended. Syncing back to SmartZJ broadcast brain...");
 
-      const data = await response.json().catch(() => null);
-      const nextUrl = String(data?.streamUrl || data?.audioUrl || data?.listen_url || "").trim();
+      for (let attempt = 0; attempt < 8; attempt += 1) {
+        const streamInfo = await getPublicListenerStreamInfo();
+        const nextStreamUrl = streamInfo.url;
 
-      if (!response.ok || !nextUrl) {
-        setStatusText("SmartZJ could not find the next clean track.");
-        setIsPlaying(false);
-        return;
+        if (nextStreamUrl) {
+          const absoluteNextStreamUrl = getHomeAudioAbsoluteUrl(nextStreamUrl);
+
+          if (!audio.src || audio.src !== absoluteNextStreamUrl) {
+            audio.src = nextStreamUrl;
+            audio.load();
+          }
+
+          await waitForHomeAudioMetadata(audio);
+          syncHomeAudioToBroadcastTime(audio, streamInfo);
+
+          const duration = Number(audio.duration || 0);
+          const nearEnd =
+            Number.isFinite(duration) &&
+            duration > 5 &&
+            audio.currentTime >= duration - 3;
+
+          if (!nearEnd) {
+            audio.volume = volume;
+            await audio.play();
+            setIsPlaying(true);
+            setStatusText("Synced to current SmartZJ broadcast.");
+            return;
+          }
+        }
+
+        await new Promise((resolve) => window.setTimeout(resolve, 3000));
       }
 
-      const separator = nextUrl.includes("?") ? "&" : "?";
-      audio.src = `${nextUrl}${separator}smartzjHomeAutoNext=${Date.now()}`;
-      audio.load();
-
-      await audio.play();
-      setIsPlaying(true);
-      setStatusText(`SmartZJ AutoNext: ${data?.title || "Next clean track"}`);
-    } catch {
-      setStatusText("SmartZJ AutoNext failed. Press Play Live to retry.");
       setIsPlaying(false);
+      setStatusText("Waiting for SmartZJ watchdog to start the next clean broadcast.");
+    } catch {
+      setIsPlaying(false);
+      setStatusText("Could not resync to SmartZJ broadcast. Press Play Live to retry.");
     }
   }
 
@@ -335,30 +351,46 @@ export default function HomePage() {
     if (!audio) return;
 
     try {
-      const response = await fetch(`/api/listener/smartzj-clean-next?homeEnded=${Date.now()}`, {
-        method: "POST",
-        cache: "no-store",
-      });
+      setStatusText("Track ended. Syncing back to SmartZJ broadcast brain...");
 
-      const data = await response.json().catch(() => null);
-      const nextUrl = String(data?.streamUrl || data?.audioUrl || data?.listen_url || "").trim();
+      for (let attempt = 0; attempt < 8; attempt += 1) {
+        const streamInfo = await getPublicListenerStreamInfo();
+        const nextStreamUrl = streamInfo.url;
 
-      if (!response.ok || !nextUrl) {
-        setStatusText("SmartZJ could not find the next clean track.");
-        setIsPlaying(false);
-        return;
+        if (nextStreamUrl) {
+          const absoluteNextStreamUrl = getHomeAudioAbsoluteUrl(nextStreamUrl);
+
+          if (!audio.src || audio.src !== absoluteNextStreamUrl) {
+            audio.src = nextStreamUrl;
+            audio.load();
+          }
+
+          await waitForHomeAudioMetadata(audio);
+          syncHomeAudioToBroadcastTime(audio, streamInfo);
+
+          const duration = Number(audio.duration || 0);
+          const nearEnd =
+            Number.isFinite(duration) &&
+            duration > 5 &&
+            audio.currentTime >= duration - 3;
+
+          if (!nearEnd) {
+            audio.volume = volume;
+            await audio.play();
+            setIsPlaying(true);
+            setStatusText("Synced to current SmartZJ broadcast.");
+            return;
+          }
+        }
+
+        await new Promise((resolve) => window.setTimeout(resolve, 3000));
       }
 
-      const separator = nextUrl.includes("?") ? "&" : "?";
-      audio.src = `${nextUrl}${separator}smartzjHomeAutoNext=${Date.now()}`;
-      audio.load();
-
-      await audio.play();
-      setIsPlaying(true);
-      setStatusText(`SmartZJ AutoNext: ${data?.title || "Next clean track"}`);
-    } catch {
-      setStatusText("SmartZJ AutoNext failed. Press Play Live to retry.");
       setIsPlaying(false);
+      setStatusText("Waiting for SmartZJ watchdog to start the next clean broadcast.");
+    } catch {
+      setIsPlaying(false);
+      setStatusText("Could not resync to SmartZJ broadcast. Press Play Live to retry.");
     }
   }
 
@@ -429,30 +461,46 @@ export default function HomePage() {
     if (!audio) return;
 
     try {
-      const response = await fetch(`/api/listener/smartzj-clean-next?homeEnded=${Date.now()}`, {
-        method: "POST",
-        cache: "no-store",
-      });
+      setStatusText("Track ended. Syncing back to SmartZJ broadcast brain...");
 
-      const data = await response.json().catch(() => null);
-      const nextUrl = String(data?.streamUrl || data?.audioUrl || data?.listen_url || "").trim();
+      for (let attempt = 0; attempt < 8; attempt += 1) {
+        const streamInfo = await getPublicListenerStreamInfo();
+        const nextStreamUrl = streamInfo.url;
 
-      if (!response.ok || !nextUrl) {
-        setStatusText("SmartZJ could not find the next clean track.");
-        setIsPlaying(false);
-        return;
+        if (nextStreamUrl) {
+          const absoluteNextStreamUrl = getHomeAudioAbsoluteUrl(nextStreamUrl);
+
+          if (!audio.src || audio.src !== absoluteNextStreamUrl) {
+            audio.src = nextStreamUrl;
+            audio.load();
+          }
+
+          await waitForHomeAudioMetadata(audio);
+          syncHomeAudioToBroadcastTime(audio, streamInfo);
+
+          const duration = Number(audio.duration || 0);
+          const nearEnd =
+            Number.isFinite(duration) &&
+            duration > 5 &&
+            audio.currentTime >= duration - 3;
+
+          if (!nearEnd) {
+            audio.volume = volume;
+            await audio.play();
+            setIsPlaying(true);
+            setStatusText("Synced to current SmartZJ broadcast.");
+            return;
+          }
+        }
+
+        await new Promise((resolve) => window.setTimeout(resolve, 3000));
       }
 
-      const separator = nextUrl.includes("?") ? "&" : "?";
-      audio.src = `${nextUrl}${separator}smartzjHomeAutoNext=${Date.now()}`;
-      audio.load();
-
-      await audio.play();
-      setIsPlaying(true);
-      setStatusText(`SmartZJ AutoNext: ${data?.title || "Next clean track"}`);
-    } catch {
-      setStatusText("SmartZJ AutoNext failed. Press Play Live to retry.");
       setIsPlaying(false);
+      setStatusText("Waiting for SmartZJ watchdog to start the next clean broadcast.");
+    } catch {
+      setIsPlaying(false);
+      setStatusText("Could not resync to SmartZJ broadcast. Press Play Live to retry.");
     }
   }
 
