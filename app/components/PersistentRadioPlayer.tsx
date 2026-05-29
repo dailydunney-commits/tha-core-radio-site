@@ -1,11 +1,20 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
 import type { CSSProperties } from "react";
 
 const STREAM_URL = "";
 
 export default function PersistentRadioPlayer() {
+  // PUBLIC_AUDIO_ONE_ENGINE_HOME_V1
+  // Homepage already has its own main public player.
+  // Do not render the floating player on "/" or two audio engines can fight.
+  const pathname = usePathname();
+
+  if (pathname === "/") {
+    return null;
+  }
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
 // SMARTZJ_MINI_AUTONEXT_PLAYER_V1
