@@ -35,9 +35,7 @@ type FooterTool = {
   color: PadColor;
 };
 
-const STREAM_URL =
-  process.env.NEXT_PUBLIC_STREAM_URL ||
-  "http://thacoreonlinerad.com/listen/tha-core-online/radio.mp3";
+const STREAM_URL = "";
 
 const padModes: PadMode[] = [
   "JINGLES",
