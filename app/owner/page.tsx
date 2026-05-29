@@ -1838,12 +1838,12 @@ const SELECTED_DISPLAY_MEMORY_KEY = "tha-core-owner-selected-display-v1";
       addLog("Owner monitor ended. Resyncing to current broadcast only.");
 
       void (async () => {
-        await fetch("/api/listener/smartzj-ended-resync", {
+        await fetch(`/api/listener/smartzj-clean-next?lane=schedule&ownerMonitorEnded=${Date.now()}`, {
           method: "POST",
           cache: "no-store",
         }).catch(() => null);
 
-        await new Promise((resolve) => window.setTimeout(resolve, 1200));
+        await new Promise((resolve) => window.setTimeout(resolve, 800));
 
         for (let attempt = 0; attempt < 8; attempt += 1) {
           const attached = await attachOwnerMonitorFromNowPlaying("owner-monitor-ended");
