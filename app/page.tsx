@@ -267,7 +267,7 @@ export default function HomePage() {
     try {
       setStatusText("Track ended. Asking SmartZJ watchdog for the next clean broadcast...");
 
-      await fetch("/api/radio/smartzj-watchdog", {
+      await fetch("/api/listener/smartzj-ended-resync", {
         method: "POST",
         cache: "no-store",
       }).catch(() => null);
@@ -362,7 +362,7 @@ export default function HomePage() {
     try {
       setStatusText("Track ended. Asking SmartZJ watchdog for the next clean broadcast...");
 
-      await fetch("/api/radio/smartzj-watchdog", {
+      await fetch("/api/listener/smartzj-ended-resync", {
         method: "POST",
         cache: "no-store",
       }).catch(() => null);
@@ -481,7 +481,7 @@ export default function HomePage() {
     try {
       setStatusText("Track ended. Asking SmartZJ watchdog for the next clean broadcast...");
 
-      await fetch("/api/radio/smartzj-watchdog", {
+      await fetch("/api/listener/smartzj-ended-resync", {
         method: "POST",
         cache: "no-store",
       }).catch(() => null);

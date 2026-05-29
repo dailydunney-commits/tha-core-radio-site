@@ -26,7 +26,7 @@ export default function PersistentRadioPlayer() {
     if (kickWatchdog) {
       setMessage("Asking SmartZJ watchdog for the next clean broadcast...");
 
-      await fetch("/api/radio/smartzj-watchdog", {
+      await fetch("/api/listener/smartzj-ended-resync", {
         method: "POST",
         cache: "no-store",
       }).catch(() => null);
