@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import type { CSSProperties } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -42,6 +42,79 @@ async function getPublicListenerStreamUrl() {
 
     return String(data?.streamUrl || data?.audioUrl || "").trim();
   } catch { return ""; }
+}
+
+// PUBLIC_HOME_POSITION_SYNC_V1
+type PublicHomeStreamInfo = {
+  url: string;
+  startedAt: string;
+};
+
+async function getPublicListenerStreamInfo(): Promise<PublicHomeStreamInfo> {
+  try {
+    const response = await fetch(`/api/listener/now-playing?sync=${Date.now()}`, {
+      cache: "no-store",
+    });
+
+    const data = await response.json().catch(() => null);
+    const currentBroadcast = data?.currentBroadcast || {};
+
+    return {
+      url: String(data?.streamUrl || data?.audioUrl || data?.listen_url || currentBroadcast?.audioUrl || "").trim(),
+      startedAt: String(currentBroadcast?.startedAt || data?.live?.broadcast_start || ""),
+    };
+  } catch {
+    return { url: "", startedAt: "" };
+  }
+}
+
+function getHomeAudioAbsoluteUrl(url: string) {
+  if (!url) return "";
+
+  try {
+    return new URL(url, window.location.origin).href;
+  } catch {
+    return url;
+  }
+}
+
+async function waitForHomeAudioMetadata(audio: HTMLAudioElement) {
+  if (audio.readyState >= 1) return;
+
+  await new Promise<void>((resolve) => {
+    let done = false;
+
+    const finish = () => {
+      if (done) return;
+      done = true;
+      audio.removeEventListener("loadedmetadata", finish);
+      audio.removeEventListener("canplay", finish);
+      resolve();
+    };
+
+    audio.addEventListener("loadedmetadata", finish);
+    audio.addEventListener("canplay", finish);
+    window.setTimeout(finish, 1800);
+  });
+}
+
+function syncHomeAudioToBroadcastTime(audio: HTMLAudioElement, info: PublicHomeStreamInfo) {
+  const started = Date.parse(info.startedAt || "");
+  if (!Number.isFinite(started)) return;
+
+  const elapsed = Math.max(0, Math.floor((Date.now() - started) / 1000));
+  if (!elapsed) return;
+
+  const duration = Number(audio.duration || 0);
+  let target = elapsed;
+
+  if (Number.isFinite(duration) && duration > 5) {
+    target = Math.min(elapsed, Math.max(0, duration - 2));
+  }
+
+  if (target > 0 && Math.abs(audio.currentTime - target) > 4) {
+    audio.currentTime = target;
+  }
 }
 
 // PUBLIC_LISTENER_STREAM_HELPER_V1
@@ -315,7 +388,8 @@ export default function HomePage() {
 
       setStatusText("Starting Tha Core live stream...");
 
-      const nextStreamUrl = await getPublicListenerStreamUrl();
+      const streamInfo = await getPublicListenerStreamInfo();
+      const nextStreamUrl = streamInfo.url;
 
       if (!nextStreamUrl) {
         audio.pause();
@@ -324,12 +398,17 @@ export default function HomePage() {
         return;
       }
 
-      if (!audio.src || audio.src !== nextStreamUrl) {
+      const absoluteNextStreamUrl = getHomeAudioAbsoluteUrl(nextStreamUrl);
+
+      if (!audio.src || audio.src !== absoluteNextStreamUrl) {
         audio.src = nextStreamUrl;
         audio.load();
       }
 
       audio.volume = volume;
+
+      await waitForHomeAudioMetadata(audio);
+      syncHomeAudioToBroadcastTime(audio, streamInfo);
 
       await audio.play();
 
