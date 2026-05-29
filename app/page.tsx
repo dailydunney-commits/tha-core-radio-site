@@ -266,13 +266,7 @@ export default function HomePage() {
 
     try {
       setStatusText("Track ended. Asking SmartZJ watchdog for the next clean broadcast...");
-
-      await fetch("/api/listener/smartzj-ended-resync", {
-        method: "POST",
-        cache: "no-store",
-      }).catch(() => null);
-
-      await new Promise((resolve) => window.setTimeout(resolve, 2500));
+      // PUBLIC_PLAYERS_FOLLOW_ONLY_V1: public players do not advance SmartZJ.
 
       setStatusText("Track ended. Syncing back to SmartZJ broadcast brain...");
 
@@ -409,13 +403,7 @@ export default function HomePage() {
 
     try {
       setStatusText("Track ended. Asking SmartZJ watchdog for the next clean broadcast...");
-
-      await fetch("/api/listener/smartzj-ended-resync", {
-        method: "POST",
-        cache: "no-store",
-      }).catch(() => null);
-
-      await new Promise((resolve) => window.setTimeout(resolve, 2500));
+      // PUBLIC_PLAYERS_FOLLOW_ONLY_V1: public players do not advance SmartZJ.
 
       setStatusText("Track ended. Syncing back to SmartZJ broadcast brain...");
 
@@ -528,13 +516,7 @@ export default function HomePage() {
 
     try {
       setStatusText("Track ended. Asking SmartZJ watchdog for the next clean broadcast...");
-
-      await fetch("/api/listener/smartzj-ended-resync", {
-        method: "POST",
-        cache: "no-store",
-      }).catch(() => null);
-
-      await new Promise((resolve) => window.setTimeout(resolve, 2500));
+      // PUBLIC_PLAYERS_FOLLOW_ONLY_V1: public players do not advance SmartZJ.
 
       setStatusText("Track ended. Syncing back to SmartZJ broadcast brain...");
 
