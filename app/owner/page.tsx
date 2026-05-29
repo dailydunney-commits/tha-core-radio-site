@@ -1735,129 +1735,146 @@ const SELECTED_DISPLAY_MEMORY_KEY = "tha-core-owner-selected-display-v1";
   }
 
   async function playPauseBroadcast() {
-    if (isLive) {
-      try {
-        if (audioRef.current) {
-          audioRef.current.pause();
-        }
-      } catch {
-        // Ignore pause errors.
-      }
+  const audio = audioRef.current;
 
-      setBroadcast("paused");
-      setScreenTitle("BROADCAST PAUSED");
-      setScreenText("PLAY ALL paused. Press PLAY ALL again to continue the main broadcast.");
-      addLog("PLAY ALL paused by owner.");
-      return;
+  if (isLive) {
+    try {
+      if (audio) audio.pause();
+    } catch {
+      // Ignore pause errors.
     }
 
-    const playNextBroadcastTrack = async (resetSequence = false): Promise<void> => {
-      try {
-        if (resetSequence) {
-          await fetch("/api/radio/smartdj-clean-next", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            cache: "no-store",
-            body: JSON.stringify({ action: "RESET" }),
-          });
-        }
-
-        const response = await fetch("/api/radio/smartdj-clean-next", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          cache: "no-store",
-          body: JSON.stringify({ action: "NEXT" }),
-        });
-
-        const data = await response.json().catch(() => ({}));
-
-        if (!response.ok || !data?.ok) {
-          const message =
-            data?.message ||
-            "PLAY ALL blocked. No approved clean broadcast track is ready.";
-
-          setBroadcast("off");
-          setScreenTitle("PLAY ALL BLOCKED");
-          setScreenText(message);
-          addLog(message);
-          await refreshNowPlaying();
-          return;
-        }
-
-        const audioUrl = String(
-          data?.audioUrl ||
-            data?.currentBroadcast?.audioUrl ||
-            data?.currentBroadcast?.track?.processedAudioUrl ||
-            ""
-        ).trim();
-
-        if (!audioUrl || !audioUrl.startsWith("/audio/smartdj/clean/")) {
-          setBroadcast("off");
-          setScreenTitle("RAW AUDIO BLOCKED");
-          setScreenText("PLAY ALL refused the track because it was not a processed clean SmartDJ file.");
-          addLog("PLAY ALL blocked non-clean audio.");
-          await refreshNowPlaying();
-          return;
-        }
-
-        try {
-          if (audioRef.current) {
-            audioRef.current.pause();
-          }
-
-          const audio = new Audio(audioUrl);
-          audioRef.current = audio;
-          audio.preload = "auto";
-          audio.volume = monitorOn ? 1 : 0;
-          audio.muted = !monitorOn;
-
-          audio.onended = () => {
-            addLog("Broadcast track ended. PLAY ALL is advancing to the next clean track.");
-            void playNextBroadcastTrack(false);
-          };
-
-          audio.onerror = () => {
-            setBroadcast("off");
-            setScreenTitle("PLAY ALL MONITOR ERROR");
-            setScreenText("Owner monitor could not play the clean file. Raw audio was not released.");
-            addLog("PLAY ALL monitor playback error.");
-          };
-
-          setAutoDj(false);
-          setSmartDj(true);
-          setLiveDj(false);
-          setMicLive(false);
-          setSelectedMode("SMARTDJ");
-          setBroadcast("live");
-
-          const title = String(data?.title || data?.currentBroadcast?.title || "Clean SmartDJ track");
-          const artist = String(data?.artist || data?.currentBroadcast?.artist || "SmartDJ");
-          const itemNumber = Number(data?.itemNumber || data?.currentBroadcast?.sequence?.itemNumber || 0);
-          const total = Number(data?.cleanTrackCount || data?.currentBroadcast?.sequence?.total || 0);
-
-          setScreenTitle("PLAY ALL LIVE");
-          setScreenText(`${artist} - ${title} playing through PLAY ALL main broadcast${itemNumber && total ? ` (${itemNumber} of ${total})` : ""}.`);
-          addLog(`PLAY ALL broadcasting clean SmartDJ row: ${artist} - ${title}.`);
-
-          await audio.play();
-          await refreshNowPlaying();
-        } catch {
-          setBroadcast("off");
-          setScreenTitle("PLAY ALL BLOCKED BY BROWSER");
-          setScreenText("Browser blocked owner monitor playback. Current broadcast handoff remains clean only.");
-          addLog("PLAY ALL playback blocked by browser.");
-          await refreshNowPlaying();
-        }
-      } catch {
-        setBroadcast("off");
-        setScreenTitle("PLAY ALL ERROR");
-        setScreenText("Could not reach the clean broadcast engine. No raw audio was released.");
-        addLog("PLAY ALL clean broadcast route error.");
-      }
-    };
-
-    await playNextBroadcastTrack(true);
+    setBroadcast("paused");
+    setScreenTitle("OWNER MONITOR PAUSED");
+    setScreenText("Owner monitor paused. Public broadcast continues from the SmartZJ broadcast brain.");
+    addLog("Owner monitor paused. Public broadcast was not reset.");
+    return;
   }
+
+  async function attachOwnerMonitorFromNowPlaying(sourceLabel: string) {
+    const response = await fetch(`/api/listener/now-playing?ownerPlayAll=${Date.now()}`, {
+      cache: "no-store",
+    });
+
+    const data = await response.json().catch(() => null);
+    const currentBroadcast = data?.currentBroadcast || {};
+
+    const audioUrl = String(
+      data?.streamUrl ||
+        data?.audioUrl ||
+        data?.listen_url ||
+        currentBroadcast?.audioUrl ||
+        ""
+    ).trim();
+
+    const startedAt = String(
+      currentBroadcast?.startedAt ||
+        data?.live?.broadcast_start ||
+        ""
+    );
+
+    if (!audioUrl || !audioUrl.startsWith("/audio/smartdj/clean/")) {
+      return false;
+    }
+
+    const monitor = audioRef.current || new Audio();
+    audioRef.current = monitor;
+
+    const absoluteUrl = new URL(audioUrl, window.location.origin).href;
+
+    if (!monitor.src || monitor.src !== absoluteUrl) {
+      monitor.src = audioUrl;
+      monitor.load();
+    }
+
+    if (monitor.readyState < 1) {
+      await new Promise<void>((resolve) => {
+        let done = false;
+
+        const finish = () => {
+          if (done) return;
+          done = true;
+          monitor.removeEventListener("loadedmetadata", finish);
+          monitor.removeEventListener("canplay", finish);
+          resolve();
+        };
+
+        monitor.addEventListener("loadedmetadata", finish);
+        monitor.addEventListener("canplay", finish);
+        window.setTimeout(finish, 1800);
+      });
+    }
+
+    const started = Date.parse(startedAt);
+    if (Number.isFinite(started)) {
+      const elapsed = Math.max(0, Math.floor((Date.now() - started) / 1000));
+      const duration = Number(monitor.duration || 0);
+      let target = elapsed;
+
+      if (Number.isFinite(duration) && duration > 5) {
+        target = Math.min(elapsed, Math.max(0, duration - 2));
+      }
+
+      if (target > 0 && Math.abs(monitor.currentTime - target) > 4) {
+        monitor.currentTime = target;
+      }
+    }
+
+    monitor.volume = monitorOn ? 1 : 0;
+    monitor.muted = !monitorOn;
+
+    await monitor.play();
+
+    const title = String(data?.now_playing?.song?.title || currentBroadcast?.title || "Current SmartZJ broadcast");
+    const artist = String(data?.now_playing?.song?.artist || currentBroadcast?.artist || "SmartZJ");
+    const itemNumber = Number(currentBroadcast?.sequence?.itemNumber || 0);
+    const total = Number(currentBroadcast?.sequence?.total || 0);
+
+    setAutoDj(false);
+    setSmartDj(true);
+    setLiveDj(false);
+    setMicLive(false);
+    setSelectedMode("SMARTDJ");
+    setBroadcast("live");
+    setScreenTitle("PLAY ALL FOLLOWING LIVE BROADCAST");
+    setScreenText(`${artist} - ${title} is playing from the current SmartZJ broadcast${itemNumber && total ? ` (${itemNumber} of ${total})` : ""}.`);
+    addLog(`PLAY ALL attached owner monitor to current broadcast via ${sourceLabel}.`);
+
+    await refreshNowPlaying();
+    return true;
+  }
+
+  try {
+    const attached = await attachOwnerMonitorFromNowPlaying("now-playing");
+
+    if (attached) return;
+
+    setScreenTitle("STARTING SCHEDULE BROADCAST");
+    setScreenText("No current clean broadcast was ready. Asking SmartZJ schedule brain for the next clean track.");
+    addLog("PLAY ALL requested schedule-selected SmartZJ track.");
+
+    await fetch(`/api/listener/smartzj-clean-next?lane=schedule&ownerPlayAll=${Date.now()}`, {
+      method: "POST",
+      cache: "no-store",
+    });
+
+    const started = await attachOwnerMonitorFromNowPlaying("schedule-start");
+
+    if (!started) {
+      setBroadcast("off");
+      setScreenTitle("PLAY ALL BLOCKED");
+      setScreenText("No approved clean SmartZJ broadcast track is ready. Raw audio was not released.");
+      addLog("PLAY ALL blocked. No clean schedule track ready.");
+      await refreshNowPlaying();
+    }
+  } catch {
+    setBroadcast("off");
+    setScreenTitle("PLAY ALL ERROR");
+    setScreenText("Could not attach to the SmartZJ broadcast brain. No raw audio was released.");
+    addLog("PLAY ALL current broadcast attach error.");
+    await refreshNowPlaying();
+  }
+}
 
   async function stopBroadcast() {
     const audio = audioRef.current;
