@@ -1806,19 +1806,54 @@ const SELECTED_DISPLAY_MEMORY_KEY = "tha-core-owner-selected-display-v1";
     }
 
     const started = Date.parse(startedAt);
+    const duration = Number(monitor.duration || 0);
+
     if (Number.isFinite(started)) {
       const elapsed = Math.max(0, Math.floor((Date.now() - started) / 1000));
-      const duration = Number(monitor.duration || 0);
       let target = elapsed;
 
       if (Number.isFinite(duration) && duration > 5) {
         target = Math.min(elapsed, Math.max(0, duration - 2));
+
+        const nearEnd = target >= duration - 3;
+        if (nearEnd) {
+          return false;
+        }
       }
 
       if (target > 0 && Math.abs(monitor.currentTime - target) > 4) {
         monitor.currentTime = target;
       }
     }
+
+    monitor.onended = () => {
+      setBroadcast("cue");
+      setScreenTitle("OWNER MONITOR RESYNCING");
+      setScreenText("Track ended. Owner monitor is syncing back to the SmartZJ broadcast brain.");
+      addLog("Owner monitor ended. Resyncing to current broadcast only.");
+
+      void (async () => {
+        for (let attempt = 0; attempt < 8; attempt += 1) {
+          const attached = await attachOwnerMonitorFromNowPlaying("owner-monitor-ended");
+
+          if (attached) return;
+
+          await new Promise((resolve) => window.setTimeout(resolve, 3000));
+        }
+
+        setBroadcast("paused");
+        setScreenTitle("OWNER MONITOR WAITING");
+        setScreenText("Owner monitor is waiting for the SmartZJ watchdog to start the next clean broadcast.");
+        addLog("Owner monitor could not resync yet. Public broadcast brain remains in control.");
+      })();
+    };
+
+    monitor.onerror = () => {
+      setBroadcast("paused");
+      setScreenTitle("OWNER MONITOR ERROR");
+      setScreenText("Owner monitor could not play the current clean broadcast. Public broadcast remains protected.");
+      addLog("Owner monitor playback error. No raw audio fallback was used.");
+    };
 
     monitor.volume = monitorOn ? 1 : 0;
     monitor.muted = !monitorOn;
