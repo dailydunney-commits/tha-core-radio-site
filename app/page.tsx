@@ -181,6 +181,27 @@ export default function HomePage() {
   const [volume, setVolume] = useState(0.8);
   const [statusText, setStatusText] = useState("Connecting to Tha Core...");
   const [showShoutout, setShowShoutout] = useState(false);
+  // HOME_USES_GLOBAL_PUBLIC_AUDIO_ENGINE_V1
+  // Homepage controls the global PersistentRadioPlayer audio engine.
+  useEffect(() => {
+    const handleRadioState = (event: Event) => {
+      const detail = (event as CustomEvent).detail || {};
+
+      if (typeof detail.isPlaying === "boolean") {
+        setIsPlaying(detail.isPlaying);
+      }
+
+      if (typeof detail.message === "string" && detail.message.trim()) {
+        setStatusText(detail.message);
+      }
+    };
+
+    window.addEventListener("tha-core-radio-state", handleRadioState);
+
+    return () => {
+      window.removeEventListener("tha-core-radio-state", handleRadioState);
+    };
+  }, []);
 
   const rawSongText = useMemo(() => {
     const listenerNowPlaying = (nowPlaying as any)?.nowPlaying;
@@ -457,56 +478,8 @@ export default function HomePage() {
   }, []);
 
   async function toggleRadio() {
-    const audio = audioRef.current;
-
-    if (!audio) {
-      setStatusText("Radio player is not ready yet.");
-      return;
-    }
-
-    try {
-      if (isPlaying) {
-        audio.pause();
-        setIsPlaying(false);
-        setStatusText("Radio paused.");
-        return;
-      }
-
-      setStatusText("Starting Tha Core live stream...");
-
-      const streamInfo = await getPublicListenerStreamInfo();
-      const nextStreamUrl = streamInfo.url;
-
-      if (!nextStreamUrl) {
-        audio.pause();
-        audio.removeAttribute("src");
-        audio.load();
-        return;
-      }
-
-      const absoluteNextStreamUrl = getHomeAudioAbsoluteUrl(nextStreamUrl);
-
-      if (!audio.src || audio.src !== absoluteNextStreamUrl) {
-        audio.src = nextStreamUrl;
-        audio.load();
-      }
-
-      audio.volume = volume;
-
-      await waitForHomeAudioMetadata(audio);
-      syncHomeAudioToBroadcastTime(audio, streamInfo);
-
-      await audio.play();
-
-      setIsPlaying(true);
-      setStatusText("Tha Core live stream playing.");
-    } catch (error) {
-      console.error("Radio play failed:", error);
-      setIsPlaying(false);
-      setStatusText(
-        "Stream did not start. Check AzuraCast stream, then press Play Live."
-      );
-    }
+    window.dispatchEvent(new CustomEvent("tha-core-radio-toggle"));
+    setStatusText("Controlling Tha Core global radio player...");
   }
 
   // SMARTZJ_HOME_PLAYER_AUTONEXT_V1
@@ -564,13 +537,6 @@ export default function HomePage() {
 
   return (
     <main style={styles.page}>
-      <audio
-            ref={audioRef}
-            preload="none"
-            onEnded={() => {
-              void handleSmartZjHomeEnded();
-            }}
-          />
 
       <section style={styles.shell}>
         <section style={styles.topTicker}>
