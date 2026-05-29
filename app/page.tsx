@@ -482,6 +482,21 @@ export default function HomePage() {
     setStatusText("Controlling Tha Core global radio player...");
   }
 
+  function stopRadio() {
+    window.dispatchEvent(new CustomEvent("tha-core-radio-stop"));
+    setIsPlaying(false);
+    setStatusText("Radio stopped on this device.");
+  }
+
+  function changeGlobalVolume(value: number) {
+    setVolume(value);
+    window.dispatchEvent(
+      new CustomEvent("tha-core-radio-volume", {
+        detail: { volume: value },
+      })
+    );
+  }
+
   // SMARTZJ_HOME_PLAYER_AUTONEXT_V1
   async function handleSmartZjHomeEnded() {
     const audio = audioRef.current;
@@ -578,9 +593,6 @@ export default function HomePage() {
             </div>
 
             <div style={styles.heroActions}>
-              <button type="button" onClick={toggleRadio} style={styles.playButton}>
-                {isPlaying ? "Pause Live" : "Play Live"}
-              </button>
 
               <a href="/store" style={styles.goldButton}>
                 Visit Store
@@ -638,10 +650,16 @@ export default function HomePage() {
               {listeners} {listeners === 1 ? "listener" : "listeners"} online
             </p>
           </div>
+        </section>
 
+          {/* HOME_PUBLIC_CONTROL_PAD_V1 */}
           <div style={styles.playerLine}>
             <button type="button" onClick={toggleRadio} style={styles.fullPlayButton}>
               {isPlaying ? "Pause Live" : "Play Live"}
+            </button>
+
+            <button type="button" onClick={stopRadio} style={styles.goldButton}>
+              Stop
             </button>
 
             <label style={styles.volumeLabel}>
@@ -652,13 +670,11 @@ export default function HomePage() {
                 max="1"
                 step="0.01"
                 value={volume}
-                onChange={(event) => setVolume(Number(event.target.value))}
+                onChange={(event) => changeGlobalVolume(Number(event.target.value))}
                 style={styles.volumeSlider}
               />
             </label>
           </div>
-        </section>
-
         {showShoutout ? (
           <section style={styles.shoutoutBox}>
             <div>
@@ -794,29 +810,6 @@ export default function HomePage() {
           </div>
         </section>
       </section>
-
-      <aside style={styles.floatingPlayer}>
-        <p style={styles.floatKicker}>THA CORE RADIO</p>
-        <p style={styles.floatTitle}>{songText}</p>
-
-        <button type="button" onClick={toggleRadio} style={styles.floatButton}>
-          {isPlaying ? "Pause Live" : "Play Live"}
-        </button>
-
-        <label style={styles.floatVolume}>
-          Volume
-          <input
-            type="range"
-            min="0"
-            max="1"
-            step="0.01"
-            value={volume}
-            onChange={(event) => setVolume(Number(event.target.value))}
-          />
-        </label>
-
-        <p style={styles.floatStatus}>{statusText}</p>
-      </aside>
 
       <style jsx global>{`
         @keyframes tickerMove {

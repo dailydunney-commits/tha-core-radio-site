@@ -352,10 +352,40 @@ async function togglePlay() {
       void togglePlay();
     };
 
+    const handleStop = () => {
+      const audio = audioRef.current;
+
+      if (audio) {
+        audio.pause();
+        audio.currentTime = 0;
+      }
+
+      setIsPlaying(false);
+      setMessage("Stopped by listener");
+    };
+
+    const handleVolume = (event: Event) => {
+      const detail = (event as CustomEvent).detail || {};
+      const nextVolume = Number(detail.volume);
+
+      if (!Number.isFinite(nextVolume)) return;
+
+      const safeVolume = Math.max(0, Math.min(1, nextVolume));
+      setVolume(safeVolume);
+
+      if (audioRef.current) {
+        audioRef.current.volume = safeVolume;
+      }
+    };
+
     window.addEventListener("tha-core-radio-toggle", handleToggle);
+    window.addEventListener("tha-core-radio-stop", handleStop);
+    window.addEventListener("tha-core-radio-volume", handleVolume);
 
     return () => {
       window.removeEventListener("tha-core-radio-toggle", handleToggle);
+      window.removeEventListener("tha-core-radio-stop", handleStop);
+      window.removeEventListener("tha-core-radio-volume", handleVolume);
     };
   }, [isPlaying, volume]);
 function changeVolume(value: number) {
