@@ -9,7 +9,7 @@ export default function PersistentRadioPlayer() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
 // SMARTZJ_MINI_AUTONEXT_PLAYER_V1
-  async function playNextSmartZjCleanTrack() {
+  async function playNextSmartZjCleanTrack(kickWatchdog = false) {
   const audio = audioRef.current;
   if (!audio) return;
 
@@ -23,6 +23,17 @@ export default function PersistentRadioPlayer() {
   }, 2500);
 
   try {
+    if (kickWatchdog) {
+      setMessage("Asking SmartZJ watchdog for the next clean broadcast...");
+
+      await fetch("/api/radio/smartzj-watchdog", {
+        method: "POST",
+        cache: "no-store",
+      }).catch(() => null);
+
+      await new Promise((resolve) => window.setTimeout(resolve, 2500));
+    }
+
     setMessage("Syncing to SmartZJ broadcast...");
 
     const response = await fetch(`/api/listener/now-playing?persistentSync=${Date.now()}`, {
@@ -110,7 +121,7 @@ export default function PersistentRadioPlayer() {
     if (!audio) return;
 
     const handleEnded = () => {
-      void playNextSmartZjCleanTrack();
+      void playNextSmartZjCleanTrack(true);
     };
 
     audio.addEventListener("ended", handleEnded);
@@ -249,9 +260,6 @@ export default function PersistentRadioPlayer() {
       ref={audioRef}
       src={STREAM_URL}
       preload="none"
-      onEnded={() => {
-        void playNextSmartZjCleanTrack();
-      }}
     />
 
       <div style={styles.left}>

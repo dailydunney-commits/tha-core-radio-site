@@ -265,6 +265,15 @@ export default function HomePage() {
     if (!audio) return;
 
     try {
+      setStatusText("Track ended. Asking SmartZJ watchdog for the next clean broadcast...");
+
+      await fetch("/api/radio/smartzj-watchdog", {
+        method: "POST",
+        cache: "no-store",
+      }).catch(() => null);
+
+      await new Promise((resolve) => window.setTimeout(resolve, 2500));
+
       setStatusText("Track ended. Syncing back to SmartZJ broadcast brain...");
 
       for (let attempt = 0; attempt < 8; attempt += 1) {
@@ -351,6 +360,15 @@ export default function HomePage() {
     if (!audio) return;
 
     try {
+      setStatusText("Track ended. Asking SmartZJ watchdog for the next clean broadcast...");
+
+      await fetch("/api/radio/smartzj-watchdog", {
+        method: "POST",
+        cache: "no-store",
+      }).catch(() => null);
+
+      await new Promise((resolve) => window.setTimeout(resolve, 2500));
+
       setStatusText("Track ended. Syncing back to SmartZJ broadcast brain...");
 
       for (let attempt = 0; attempt < 8; attempt += 1) {
@@ -461,6 +479,15 @@ export default function HomePage() {
     if (!audio) return;
 
     try {
+      setStatusText("Track ended. Asking SmartZJ watchdog for the next clean broadcast...");
+
+      await fetch("/api/radio/smartzj-watchdog", {
+        method: "POST",
+        cache: "no-store",
+      }).catch(() => null);
+
+      await new Promise((resolve) => window.setTimeout(resolve, 2500));
+
       setStatusText("Track ended. Syncing back to SmartZJ broadcast brain...");
 
       for (let attempt = 0; attempt < 8; attempt += 1) {
