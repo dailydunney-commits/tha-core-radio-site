@@ -1910,9 +1910,9 @@ const SELECTED_DISPLAY_MEMORY_KEY = "tha-core-owner-selected-display-v1";
 
   async function returnToLiveStream() {
     try {
-      setScreenTitle("RETURNING TO LIVE STREAM");
-      setScreenText("Clearing SmartDJ current broadcast handoff and restoring Tha Core live stream.");
-      addLog("Return to live stream requested.");
+      setScreenTitle("CURRENT BROADCAST CLEARING");
+      setScreenText("Clearing SmartZJ current-broadcast handoff. Owner monitor will not load old Azura direct stream.");
+      addLog("Return/Clear current broadcast requested.");
 
       const response = await fetch("/api/radio/current-broadcast", {
         method: "DELETE",
@@ -1922,14 +1922,13 @@ const SELECTED_DISPLAY_MEMORY_KEY = "tha-core-owner-selected-display-v1";
       const data = await response.json().catch(() => null);
 
       if (!response.ok || data?.ok === false) {
-        setScreenTitle("RETURN TO LIVE FAILED");
+        setScreenTitle("CLEAR CURRENT BROADCAST FAILED");
         setScreenText(data?.message || "Could not clear current broadcast handoff.");
-        addLog("Return to live stream failed.");
+        addLog("Clear current broadcast failed.");
         return;
       }
 
       const audio = audioRef.current;
-      const liveStreamUrl = "https://thacoreonlinerad.com/listen/tha-core-online/radio.mp3";
 
       setAutoDj(true);
       setSmartDj(false);
@@ -1940,34 +1939,23 @@ const SELECTED_DISPLAY_MEMORY_KEY = "tha-core-owner-selected-display-v1";
       if (audio) {
         try {
           audio.pause();
-          audio.src = liveStreamUrl;
-          audio.preload = "auto";
-          audio.volume = volume / 100;
-          audio.muted = !monitorOn;
-          await audio.play();
-
-          setBroadcast("live");
-          setScreenTitle("LIVE STREAM RESTORED");
-          setScreenText("Current broadcast cleared. Public listeners are back on Tha Core Live Stream.");
-          addLog("Current broadcast cleared. Live stream restored.");
+          audio.removeAttribute("src");
+          audio.load();
         } catch {
-          setBroadcast("cue");
-          setScreenTitle("LIVE STREAM RESTORED");
-          setScreenText("Current broadcast cleared. Browser cued the live stream monitor. Press MAIN BROADCAST if needed.");
-          addLog("Current broadcast cleared. Live stream monitor cued.");
+          // Monitor cleanup only. Do not fall back to raw Azura here.
         }
-      } else {
-        setBroadcast("cue");
-        setScreenTitle("LIVE STREAM RESTORED");
-        setScreenText("Current broadcast cleared. Main audio monitor was not ready.");
-        addLog("Current broadcast cleared. Audio monitor not ready.");
       }
+
+      setBroadcast("cue");
+      setScreenTitle("CURRENT BROADCAST CLEARED");
+      setScreenText("SmartZJ current-broadcast handoff cleared. Owner monitor will follow /api/listener/now-playing only.");
+      addLog("Current broadcast cleared. Old Azura direct monitor fallback blocked.");
 
       refreshNowPlaying();
     } catch {
-      setScreenTitle("RETURN TO LIVE ERROR");
+      setScreenTitle("CLEAR CURRENT BROADCAST ERROR");
       setScreenText("Could not reach current-broadcast reset route.");
-      addLog("Return to live stream API error.");
+      addLog("Clear current broadcast API error.");
     }
   }
 
