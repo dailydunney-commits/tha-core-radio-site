@@ -1810,10 +1810,15 @@ const SELECTED_DISPLAY_MEMORY_KEY = "tha-core-owner-selected-display-v1";
 
     if (Number.isFinite(started)) {
       const elapsed = Math.max(0, Math.floor((Date.now() - started) / 1000));
-      let target = elapsed;
+
+      // OWNER_MONITOR_LOW_LAG_V1
+      // Owner/control panel is the command booth, so its monitor should feel slightly ahead,
+      // while the backend current-broadcast remains the one truth listeners follow.
+      const ownerMonitorLeadSeconds = 2;
+      let target = elapsed + ownerMonitorLeadSeconds;
 
       if (Number.isFinite(duration) && duration > 5) {
-        target = Math.min(elapsed, Math.max(0, duration - 2));
+        target = Math.min(target, Math.max(0, duration - 2));
 
         const nearEnd = target >= duration - 3;
         if (nearEnd) {
@@ -1821,7 +1826,7 @@ const SELECTED_DISPLAY_MEMORY_KEY = "tha-core-owner-selected-display-v1";
         }
       }
 
-      if (target > 0 && Math.abs(monitor.currentTime - target) > 4) {
+      if (target > 0 && Math.abs(monitor.currentTime - target) > 2) {
         monitor.currentTime = target;
       }
     }
