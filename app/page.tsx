@@ -331,6 +331,54 @@ export default function HomePage() {
     audio.volume = volume;
   }, [volume]);
 
+  // PUBLIC_HOME_CURRENT_BROADCAST_RESYNC_WATCH_V1
+  useEffect(() => {
+    if (!isPlaying) return;
+
+    let cancelled = false;
+
+    const timer = window.setInterval(() => {
+      void (async () => {
+        const audio = audioRef.current;
+        if (!audio || audio.paused) return;
+
+        const streamInfo = await getPublicListenerStreamInfo();
+        const nextStreamUrl = streamInfo.url;
+        if (!nextStreamUrl) return;
+
+        const absoluteNextStreamUrl = getHomeAudioAbsoluteUrl(nextStreamUrl);
+
+        if (audio.src === absoluteNextStreamUrl) return;
+
+        setStatusText("Broadcast changed. Resyncing to current SmartZJ output...");
+
+        audio.src = nextStreamUrl;
+        audio.load();
+
+        await waitForHomeAudioMetadata(audio);
+        if (cancelled) return;
+
+        syncHomeAudioToBroadcastTime(audio, streamInfo);
+
+        audio.volume = volume;
+        await audio.play();
+
+        if (cancelled) return;
+
+        setIsPlaying(true);
+        setStatusText("Synced to current SmartZJ broadcast.");
+      })().catch(() => {
+        if (!cancelled) {
+          setStatusText("Current broadcast resync failed. Press Play Live to retry.");
+        }
+      });
+    }, 3000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [isPlaying, volume]);
   useEffect(() => {
     const audio = audioRef.current;
 

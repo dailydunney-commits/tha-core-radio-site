@@ -227,7 +227,101 @@ export default function PersistentRadioPlayer() {
   // SMARTZJ_MINI_AUTONEXT_WATCHDOG_DISABLED_STABILITY_V1
   // Disabled because pause/error/near-end watchdog can force early SmartZJ skips.
   // The audio element's normal ended handler remains responsible for moving to the next clean track.
-  async function togglePlay() {
+    // FLOATING_PLAYER_CURRENT_BROADCAST_RESYNC_WATCH_V1
+  useEffect(() => {
+    if (!isPlaying) return;
+
+    let cancelled = false;
+
+    const timer = window.setInterval(() => {
+      void (async () => {
+        const audio = audioRef.current;
+        if (!audio || audio.paused) return;
+
+        const response = await fetch(`/api/listener/now-playing?floatingWatch=${Date.now()}`, {
+          cache: "no-store",
+        });
+
+        const data = await response.json().catch(() => null);
+        const currentBroadcast = data?.currentBroadcast || {};
+
+        const nextUrl = String(
+          data?.streamUrl ||
+            data?.audioUrl ||
+            data?.listen_url ||
+            currentBroadcast?.audioUrl ||
+            ""
+        ).trim();
+
+        if (!nextUrl) return;
+
+        const absoluteNextUrl = new URL(nextUrl, window.location.origin).href;
+
+        if (audio.src === absoluteNextUrl) return;
+
+        setMessage("Broadcast changed. Resyncing...");
+
+        audio.src = nextUrl;
+        audio.load();
+
+        await new Promise<void>((resolve) => {
+          let done = false;
+
+          const finish = () => {
+            if (done) return;
+            done = true;
+            audio.removeEventListener("loadedmetadata", finish);
+            audio.removeEventListener("canplay", finish);
+            resolve();
+          };
+
+          audio.addEventListener("loadedmetadata", finish);
+          audio.addEventListener("canplay", finish);
+          window.setTimeout(finish, 1800);
+        });
+
+        if (cancelled) return;
+
+        const startedAt = String(
+          currentBroadcast?.startedAt ||
+            data?.live?.broadcast_start ||
+            ""
+        );
+
+        const started = Date.parse(startedAt);
+
+        if (Number.isFinite(started)) {
+          const elapsed = Math.max(0, Math.floor((Date.now() - started) / 1000));
+          const duration = Number(audio.duration || 0);
+          let target = elapsed;
+
+          if (Number.isFinite(duration) && duration > 5) {
+            target = Math.min(elapsed, Math.max(0, duration - 2));
+          }
+
+          if (target > 0 && Math.abs(audio.currentTime - target) > 4) {
+            audio.currentTime = target;
+          }
+        }
+
+        audio.volume = volume;
+        await audio.play();
+
+        if (cancelled) return;
+
+        setIsPlaying(true);
+        setMessage("Synced to current broadcast");
+      })().catch(() => {
+        if (!cancelled) setMessage("Could not resync current broadcast");
+      });
+    }, 3000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [isPlaying, volume]);
+async function togglePlay() {
   const audio = audioRef.current;
   if (!audio) return;
 
