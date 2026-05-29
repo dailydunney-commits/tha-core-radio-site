@@ -10,38 +10,100 @@ export default function PersistentRadioPlayer() {
 
 // SMARTZJ_MINI_AUTONEXT_PLAYER_V1
   async function playNextSmartZjCleanTrack() {
-    const audio = audioRef.current;
-    if (!audio) return;
+  const audio = audioRef.current;
+  if (!audio) return;
 
-    // SMARTZJ_MINI_AUTONEXT_THROTTLE_V1
-    if ((audio as any).__smartZjAutoNextLock) return;
-    (audio as any).__smartZjAutoNextLock = true;
-    window.setTimeout(() => {
+  if ((audio as any).__smartZjAutoNextLock) return;
+  (audio as any).__smartZjAutoNextLock = true;
+
+  window.setTimeout(() => {
+    if (audio) {
       (audio as any).__smartZjAutoNextLock = false;
-    }, 2500);
+    }
+  }, 2500);
 
-    try {
-      const response = await fetch(`/api/listener/smartzj-clean-next?ended=${Date.now()}`, {
-        method: "POST",
-        cache: "no-store",
+  try {
+    setMessage("Syncing to SmartZJ broadcast...");
+
+    const response = await fetch(`/api/listener/now-playing?persistentSync=${Date.now()}`, {
+      cache: "no-store",
+    });
+
+    const data = await response.json().catch(() => null);
+    const currentBroadcast = data?.currentBroadcast || {};
+
+    const nextUrl = String(
+      data?.streamUrl ||
+        data?.audioUrl ||
+        data?.listen_url ||
+        currentBroadcast?.audioUrl ||
+        ""
+    ).trim();
+
+    const startedAt = String(
+      currentBroadcast?.startedAt ||
+        data?.live?.broadcast_start ||
+        ""
+    );
+
+    if (!nextUrl) {
+      audio.pause();
+      setIsPlaying(false);
+      setMessage("Waiting for SmartZJ broadcast brain...");
+      return;
+    }
+
+    const absoluteNextUrl = new URL(nextUrl, window.location.origin).href;
+
+    if (!audio.src || audio.src !== absoluteNextUrl) {
+      audio.src = nextUrl;
+      audio.load();
+    }
+
+    if (audio.readyState < 1) {
+      await new Promise<void>((resolve) => {
+        let done = false;
+
+        const finish = () => {
+          if (done) return;
+          done = true;
+          audio.removeEventListener("loadedmetadata", finish);
+          audio.removeEventListener("canplay", finish);
+          resolve();
+        };
+
+        audio.addEventListener("loadedmetadata", finish);
+        audio.addEventListener("canplay", finish);
+        window.setTimeout(finish, 1800);
       });
+    }
 
-      const data = await response.json().catch(() => null);
-      const nextUrl = String(data?.streamUrl || data?.audioUrl || data?.listen_url || "").trim();
+    const started = Date.parse(startedAt);
+    if (Number.isFinite(started)) {
+      const elapsed = Math.max(0, Math.floor((Date.now() - started) / 1000));
+      const duration = Number(audio.duration || 0);
+      let target = elapsed;
 
-      if (!response.ok || !nextUrl) {
-        audio.pause();
-        return;
+      if (Number.isFinite(duration) && duration > 5) {
+        target = Math.min(elapsed, Math.max(0, duration - 2));
       }
 
-      const separator = nextUrl.includes("?") ? "&" : "?";
-      audio.src = `${nextUrl}${separator}smartzjAutoNext=${Date.now()}`;
-      audio.load();
-      await audio.play();
-    } catch {
-      audio.pause();
+      if (target > 0 && Math.abs(audio.currentTime - target) > 4) {
+        audio.currentTime = target;
+      }
     }
+
+    audio.volume = volume;
+    await audio.play();
+
+    setIsPlaying(true);
+    setMessage("Synced to current SmartZJ broadcast");
+  } catch {
+    audio.pause();
+    setIsPlaying(false);
+    setMessage("Could not sync to SmartZJ broadcast");
   }
+}
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -155,27 +217,23 @@ export default function PersistentRadioPlayer() {
   // Disabled because pause/error/near-end watchdog can force early SmartZJ skips.
   // The audio element's normal ended handler remains responsible for moving to the next clean track.
   async function togglePlay() {
-    const audio = audioRef.current;
-    if (!audio) return;
+  const audio = audioRef.current;
+  if (!audio) return;
 
-    try {
-      if (isPlaying) {
-        audio.pause();
-        setIsPlaying(false);
-        setMessage("Paused by listener");
-        return;
-      }
-
-      audio.volume = volume;
-      await audio.play();
-
-      setIsPlaying(true);
-      setMessage("Playing live");
-    } catch {
+  try {
+    if (isPlaying) {
+      audio.pause();
       setIsPlaying(false);
-      setMessage("Tap play again or check stream");
+      setMessage("Paused by listener");
+      return;
     }
+
+    await playNextSmartZjCleanTrack();
+  } catch {
+    setIsPlaying(false);
+    setMessage("Tap play again or check stream");
   }
+}
 
   function changeVolume(value: number) {
     setVolume(value);
