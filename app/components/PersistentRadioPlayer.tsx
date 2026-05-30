@@ -568,6 +568,10 @@ function changeVolume(value: number) {
     }
   }
 
+
+  if (hideOnAdminSurface) {
+    return null; // ADMIN_HIDE_RETURN_NULL_V2
+  }
   return (
     <div style={styles.player}>
       <audio
