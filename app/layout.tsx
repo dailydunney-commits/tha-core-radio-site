@@ -1,3 +1,4 @@
+import { headers } from "next/headers";
 import PersistentRadioPlayer from "./components/PersistentRadioPlayer";
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
@@ -18,11 +19,15 @@ export const viewport: Viewport = {
   themeColor: "#b00000",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const requestHeaders = await headers();
+  const requestHost = (requestHeaders.get("x-forwarded-host") || requestHeaders.get("host") || "").toLowerCase();
+  const hidePublicPlayerOnAdminHost = requestHost.startsWith("admin."); // ADMIN_HOST_HIDE_PUBLIC_PLAYER_V1
+
   return (
     <html lang="en" suppressHydrationWarning>
       <body
@@ -34,7 +39,7 @@ export default function RootLayout({
         }}
       >
         <RootShell>{children}</RootShell>
-        <PersistentRadioPlayer />
+        {!hidePublicPlayerOnAdminHost && <PersistentRadioPlayer />}
       </body>
     </html>
   );
