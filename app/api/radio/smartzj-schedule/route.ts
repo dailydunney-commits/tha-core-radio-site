@@ -360,41 +360,46 @@ function getActiveBlock(schedule: AnyRecord, now: AnyRecord) {
 }
 
 function choosePlayableLane(schedule: AnyRecord, block: AnyRecord | null, counts: Record<string, number>) {
-  const minPlayable = Number(block?.minPlayable || schedule.fallbackMinPlayable || 25);
+  const primaryLane = canonicalLane(
+    block?.primaryLane ||
+      block?.lane ||
+      block?.genreLane ||
+      block?.selectedLane ||
+      ""
+  );
 
-  const candidates = [
-    block?.primaryLane,
+  const fallbackLanes = [
     ...(Array.isArray(block?.fallbackLanes) ? block.fallbackLanes : []),
     ...(Array.isArray(schedule.defaultFallbackLanes) ? schedule.defaultFallbackLanes : []),
   ]
     .map(canonicalLane)
     .filter(Boolean);
 
-  const uniqueCandidates = [...new Set(candidates)];
+  const countFor = (lane: string) => Number(counts[lane] || 0);
 
-  if (uniqueCandidates.includes("ANY_READY_LANE")) {
-    const best = Object.entries(counts)
-      .filter(([, count]) => Number(count) >= minPlayable)
-      .sort((a, b) => Number(b[1]) - Number(a[1]))[0];
+  // SMARTZJ_STRICT_SCHEDULE_LANE_V1
+  // Schedule must obey the active block first.
+  // Only leave the scheduled lane when it has ZERO clean/bleeped READY tracks.
+  if (primaryLane) {
+    const primaryCount = countFor(primaryLane);
 
-    if (best) {
+    if (primaryCount > 0) {
       return {
-        selectedLane: best[0],
-        selectedLaneCount: best[1],
-        selectionReason: "ANY_READY_LANE_BEST_COUNT",
+        selectedLane: primaryLane,
+        selectedLaneCount: primaryCount,
+        selectionReason: "STRICT_SCHEDULE_PRIMARY_READY",
       };
     }
-  }
 
-  for (const lane of uniqueCandidates) {
-    if (lane === "ANY_READY_LANE") continue;
-    const count = Number(counts[lane] || 0);
-    if (count >= minPlayable) {
-      return {
-        selectedLane: lane,
-        selectedLaneCount: count,
-        selectionReason: "PRIMARY_OR_FALLBACK_MET_MINIMUM",
-      };
+    for (const lane of fallbackLanes) {
+      const count = countFor(lane);
+      if (count > 0) {
+        return {
+          selectedLane: lane,
+          selectedLaneCount: count,
+          selectionReason: "STRICT_SCHEDULE_PRIMARY_EMPTY_FALLBACK_READY",
+        };
+      }
     }
   }
 
@@ -405,8 +410,10 @@ function choosePlayableLane(schedule: AnyRecord, block: AnyRecord | null, counts
   if (anyPlayable) {
     return {
       selectedLane: anyPlayable[0],
-      selectedLaneCount: anyPlayable[1],
-      selectionReason: "EMERGENCY_ANY_PLAYABLE_LANE",
+      selectedLaneCount: Number(anyPlayable[1]),
+      selectionReason: primaryLane
+        ? "STRICT_SCHEDULE_PRIMARY_EMPTY_EMERGENCY_ANY_READY"
+        : "NO_ACTIVE_BLOCK_EMERGENCY_ANY_READY",
     };
   }
 
