@@ -1,3 +1,4 @@
+import PersistentRadioPlayer from "./components/PersistentRadioPlayer";
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import RootShell from "@/components/root-shell";
