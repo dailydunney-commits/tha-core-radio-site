@@ -315,22 +315,95 @@ export default function PersistentRadioPlayer() {
     };
   }, [isPlaying, volume]);
 async function togglePlay() {
-  const audio = audioRef.current;
-  if (!audio) return;
+const audio = audioRef.current;
+if (!audio) return;
 
-  try {
-    if (isPlaying) {
-      audio.pause();
-      setIsPlaying(false);
-      setMessage("Paused by listener");
-      return;
+try {
+  if (isPlaying || !audio.paused) {
+    audio.pause();
+    setIsPlaying(false);
+    setMessage("Paused by listener");
+    return;
+  }
+
+  setMessage("Starting Tha Core live stream...");
+
+  const response = await fetch(`/api/listener/now-playing?manualPublicPlay=${Date.now()}`, {
+    cache: "no-store",
+  });
+
+  const data = await response.json().catch(() => null);
+  const currentBroadcast = data?.currentBroadcast || {};
+  const song = data?.now_playing?.song || {};
+
+  const nextUrl = String(
+    data?.streamUrl ||
+      data?.audioUrl ||
+      data?.listen_url ||
+      currentBroadcast?.audioUrl ||
+      ""
+  ).trim();
+
+  if (!nextUrl) {
+    setIsPlaying(false);
+    setMessage("Waiting for Tha Core broadcast brain...");
+    return;
+  }
+
+  const absoluteNextUrl = new URL(nextUrl, window.location.origin).href;
+
+  if (!audio.src || audio.src !== absoluteNextUrl) {
+    audio.src = nextUrl;
+    audio.load();
+  }
+
+  audio.volume = volume;
+
+  await new Promise<void>((resolve) => {
+    let done = false;
+
+    const finish = () => {
+      if (done) return;
+      done = true;
+      audio.removeEventListener("loadedmetadata", finish);
+      audio.removeEventListener("canplay", finish);
+      resolve();
+    };
+
+    audio.addEventListener("loadedmetadata", finish);
+    audio.addEventListener("canplay", finish);
+    window.setTimeout(finish, 1200);
+  });
+
+  const startedAt = String(currentBroadcast?.startedAt || data?.live?.broadcast_start || "");
+  const started = Date.parse(startedAt);
+
+  if (Number.isFinite(started)) {
+    const elapsed = Math.max(0, Math.floor((Date.now() - started) / 1000));
+    const duration = Number(audio.duration || 0);
+    let target = elapsed;
+
+    if (Number.isFinite(duration) && duration > 5) {
+      target = Math.min(elapsed, Math.max(0, duration - 2));
     }
 
-    await playNextSmartZjCleanTrack();
-  } catch {
-    setIsPlaying(false);
-    setMessage("Tap play again or check stream");
+    if (target > 0 && Math.abs(audio.currentTime - target) > 4) {
+      audio.currentTime = target;
+    }
   }
+
+  setNowPlaying(String(song?.text || currentBroadcast?.title || "Tha Core Live Mix"));
+  setListeners(String(data?.listeners?.current ?? data?.listeners?.total ?? "0"));
+
+  await audio.play();
+
+  setIsPlaying(true);
+  setMessage("Playing live");
+} catch (error) {
+  console.error("Public radio direct play failed:", error);
+  setIsPlaying(false);
+  setMessage("Tap Play again or check stream");
+}
 }
 
     // PUBLIC_GLOBAL_AUDIO_ENGINE_V1
