@@ -33,6 +33,7 @@ export default function RootLayout({
         }}
       >
         <RootShell>{children}</RootShell>
+        <PersistentRadioPlayer />
       </body>
     </html>
   );
