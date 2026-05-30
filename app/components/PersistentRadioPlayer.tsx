@@ -5,6 +5,22 @@ import type { CSSProperties } from "react";
 
 
 export default function PersistentRadioPlayer() {
+const [hideOnAdminSurface, setHideOnAdminSurface] = useState(false);
+
+useEffect(() => {
+  // ADMIN_HIDE_PERSISTENT_PLAYER_V1
+  // Public persistent player belongs on listener/public pages only.
+  // Hide it on admin/control surfaces so it does not fight the studio/control-panel monitor.
+  const host = window.location.hostname.toLowerCase();
+  const path = window.location.pathname.toLowerCase();
+
+  setHideOnAdminSurface(
+    host.startsWith("admin.") ||
+      path.startsWith("/owner") ||
+      path.startsWith("/control-panel")
+  );
+}, []);
+
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
 // SMARTZJ_MINI_AUTONEXT_PLAYER_V1
