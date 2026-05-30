@@ -1843,7 +1843,7 @@ const SELECTED_DISPLAY_MEMORY_KEY = "tha-core-owner-selected-display-v1";
           cache: "no-store",
         }).catch(() => null);
 
-        await new Promise((resolve) => window.setTimeout(resolve, 75)); // OWNER_MONITOR_FAST_AUTONEXT_V1
+        await new Promise((resolve) => window.setTimeout(resolve, 100)); // OWNER_MONITOR_FAST_AUTONEXT_V1
 
         for (let attempt = 0; attempt < 8; attempt += 1) {
           const attached = await attachOwnerMonitorFromNowPlaying("owner-monitor-ended");
