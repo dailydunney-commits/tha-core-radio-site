@@ -5,7 +5,19 @@ import type { CSSProperties } from "react";
 
 
 export default function PersistentRadioPlayer() {
-const [hideOnAdminSurface, setHideOnAdminSurface] = useState(true);
+const [hideOnAdminSurface, setHideOnAdminSurface] = useState(() => {
+  if (typeof window === "undefined") return false;
+
+  const host = window.location.hostname.toLowerCase();
+  const path = window.location.pathname.toLowerCase();
+
+  return (
+    host.startsWith("admin.") ||
+    path.startsWith("/owner") ||
+    path.startsWith("/control-panel") ||
+    path.startsWith("/schedule")
+  );
+});
 
 useEffect(() => {
   // ADMIN_HIDE_PERSISTENT_PLAYER_V1
