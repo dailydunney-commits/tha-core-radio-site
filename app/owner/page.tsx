@@ -1897,11 +1897,14 @@ const SELECTED_DISPLAY_MEMORY_KEY = "tha-core-owner-selected-display-v1";
     const ownerFollowWindow = window as Window & {
       __thaCoreOwnerFollowTimer?: number;
       __thaCoreOwnerFollowBusy?: boolean;
+      __thaCoreOwnerFollowBroadcastKey?: string;
     };
 
     if (ownerFollowWindow.__thaCoreOwnerFollowTimer) {
       window.clearInterval(ownerFollowWindow.__thaCoreOwnerFollowTimer);
     }
+
+    ownerFollowWindow.__thaCoreOwnerFollowBroadcastKey = `${audioUrl}|${startedAt}`;
 
     ownerFollowWindow.__thaCoreOwnerFollowTimer = window.setInterval(() => {
       if (ownerFollowWindow.__thaCoreOwnerFollowBusy) return;
@@ -1929,16 +1932,28 @@ const SELECTED_DISPLAY_MEMORY_KEY = "tha-core-owner-selected-display-v1";
 
           if (!latestAudioUrl || !latestAudioUrl.startsWith("/audio/smartdj/clean/")) return;
 
+          const latestStartedAt = String(
+            latestBroadcast?.startedAt ||
+              latest?.live?.broadcast_start ||
+              ""
+          );
+
           const latestAbsoluteUrl = new URL(latestAudioUrl, window.location.origin).href;
+          const latestBroadcastKey = `${latestAudioUrl}|${latestStartedAt}`;
+          const knownBroadcastKey = ownerFollowWindow.__thaCoreOwnerFollowBroadcastKey || "";
           const currentMonitorUrl = activeMonitor.currentSrc || activeMonitor.src || "";
           const needsReattach =
+            latestBroadcastKey !== knownBroadcastKey ||
             latestAbsoluteUrl !== currentMonitorUrl ||
             activeMonitor.paused ||
             activeMonitor.ended ||
             Boolean(activeMonitor.error);
 
           if (needsReattach) {
-            await attachOwnerMonitorFromNowPlaying("owner-follow-watchdog");
+            const reattached = await attachOwnerMonitorFromNowPlaying("owner-follow-watchdog");
+            if (reattached) {
+              ownerFollowWindow.__thaCoreOwnerFollowBroadcastKey = latestBroadcastKey;
+            }
           }
         } catch {
           addLog("Owner follow watchdog could not check current broadcast.");
@@ -1946,7 +1961,7 @@ const SELECTED_DISPLAY_MEMORY_KEY = "tha-core-owner-selected-display-v1";
           ownerFollowWindow.__thaCoreOwnerFollowBusy = false;
         }
       })();
-    }, 3000);
+    }, 1000); // OWNER_MONITOR_FOLLOW_WATCHDOG_FAST_V2
 
     await refreshNowPlaying();
     return true;
