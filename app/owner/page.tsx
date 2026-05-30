@@ -1838,11 +1838,9 @@ const SELECTED_DISPLAY_MEMORY_KEY = "tha-core-owner-selected-display-v1";
       addLog("Owner monitor ended. Resyncing to current broadcast only.");
 
       void (async () => {
-        await fetch(`/api/listener/smartzj-clean-next?lane=schedule&ownerMonitorEnded=${Date.now()}`, {
-          method: "POST",
-          cache: "no-store",
-        }).catch(() => null);
-
+        // OWNER_MONITOR_FOLLOW_CURRENT_BROADCAST_V1
+        // Control panel must not pick a separate next track.
+        // It only follows the backend current-broadcast truth from /api/listener/now-playing.
         await new Promise((resolve) => window.setTimeout(resolve, 100)); // OWNER_MONITOR_FAST_AUTONEXT_V1
 
         for (let attempt = 0; attempt < 8; attempt += 1) {
