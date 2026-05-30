@@ -131,6 +131,61 @@ export default function PersistentRadioPlayer() {
   const [listeners, setListeners] = useState("0");
   const [message, setMessage] = useState("Ready to play live");
 
+  // PUBLIC_AUDIO_PRIME_BEFORE_CLICK_V1
+  // Keep current clean broadcast URL loaded before user taps Play.
+  async function primeCurrentBroadcastForPlay() {
+    const audio = audioRef.current;
+    if (!audio) return false;
+
+    try {
+      const response = await fetch(`/api/listener/now-playing?primeBeforePlay=${Date.now()}`, {
+        cache: "no-store",
+      });
+
+      const data = await response.json().catch(() => null);
+      const currentBroadcast = data?.currentBroadcast || {};
+      const song = data?.now_playing?.song || {};
+
+      const nextUrl = String(
+        data?.streamUrl ||
+          data?.audioUrl ||
+          data?.listen_url ||
+          currentBroadcast?.audioUrl ||
+          ""
+      ).trim();
+
+      if (!nextUrl) return false;
+
+      const absoluteNextUrl = new URL(nextUrl, window.location.origin).href;
+
+      if (!audio.src || audio.src !== absoluteNextUrl) {
+        audio.src = nextUrl;
+        audio.load();
+      }
+
+      setNowPlaying(String(song?.text || currentBroadcast?.title || "Tha Core Live Mix"));
+      setListeners(String(data?.listeners?.current ?? data?.listeners?.total ?? "0"));
+
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  useEffect(() => {
+    void primeCurrentBroadcastForPlay();
+
+    const timer = window.setInterval(() => {
+      const audio = audioRef.current;
+
+      if (!audio || audio.paused) {
+        void primeCurrentBroadcastForPlay();
+      }
+    }, 5000);
+
+    return () => window.clearInterval(timer);
+  }, []);
+
   useEffect(() => {
     const saved = window.localStorage.getItem("tha-core-radio-volume");
 
@@ -327,6 +382,21 @@ try {
   }
 
   setMessage("Starting Tha Core live stream...");
+
+  if (!audio.src) {
+    await primeCurrentBroadcastForPlay();
+  }
+
+  if (audio.src) {
+    audio.volume = volume;
+    await audio.play();
+    setIsPlaying(true);
+    setMessage("Playing live");
+
+    // After audio starts, resync to backend current-broadcast.
+    void playNextSmartZjCleanTrack();
+    return;
+  }
 
   const response = await fetch(`/api/listener/now-playing?manualPublicPlay=${Date.now()}`, {
     cache: "no-store",
