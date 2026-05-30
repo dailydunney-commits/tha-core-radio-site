@@ -1843,14 +1843,14 @@ const SELECTED_DISPLAY_MEMORY_KEY = "tha-core-owner-selected-display-v1";
           cache: "no-store",
         }).catch(() => null);
 
-        await new Promise((resolve) => window.setTimeout(resolve, 800));
+        await new Promise((resolve) => window.setTimeout(resolve, 75)); // OWNER_MONITOR_FAST_AUTONEXT_V1
 
         for (let attempt = 0; attempt < 8; attempt += 1) {
           const attached = await attachOwnerMonitorFromNowPlaying("owner-monitor-ended");
 
           if (attached) return;
 
-          await new Promise((resolve) => window.setTimeout(resolve, 1500));
+          await new Promise((resolve) => window.setTimeout(resolve, 250)); // OWNER_MONITOR_FAST_AUTONEXT_V1
         }
 
         setBroadcast("paused");
