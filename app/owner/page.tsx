@@ -1890,6 +1890,63 @@ const SELECTED_DISPLAY_MEMORY_KEY = "tha-core-owner-selected-display-v1";
     setScreenTitle("PLAY ALL FOLLOWING LIVE BROADCAST");
     setScreenText(`${artist} - ${title} is playing from the current SmartZJ broadcast${itemNumber && total ? ` (${itemNumber} of ${total})` : ""}.`);
     addLog(`PLAY ALL attached owner monitor to current broadcast via ${sourceLabel}.`);
+    // OWNER_MONITOR_FOLLOW_WATCHDOG_V1
+    // Keep the owner/control-panel monitor following the backend Current Broadcast truth.
+    // If the backend moves to another clean broadcast file, or this monitor pauses/ends,
+    // reattach from /api/listener/now-playing. Do not release raw Azura fallback.
+    const ownerFollowWindow = window as Window & {
+      __thaCoreOwnerFollowTimer?: number;
+      __thaCoreOwnerFollowBusy?: boolean;
+    };
+
+    if (ownerFollowWindow.__thaCoreOwnerFollowTimer) {
+      window.clearInterval(ownerFollowWindow.__thaCoreOwnerFollowTimer);
+    }
+
+    ownerFollowWindow.__thaCoreOwnerFollowTimer = window.setInterval(() => {
+      if (ownerFollowWindow.__thaCoreOwnerFollowBusy) return;
+
+      const activeMonitor = audioRef.current;
+      if (!activeMonitor) return;
+
+      ownerFollowWindow.__thaCoreOwnerFollowBusy = true;
+
+      void (async () => {
+        try {
+          const response = await fetch(`/api/listener/now-playing?ownerFollowWatch=${Date.now()}`, {
+            cache: "no-store",
+          });
+
+          const latest = await response.json().catch(() => null);
+          const latestBroadcast = latest?.currentBroadcast || {};
+          const latestAudioUrl = String(
+            latest?.streamUrl ||
+              latest?.audioUrl ||
+              latest?.listen_url ||
+              latestBroadcast?.audioUrl ||
+              ""
+          ).trim();
+
+          if (!latestAudioUrl || !latestAudioUrl.startsWith("/audio/smartdj/clean/")) return;
+
+          const latestAbsoluteUrl = new URL(latestAudioUrl, window.location.origin).href;
+          const currentMonitorUrl = activeMonitor.currentSrc || activeMonitor.src || "";
+          const needsReattach =
+            latestAbsoluteUrl !== currentMonitorUrl ||
+            activeMonitor.paused ||
+            activeMonitor.ended ||
+            Boolean(activeMonitor.error);
+
+          if (needsReattach) {
+            await attachOwnerMonitorFromNowPlaying("owner-follow-watchdog");
+          }
+        } catch {
+          addLog("Owner follow watchdog could not check current broadcast.");
+        } finally {
+          ownerFollowWindow.__thaCoreOwnerFollowBusy = false;
+        }
+      })();
+    }, 3000);
 
     await refreshNowPlaying();
     return true;
@@ -1928,6 +1985,12 @@ const SELECTED_DISPLAY_MEMORY_KEY = "tha-core-owner-selected-display-v1";
 }
 
   async function stopBroadcast() {
+    const ownerFollowWindow = window as Window & { __thaCoreOwnerFollowTimer?: number };
+    if (ownerFollowWindow.__thaCoreOwnerFollowTimer) {
+      window.clearInterval(ownerFollowWindow.__thaCoreOwnerFollowTimer);
+      ownerFollowWindow.__thaCoreOwnerFollowTimer = undefined;
+    }
+
     const audio = audioRef.current;
     const overlayAudio = overlayAudioRef.current;
 
