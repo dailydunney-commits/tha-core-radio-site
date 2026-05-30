@@ -1814,7 +1814,7 @@ const SELECTED_DISPLAY_MEMORY_KEY = "tha-core-owner-selected-display-v1";
       // OWNER_MONITOR_LOW_LAG_V1
       // Owner/control panel is the command booth, so its monitor should feel slightly ahead,
       // while the backend current-broadcast remains the one truth listeners follow.
-      const ownerMonitorLeadSeconds = 2;
+      const ownerMonitorLeadSeconds = 8; // OWNER_MONITOR_8_SECOND_BOOTH_LEAD_V1
       let target = elapsed + ownerMonitorLeadSeconds;
 
       if (Number.isFinite(duration) && duration > 5) {
