@@ -478,21 +478,67 @@ export default function HomePage() {
   }, []);
 
   async function toggleRadio() {
-    window.dispatchEvent(new CustomEvent("tha-core-radio-toggle"));
-    setStatusText("Controlling Tha Core global radio player...");
+    const audio = document.querySelector("audio") as HTMLAudioElement | null;
+
+    if (!audio) {
+      setStatusText("Radio player is still loading. Try again.");
+      return;
+    }
+
+    try {
+      if (!audio.paused) {
+        audio.pause();
+        setIsPlaying(false);
+        setStatusText("Paused by listener.");
+        return;
+      }
+
+      // The persistent player primes this audio source in the background.
+      // If it is already loaded, play immediately from this user click.
+      if (audio.src) {
+        audio.volume = Math.max(0.75, Number(volume || 0.85));
+        await audio.play();
+        setIsPlaying(true);
+        setStatusText("Playing Tha Core live broadcast.");
+        return;
+      }
+
+      // Fallback: ask the persistent player to prepare/play.
+      window.dispatchEvent(new CustomEvent("tha-core-radio-toggle"));
+      setStatusText("Starting Tha Core global radio player...");
+    } catch (error) {
+      console.error("Homepage direct play failed:", error);
+      setIsPlaying(false);
+      setStatusText("Tap Play again or check browser sound.");
+    }
   }
 
   function stopRadio() {
+    const audio = document.querySelector("audio") as HTMLAudioElement | null;
+
+    if (audio) {
+      audio.pause();
+      audio.currentTime = 0;
+    }
+
     window.dispatchEvent(new CustomEvent("tha-core-radio-stop"));
     setIsPlaying(false);
     setStatusText("Radio stopped on this device.");
   }
 
   function changeGlobalVolume(value: number) {
-    setVolume(value);
+    const safeVolume = Math.max(0, Math.min(1, value));
+    const audio = document.querySelector("audio") as HTMLAudioElement | null;
+
+    setVolume(safeVolume);
+
+    if (audio) {
+      audio.volume = safeVolume;
+    }
+
     window.dispatchEvent(
       new CustomEvent("tha-core-radio-volume", {
-        detail: { volume: value },
+        detail: { volume: safeVolume },
       })
     );
   }
