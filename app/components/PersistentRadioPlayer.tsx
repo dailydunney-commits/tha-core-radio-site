@@ -97,7 +97,7 @@ export default function PersistentRadioPlayer() {
       }
     }
 
-    audio.volume = volume;
+    audio.volume = Math.max(0.75, Number(volume || 0));
     await audio.play();
 
     setIsPlaying(true);
@@ -193,7 +193,7 @@ export default function PersistentRadioPlayer() {
       const parsed = Number(saved);
 
       if (!Number.isNaN(parsed)) {
-        setVolume(parsed);
+        setVolume(parsed <= 0.05 ? 0.85 : parsed);
       }
     }
   }, []);
@@ -202,7 +202,7 @@ export default function PersistentRadioPlayer() {
     const audio = audioRef.current;
     if (!audio) return;
 
-    audio.volume = volume;
+    audio.volume = Math.max(0.75, Number(volume || 0));
     window.localStorage.setItem("tha-core-radio-volume", String(volume));
   }, [volume]);
 
@@ -352,7 +352,7 @@ export default function PersistentRadioPlayer() {
           }
         }
 
-        audio.volume = volume;
+        audio.volume = Math.max(0.75, Number(volume || 0));
         await audio.play();
 
         if (cancelled) return;
@@ -388,7 +388,7 @@ try {
   }
 
   if (audio.src) {
-    audio.volume = volume;
+    audio.volume = Math.max(0.75, Number(volume || 0));
     await audio.play();
     setIsPlaying(true);
     setMessage("Playing live");
@@ -427,7 +427,7 @@ try {
     audio.load();
   }
 
-  audio.volume = volume;
+  audio.volume = Math.max(0.75, Number(volume || 0));
 
   await new Promise<void>((resolve) => {
     let done = false;
