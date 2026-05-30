@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 
-const STREAM_URL = "";
 
 export default function PersistentRadioPlayer() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -400,7 +399,6 @@ function changeVolume(value: number) {
     <div style={styles.player}>
       <audio
       ref={audioRef}
-      src={STREAM_URL}
       preload="none"
     />
 
