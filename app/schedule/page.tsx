@@ -140,6 +140,12 @@ export default function SmartZjSchedulePage() {
     return Array.isArray(draft?.blocks) ? draft?.blocks : [];
   }, [draft]);
 
+  function blockTrackCount(block: AnyRecord) {
+    const lane = clean(block.primaryLane);
+    const count = Number(response?.laneCounts?.[lane] || 0);
+    return count;
+  }
+
   function updateDraft(field: string, value: any) {
     setDraft((current) => ({
       ...(current || {}),
@@ -376,6 +382,8 @@ export default function SmartZjSchedulePage() {
                 <p style={{ margin: "0 0 8px", fontWeight: 900 }}>{clean(block.name) || `Schedule Block ${index + 1}`}</p>
                 <p style={{ margin: "0 0 6px", color: "#ccc" }}>Time: {clean(block.start)} - {clean(block.end)}</p>
                 <p style={{ margin: "0 0 6px", color: "#ccc" }}>Lane: {clean(block.primaryLane)}</p>
+                <p style={{ margin: "0 0 6px", color: "#ccc" }}>Tracks: {blockTrackCount(block)}</p>
+                <p style={{ margin: "0 0 6px", color: "#ccc" }}>Duration: pending length scan</p>
                 <p style={{ margin: "0 0 6px", color: "#ccc" }}>Playback: {clean(block.playbackOrder || "shuffled")}</p>
                 <p style={{ margin: "0 0 6px", color: "#ccc" }}>Priority: {Number(block.priority || 5)}</p>
                 <p style={{ margin: 0, color: "#ccc" }}>Days: {joinLanes(block.days)}</p>
