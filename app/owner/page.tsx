@@ -2331,6 +2331,17 @@ const SELECTED_DISPLAY_MEMORY_KEY = "tha-core-owner-selected-display-v1";
               <a href="/schedule">Schedule Editor</a>
               <a href="/owner?panel=smartzj-clean-bleep">Clean / Bleep Tracks</a>
               <a href="/owner?panel=audio-safety">Audio Safety Center</a>
+              {footerTools
+                .filter((tool) => tool.label !== "Schedule")
+                .map((tool) => (
+                  <a
+                    key={`owner-menu-${tool.label}`}
+                    href={tool.href}
+                    onClick={() => selectTool(tool)}
+                  >
+                    {tool.label}
+                  </a>
+                ))}
             </div>
           </details>
           <PanelHeading left="Central Control Log" right="Above Studio" />
@@ -2625,25 +2636,10 @@ const SELECTED_DISPLAY_MEMORY_KEY = "tha-core-owner-selected-display-v1";
         </section>
 
         <footer className="footer-dock panel">
-          <PanelHeading left="Footer Control Dock" right={"Blog \u2022 News \u2022 Weather \u2022 Store \u2022 Community Chat"} />
+          <PanelHeading left="Footer Control Dock" right={"SmartDJ Command \u2022 Playlist \u2022 Safety"} />
             <OwnerSmartDjCommand />
               <SmartDjControlPlaylist />
       <SmartDjSafetyQueuePanel />
-
-
-          <div className="footer-grid">
-            {footerTools.map((tool) => (
-              <a
-                key={tool.label}
-                href={tool.href}
-                onClick={() => selectTool(tool)}
-                className={`footer-tool ${tool.color}`}
-              >
-                <strong>{tool.label}</strong>
-                <span>{tool.note}</span>
-              </a>
-            ))}
-          </div>
         </footer>
       </section>
 
