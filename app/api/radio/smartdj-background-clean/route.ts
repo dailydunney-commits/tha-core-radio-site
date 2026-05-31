@@ -213,6 +213,59 @@ function smartZjText(value: unknown) {
   return String(value ?? "").trim();
 }
 
+// SMARTZJ_LANE_FALLBACK_FROM_ID_URL_V1
+function deriveSmartZjLaneFromIdOrUrl(track: AnyRecord) {
+  const direct = smartZjText(
+    track.genreLane ||
+      track.genre ||
+      track.lane ||
+      track.folder ||
+      track.target
+  );
+
+  if (direct && direct.toLowerCase() !== "unknown" && normalizeLane(direct) !== "all") {
+    return direct;
+  }
+
+  const pathValues = [
+    track.id,
+    track.trackId,
+    track.azuraRelativePath,
+    track.sourceFilePath,
+    track.localAudioPath,
+  ];
+
+  for (const value of pathValues) {
+    const text = smartZjText(value).replace(/\\/g, "/");
+    const first = text.split("/").map((part) => part.trim()).filter(Boolean)[0] || "";
+
+    if (
+      first &&
+      !["audio", "public", "home", "var", "tmp", "mnt", "data"].includes(first.toLowerCase())
+    ) {
+      return first;
+    }
+  }
+
+  const urlValues = [
+    track.audioUrl,
+    track.cleanAudioUrl,
+    track.processedAudioUrl,
+    track.streamUrl,
+    track.listen_url,
+  ];
+
+  for (const value of urlValues) {
+    const text = smartZjText(value);
+    const match = text.match(/smartdj-local-clean-([^_\/]+)_/i);
+    if (match?.[1]) {
+      return match[1];
+    }
+  }
+
+  return "";
+}
+
 function inferSmartZjGenreLane(track: AnyRecord, target: string) {
   const combined = [
     track.genreLane,
@@ -237,7 +290,15 @@ function inferSmartZjGenreLane(track: AnyRecord, target: string) {
   if (combined.includes("dancehall")) return "Dancehall";
   if (combined.includes("reggae")) return "Reggae";
 
-  return smartZjText(track.genreLane || target || "SmartZJ Clean Mix");
+  return smartZjText(
+    track.genreLane ||
+      track.genre ||
+      track.lane ||
+      track.folder ||
+      deriveSmartZjLaneFromIdOrUrl(track) ||
+      (isOpenCleanTarget(target) ? "" : target) ||
+      "SmartZJ Clean Mix"
+  );
 }
 
 function appendReadyToSmartZjLivePool(track: AnyRecord, result: AnyRecord, target: string) {
@@ -259,6 +320,8 @@ function appendReadyToSmartZjLivePool(track: AnyRecord, result: AnyRecord, targe
     artist: smartZjText(track.artist || result.artist || "AzuraCast"),
     source: "SMARTZJ_LIVE_READY_POOL",
     genreLane,
+    lane: genreLane,
+    folder: genreLane,
     audioUrl: cleanAudioUrl,
     streamUrl: cleanAudioUrl,
     listen_url: cleanAudioUrl,

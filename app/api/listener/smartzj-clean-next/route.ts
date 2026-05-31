@@ -775,6 +775,59 @@ function rememberSmartZjFreshFirstPlay(track: AnyTrack, cleanTracks: AnyTrack[])
 }
 
 
+// SMARTZJ_LANE_FALLBACK_FROM_ID_URL_V1
+function deriveSmartZjLaneFromIdOrUrl(track: AnyTrack) {
+  const direct = cleanText(
+    track.genreLane ||
+      track.genre ||
+      track.lane ||
+      track.folder ||
+      track.target
+  );
+
+  if (direct && direct.toLowerCase() !== "unknown" && laneKey(direct) !== "all") {
+    return canonicalSmartZjLane(direct);
+  }
+
+  const pathValues = [
+    track.id,
+    track.trackId,
+    track.azuraRelativePath,
+    track.sourceFilePath,
+    track.localAudioPath,
+  ];
+
+  for (const value of pathValues) {
+    const text = cleanText(value).replace(/\\/g, "/");
+    const first = text.split("/").map((part) => part.trim()).filter(Boolean)[0] || "";
+
+    if (
+      first &&
+      !["audio", "public", "home", "var", "tmp", "mnt", "data"].includes(first.toLowerCase())
+    ) {
+      return canonicalSmartZjLane(first);
+    }
+  }
+
+  const urlValues = [
+    track.audioUrl,
+    track.cleanAudioUrl,
+    track.processedAudioUrl,
+    track.streamUrl,
+    track.listen_url,
+  ];
+
+  for (const value of urlValues) {
+    const text = cleanText(value);
+    const match = text.match(/smartdj-local-clean-([^_\/]+)_/i);
+    if (match?.[1]) {
+      return canonicalSmartZjLane(match[1]);
+    }
+  }
+
+  return "";
+}
+
 // SMARTZJ_GENRE_LANE_OUTPUT_V1
 function getSmartZjGenreLane(track: AnyTrack) {
   const combined = [
@@ -800,7 +853,14 @@ function getSmartZjGenreLane(track: AnyTrack) {
   if (combined.includes("reggae")) return "Reggae";
   if (combined.includes("jingles")) return "Jingles";
 
-  return cleanText(track.genreLane || track.genre || track.lane || "SmartZJ Clean Mix");
+  return cleanText(
+    track.genreLane ||
+      track.genre ||
+      track.lane ||
+      track.folder ||
+      deriveSmartZjLaneFromIdOrUrl(track) ||
+      "SmartZJ Clean Mix"
+  );
 }
 
 async function runMiniAutoNext(req?: NextRequest) {
