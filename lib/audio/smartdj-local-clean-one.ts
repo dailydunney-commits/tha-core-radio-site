@@ -49,11 +49,30 @@ function looksLikeSmartDjTrack(value: any) {
   if (!value || typeof value !== "object") return false;
 
   const hasIdentity = Boolean(value.id || value.trackId || value.title);
-  const hasAudio = Boolean(value.audioUrl || value.url || value.streamUrl || value.rawUrl);
+  // SMARTZJ_LOCAL_SOURCE_ROW_WRITEBACK_MATCH_V1
+  // Scanned Azura/SmartZJ rows may have no public audioUrl yet.
+  // They are still real rows if they have sourceFilePath/localAudioPath.
+  const hasAudio = Boolean(
+    value.audioUrl ||
+      value.url ||
+      value.streamUrl ||
+      value.rawUrl ||
+      value.cleanAudioUrl ||
+      value.processedAudioUrl ||
+      value.safeAudioUrl ||
+      value.radioSafeAudioUrl ||
+      value.sourceFilePath ||
+      value.localAudioPath ||
+      value.sourcePath
+  );
+
   const isSmartDjish =
     String(value.source || "").toLowerCase().includes("azuracast") ||
     String(value.source || "").toLowerCase().includes("smartdj") ||
-    String(value.action || "").toLowerCase().includes("playlist_track");
+    String(value.source || "").toLowerCase().includes("smartzj") ||
+    String(value.action || "").toLowerCase().includes("playlist_track") ||
+    String(value.cleanStatus || "").toUpperCase() === "LOCAL_SOURCE_ATTACHED" ||
+    Boolean(value.sourceFilePath || value.localAudioPath || value.sourcePath);
 
   return hasIdentity && hasAudio && isSmartDjish;
 }
