@@ -308,7 +308,7 @@ async function runRotationLoop(options: AnyRecord) {
   const limit = Math.max(1, Math.min(Number(options.limit || 25), 25));
   const maxScan = Math.max(100, Math.min(Number(options.maxScan || 20000), 100000));
   const cleanerTimeoutMs = Math.max(30000, Number(options.cleanerTimeoutMs || 30 * 60 * 1000));
-  const targetReadyPerLane = Math.max(1, Math.min(Number(options.targetReadyPerLane || 200), 1000));
+  const targetReadyPerLane = Math.max(1, Math.min(Number(options.targetReadyPerLane || 350), 1000));
   const maxStockPasses = Math.max(1, Math.min(Number(options.maxStockPasses || 10), 50));
 
   running = true;
@@ -560,7 +560,7 @@ export async function POST(req: NextRequest) {
     status: "STARTED",
     action: "SMARTZJ_FOLDER_ROTATION_BRAIN",
     limit: Math.max(1, Math.min(Number(body.limit || 25), 25)),
-    targetReadyPerLane: Math.max(1, Math.min(Number(body.targetReadyPerLane || 200), 1000)),
+    targetReadyPerLane: Math.max(1, Math.min(Number(body.targetReadyPerLane || 350), 1000)),
     maxFolders: Number(body.maxFolders || 0) || "ALL_FOLDERS",
     message: "SmartZJ stock feeder started. It will clean/bleep 25 per folder/lane and keep rotating until each lane reaches the target READY count.",
   }, {
