@@ -17,29 +17,6 @@ const LANES = [
 
 const DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 
-const MENU_ITEMS = [
-  {
-    label: "Schedule Editor",
-    href: "/schedule",
-    note: "Edit SmartZJ time blocks and lanes.",
-  },
-  {
-    label: "Clean / Bleep Tracks",
-    href: "/owner?panel=smartzj-clean-bleep",
-    note: "Manage processed clean and bleeped tracks.",
-  },
-  {
-    label: "Audio Safety Center",
-    href: "/owner?panel=audio-safety",
-    note: "Review safety gate, held tracks, and clean approval.",
-  },
-  {
-    label: "Owner Control Panel",
-    href: "/owner",
-    note: "Return to the main broadcast command brain.",
-  },
-];
-
 function clean(value: unknown) {
   return String(value ?? "").trim();
 }
@@ -277,27 +254,6 @@ export default function SmartZjSchedulePage() {
           </button>
         </div>
       </section>
-
-      {/* SCHEDULE_EDITOR_MENU_V1 */}
-      <section style={menuSectionStyle}>
-        <div>
-          <p style={eyebrowStyle}>Menu</p>
-          <h2 style={headingStyle}>Control Pages</h2>
-          <p style={mutedStyle}>
-            Schedule, Clean/Bleep, and Safety each have their own button. The schedule page stays focused on editing time blocks.
-          </p>
-        </div>
-
-        <div style={menuGridStyle}>
-          {MENU_ITEMS.map((item) => (
-            <a key={item.href} href={item.href} style={menuButtonStyle}>
-              <strong>{item.label}</strong>
-              <span>{item.note}</span>
-            </a>
-          ))}
-        </div>
-      </section>
-
       <section style={gridStyle}>
         <div style={cardStyle}>
           <h2 style={headingStyle}>Active Block</h2>
@@ -462,9 +418,6 @@ const eyebrowStyle = { color: "#ffcc66", fontWeight: 900, letterSpacing: "0.18em
 const titleStyle = { fontSize: "42px", margin: "8px 0" };
 const mutedStyle = { color: "#cfcfcf", maxWidth: "920px" };
 const statusStyle = { color: "#ffdd88", fontWeight: 900 };
-const menuSectionStyle = { border: "1px solid rgba(255,255,255,0.12)", borderRadius: "18px", padding: "18px", background: "rgba(255,255,255,0.04)", marginBottom: "22px" };
-const menuGridStyle = { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px", marginTop: "14px" };
-const menuButtonStyle = { display: "grid", gap: "6px", border: "1px solid rgba(255,255,255,0.16)", borderRadius: "14px", padding: "14px", background: "#130000", color: "#fff", textDecoration: "none", boxShadow: "0 0 18px rgba(255,0,0,0.16)" };
 const gridStyle = { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "18px", marginBottom: "22px" };
 const cardStyle = { border: "1px solid rgba(255,255,255,0.12)", borderRadius: "18px", padding: "18px", background: "rgba(255,255,255,0.055)" };
 const headingStyle = { margin: "0 0 12px", color: "#ffdddd" };

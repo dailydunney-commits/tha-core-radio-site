@@ -181,6 +181,7 @@ export default function HomePage() {
   const [volume, setVolume] = useState(0.8);
   const [statusText, setStatusText] = useState("Connecting to Tha Core...");
   const [showShoutout, setShowShoutout] = useState(false);
+  const [controlMenuOpen, setControlMenuOpen] = useState(false);
   // HOME_USES_GLOBAL_PUBLIC_AUDIO_ENGINE_V1
   // Homepage controls the global PersistentRadioPlayer audio engine.
   useEffect(() => {
@@ -721,6 +722,44 @@ export default function HomePage() {
               />
             </label>
           </div>
+        {/* HOME_CONTROL_MENU_V1 */}
+        <section style={styles.controlMenu}>
+          <div style={styles.controlMenuHeader}>
+            <div>
+              <p style={styles.kickerGold}>CONTROL MENU</p>
+              <h2 style={styles.sectionTitle}>Tha Core Command Pages</h2>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setControlMenuOpen((open) => !open)}
+              style={styles.darkButton}
+            >
+              {controlMenuOpen ? "Close Menu" : "Open Menu"}
+            </button>
+          </div>
+
+          {controlMenuOpen ? (
+            <div style={styles.controlMenuGrid}>
+              <a href="/schedule" style={styles.controlMenuButton}>
+                <strong>Schedule Editor</strong>
+                <span>Edit SmartZJ time blocks and lanes.</span>
+              </a>
+              <a href="/owner?panel=smartzj-clean-bleep" style={styles.controlMenuButton}>
+                <strong>Clean / Bleep Tracks</strong>
+                <span>Manage clean and bleeped SmartZJ tracks.</span>
+              </a>
+              <a href="/owner?panel=audio-safety" style={styles.controlMenuButton}>
+                <strong>Audio Safety Center</strong>
+                <span>Review safety gate, held tracks, and clean approval.</span>
+              </a>
+              <a href="/owner" style={styles.controlMenuButton}>
+                <strong>Owner Control Panel</strong>
+                <span>Main broadcast command brain.</span>
+              </a>
+            </div>
+          ) : null}
+        </section>
         {showShoutout ? (
           <section style={styles.shoutoutBox}>
             <div>
@@ -1210,6 +1249,42 @@ const styles: Record<string, CSSProperties> = {
     accentColor: "#ffdf2e",
   },
 
+  controlMenu: {
+    marginTop: "18px",
+    marginBottom: "18px",
+    border: "1px solid rgba(255,255,255,0.12)",
+    borderRadius: "22px",
+    padding: "18px",
+    background: "rgba(0,0,0,0.72)",
+    boxShadow: "0 0 28px rgba(255,0,0,0.15)",
+  },
+
+  controlMenuHeader: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: "14px",
+    flexWrap: "wrap",
+  },
+
+  controlMenuGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+    gap: "12px",
+    marginTop: "14px",
+  },
+
+  controlMenuButton: {
+    display: "grid",
+    gap: "6px",
+    border: "1px solid rgba(255,255,255,0.16)",
+    borderRadius: "14px",
+    padding: "14px",
+    background: "#170000",
+    color: "#fff",
+    textDecoration: "none",
+    boxShadow: "0 0 18px rgba(255,0,0,0.16)",
+  },
   shoutoutBox: {
     marginTop: "22px",
     borderRadius: "26px",
