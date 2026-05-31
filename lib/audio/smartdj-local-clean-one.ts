@@ -500,7 +500,8 @@ export async function runSmartDjLocalCleanOne(body: AnyRecord) {
   // Mark the row for SmartDJ second scan and flash detector light in owner panel.
   if (
     processed?.status === "SMARTDJ_SECOND_SCAN_RECOMMENDED" ||
-    processed?.status === "LOCAL_TRANSCRIBED_NO_EXPLICIT_CUES_REVIEW_REQUIRED"
+    processed?.status === "LOCAL_TRANSCRIBED_NO_EXPLICIT_CUES_REVIEW_REQUIRED" ||
+    processed?.status === "LOCAL_WHISPER_NO_WORD_TIMESTAMPS"
   ) {
     // SMARTDJ_NO_CUE_VERIFIED_CLEAN_RETURN_V1
     // No raw Azura release. If no blocked terms are found, make a safe copied file and return it to the row.
@@ -542,6 +543,50 @@ export async function runSmartDjLocalCleanOne(body: AnyRecord) {
         processed?.localWhisperResult?.text ||
         ""
     );
+
+    // SMARTZJ_NO_WORD_TIMESTAMPS_REQUIRE_TRANSCRIPT_V1
+    // If Whisper failed word timestamps and also gave no transcript, keep the track held.
+    // We never approve raw/uncertain audio without readable transcript text.
+    if (processed?.status === "LOCAL_WHISPER_NO_WORD_TIMESTAMPS" && !transcriptText.trim()) {
+      const heldState = updateMatchingTrack(
+        safeJsonRead(SMARTDJ_STATE_FILE, state),
+        (track) => trackMatches(track, originalTrackId),
+        (track) => ({
+          ...track,
+          trackId: originalTrackId,
+          bleepJobId: jobId,
+          status: "HELD",
+          safetyStatus: "HELD",
+          cleanStatus: "LOCAL_WHISPER_NO_WORD_TIMESTAMPS",
+          needsBleep: true,
+          held: true,
+          rawAudioBlocked: true,
+          rawAudioUrl: originalAudioUrl,
+          audioUrl: "",
+          cleanAudioUrl: "",
+          processedAudioUrl: "",
+          safetyNote:
+            "Local Whisper returned no usable word timestamps and no readable transcript. Track remains held. Raw audio blocked.",
+        })
+      );
+
+      safeJsonWrite(SMARTDJ_STATE_FILE, heldState);
+
+      return {
+        ...processed,
+        ok: false,
+        jobId,
+        status: "LOCAL_WHISPER_NO_WORD_TIMESTAMPS",
+        decision: "KEEP_HELD_NO_TRANSCRIPT",
+        message:
+          "Local Whisper returned no usable word timestamps and no readable transcript. Track remains held. Raw audio blocked.",
+        returnedToSmartDj: false,
+        returnedToLiveReadyPool: false,
+        selectedTrackId: originalTrackId,
+        selectedTitle: targetTrack.title || originalTrackId,
+        sourceSizeBytes: downloadResult.sizeBytes,
+      };
+    }
 
     const normalizedTranscript = transcriptText.toLowerCase().replace(/[^a-z0-9]+/g, "");
     const blockedHit = blockedTerms.find((term) =>
