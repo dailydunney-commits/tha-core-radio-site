@@ -79,7 +79,7 @@ function internalBaseUrl() {
   return String(process.env.SMARTZJ_INTERNAL_BASE_URL || "http://127.0.0.1:3101").replace(/\/+$/, "");
 }
 
-async function getScheduleSelectedLane() {
+async function getSchedulePolicy() {
   try {
     const res = await fetch(`${internalBaseUrl()}/api/radio/smartzj-schedule`, {
       method: "GET",
@@ -88,9 +88,35 @@ async function getScheduleSelectedLane() {
     });
 
     const data = await res.json();
-    const lane = canonicalSmartZjLane(data?.selectedLane || data?.activeBlock?.selectedLane || "");
 
-    return lane || "";
+    return {
+      ok: Boolean(data?.ok),
+      selectedLane: canonicalSmartZjLane(data?.selectedLane || data?.activeBlock?.selectedLane || ""),
+      scheduleOverrideActive: Boolean(data?.scheduleOverrideActive || data?.activeBlock?.interruptBroadcast),
+      requestPriorityBlocked: Boolean(data?.requestPriorityBlocked || data?.activeBlock?.prioritizeOverRequests),
+      interruptBroadcast: Boolean(data?.interruptBroadcast || data?.activeBlock?.interruptBroadcast),
+      prioritizeOverRequests: Boolean(data?.prioritizeOverRequests || data?.activeBlock?.prioritizeOverRequests),
+      activeBlockId: cleanText(data?.activeBlock?.id || ""),
+      activeBlockName: cleanText(data?.activeBlock?.name || ""),
+    };
+  } catch {
+    return {
+      ok: false,
+      selectedLane: "",
+      scheduleOverrideActive: false,
+      requestPriorityBlocked: false,
+      interruptBroadcast: false,
+      prioritizeOverRequests: false,
+      activeBlockId: "",
+      activeBlockName: "",
+    };
+  }
+}
+
+async function getScheduleSelectedLane() {
+  try {
+    const policy = await getSchedulePolicy();
+    return policy.selectedLane || "";
   } catch {
     return "";
   }
@@ -866,6 +892,7 @@ function getSmartZjGenreLane(track: AnyTrack) {
 async function runMiniAutoNext(req?: NextRequest) {
   const allCleanTracks = readSmartTracks();
   const requestedLane = await getRequestedLane(req);
+  const schedulePolicy = requestedLane ? await getSchedulePolicy() : null;
 
   const laneCleanTracks = requestedLane
     ? allCleanTracks.filter((track) => trackMatchesLane(track, requestedLane))
@@ -942,7 +969,10 @@ async function runMiniAutoNext(req?: NextRequest) {
       requestedLane,
       laneLocked: Boolean(requestedLane),
       skippedMissingAudioCount,
+      scheduleOverrideActive: Boolean(schedulePolicy?.scheduleOverrideActive),
+      requestPriorityBlocked: Boolean(schedulePolicy?.requestPriorityBlocked),
     },
+    schedulePolicy: schedulePolicy || null,
     track: {
       ...track,
       genreLane,

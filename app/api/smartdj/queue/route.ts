@@ -106,6 +106,41 @@ function getAzuraStationId(): string {
   );
 }
 
+async function getActiveScheduleRequestPolicy() {
+  try {
+    const base =
+      process.env.NEXT_PUBLIC_SITE_URL ||
+      process.env.SITE_URL ||
+      "http://127.0.0.1:3101";
+
+    const res = await fetch(`${base}/api/radio/smartzj-schedule`, {
+      method: "GET",
+      cache: "no-store",
+      headers: { "Cache-Control": "no-store" },
+    });
+
+    const data = await res.json();
+
+    return {
+      ok: Boolean(data?.ok),
+      active: Boolean(data?.activeBlock),
+      activeBlockId: String(data?.activeBlock?.id || ""),
+      activeBlockName: String(data?.activeBlock?.name || ""),
+      prioritizeOverRequests: Boolean(data?.prioritizeOverRequests || data?.activeBlock?.prioritizeOverRequests),
+      interruptBroadcast: Boolean(data?.interruptBroadcast || data?.activeBlock?.interruptBroadcast),
+    };
+  } catch {
+    return {
+      ok: false,
+      active: false,
+      activeBlockId: "",
+      activeBlockName: "",
+      prioritizeOverRequests: false,
+      interruptBroadcast: false,
+    };
+  }
+}
+
 async function trySendToAzuraCastRequest(track: SmartDJTrack) {
   const enabled = process.env.SMARTDJ_SEND_TO_AZURACAST_REQUESTS === "true";
 
