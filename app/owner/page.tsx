@@ -2328,7 +2328,6 @@ const SELECTED_DISPLAY_MEMORY_KEY = "tha-core-owner-selected-display-v1";
           <details className="owner-admin-menu">
             <summary>OWNER MENU</summary>
             <div className="owner-admin-menu-grid">
-              <a href="/owner">Owner Control Panel</a>
               <a href="/schedule">Schedule Editor</a>
               <a href="/owner?panel=smartzj-clean-bleep">Clean / Bleep Tracks</a>
               <a href="/owner?panel=audio-safety">Audio Safety Center</a>
