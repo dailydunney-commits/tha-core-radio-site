@@ -1540,6 +1540,12 @@ const SELECTED_DISPLAY_MEMORY_KEY = "tha-core-owner-selected-display-v1";
   const isCue = broadcast === "cue";
   const visiblePads = pads.filter((pad) => pad.mode === selectedMode);
   const currentDjMode: DjMode = smartDj ? "SMARTDJ" : liveDj ? "LIVEDJ" : "AUTODJ";
+  const activeOwnerPanel =
+    typeof window !== "undefined"
+      ? new URLSearchParams(window.location.search).get("panel") || "main"
+      : "main";
+  const showCleanBleepPanel = activeOwnerPanel === "smartzj-clean-bleep";
+  const showAudioSafetyPanel = activeOwnerPanel === "audio-safety";
 
   const broadcastLabel = useMemo(() => {
     if (broadcast === "live" && liveDj) return "LIVE DJ ON AIR";
@@ -2321,7 +2327,12 @@ const SELECTED_DISPLAY_MEMORY_KEY = "tha-core-owner-selected-display-v1";
           <StatusCard label="Monitor" value={monitorOn ? "ON" : "MUTED"} tone={monitorOn ? "green" : "red"} />
         </section>
 
-        <AudioSafetyCenterPanel />
+        {showAudioSafetyPanel ? (
+          <section className="owner-panel-focus panel">
+            <PanelHeading left="Audio Safety Center" right="Held • Clean/Bleep Jobs • Safe Queue" />
+            <AudioSafetyCenterPanel />
+          </section>
+        ) : null}
 
       <section className="central-log">
           {/* OWNER_ADMIN_MENU_V1 */}
@@ -2636,10 +2647,17 @@ const SELECTED_DISPLAY_MEMORY_KEY = "tha-core-owner-selected-display-v1";
         </section>
 
         <footer className="footer-dock panel">
-          <PanelHeading left="Footer Control Dock" right={"SmartDJ Command \u2022 Playlist \u2022 Safety"} />
+          <PanelHeading
+            left={showCleanBleepPanel ? "Clean / Bleep Tracks" : "SmartDJ Command"}
+            right={showCleanBleepPanel ? "Playlist • Bleep Check • Safety Queue" : "Main command input"}
+          />
             <OwnerSmartDjCommand />
-              <SmartDjControlPlaylist />
-      <SmartDjSafetyQueuePanel />
+            {showCleanBleepPanel ? (
+              <>
+                <SmartDjControlPlaylist />
+                <SmartDjSafetyQueuePanel />
+              </>
+            ) : null}
         </footer>
       </section>
 
