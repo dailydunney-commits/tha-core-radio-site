@@ -12,6 +12,8 @@ const LANES = [
   "Dancehall",
   "Ole-School-Dancehall",
   "Hip-Hop",
+  "Jingles",
+  "Test-Jingles",
   "ANY_READY_LANE",
 ];
 
