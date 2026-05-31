@@ -43,6 +43,12 @@ function normalizeBlock(block: AnyRecord, index: number) {
     end: clean(block.end) || "01:00",
     primaryLane: clean(block.primaryLane || block.lane || block.genreLane || "Fresh-Dancehall"),
     fallbackLanes: splitLanes(block.fallbackLanes || []),
+    // SMARTZJ_BLOCK_REPEAT_GUARDS_EDITOR_V1
+    startDate: clean(block.startDate || ""),
+    endDate: clean(block.endDate || ""),
+    priority: Number(block.priority || 5),
+    noRepeatArtistCount: Number(block.noRepeatArtistCount || 5),
+    noRepeatTitleCount: Number(block.noRepeatTitleCount || 10),
   };
 }
 
@@ -57,6 +63,11 @@ function makeNewBlock(index: number) {
       end: "13:00",
       primaryLane: "Fresh-Dancehall",
       fallbackLanes: ["Dancehall", "Reggae", "R-n-B"],
+      startDate: "",
+      endDate: "",
+      priority: 5,
+      noRepeatArtistCount: 5,
+      noRepeatTitleCount: 10,
     },
     index
   );
@@ -316,6 +327,7 @@ export default function SmartZjSchedulePage() {
             <div style={blockTopStyle}>
               <strong>#{index + 1}</strong>
               <div style={smallButtonRowStyle}>
+                <button style={smallButtonStyle} onClick={() => saveSchedule()} disabled={saving}>Save This Block</button>
                 <button style={smallButtonStyle} onClick={() => duplicateBlock(index)}>Duplicate</button>
                 <button style={smallDangerStyle} onClick={() => deleteBlock(index)}>Delete</button>
               </div>
@@ -338,6 +350,66 @@ export default function SmartZjSchedulePage() {
                 onChange={(event: ChangeEvent<HTMLInputElement>) => updateBlock(index, { id: event.target.value })}
               />
             </label>
+            <div style={twoColStyle}>
+              <label style={labelStyle}>
+                <span>Start Date</span>
+                <input
+                  style={inputStyle}
+                  type="date"
+                  value={clean(block.startDate)}
+                  onChange={(event: ChangeEvent<HTMLInputElement>) => updateBlock(index, { startDate: event.target.value })}
+                />
+              </label>
+
+              <label style={labelStyle}>
+                <span>End Date</span>
+                <input
+                  style={inputStyle}
+                  type="date"
+                  value={clean(block.endDate)}
+                  onChange={(event: ChangeEvent<HTMLInputElement>) => updateBlock(index, { endDate: event.target.value })}
+                />
+              </label>
+            </div>
+
+            <div style={twoColStyle}>
+              <label style={labelStyle}>
+                <span>Priority Level</span>
+                <input
+                  style={inputStyle}
+                  type="number"
+                  min="1"
+                  max="100"
+                  value={Number(block.priority || 5)}
+                  onChange={(event: ChangeEvent<HTMLInputElement>) => updateBlock(index, { priority: Number(event.target.value || 5) })}
+                />
+              </label>
+
+              <label style={labelStyle}>
+                <span>No Same Artist Last X Plays</span>
+                <input
+                  style={inputStyle}
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={Number(block.noRepeatArtistCount || 5)}
+                  onChange={(event: ChangeEvent<HTMLInputElement>) => updateBlock(index, { noRepeatArtistCount: Number(event.target.value || 0) })}
+                />
+              </label>
+            </div>
+
+            <label style={labelStyle}>
+              <span>No Same Song/Title Last X Plays</span>
+              <input
+                style={inputStyle}
+                type="number"
+                min="0"
+                max="200"
+                value={Number(block.noRepeatTitleCount || 10)}
+                onChange={(event: ChangeEvent<HTMLInputElement>) => updateBlock(index, { noRepeatTitleCount: Number(event.target.value || 0) })}
+              />
+            </label>
+
 
             <div style={twoColStyle}>
               <label style={labelStyle}>
