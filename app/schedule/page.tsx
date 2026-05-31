@@ -70,6 +70,8 @@ function normalizeBlock(block: AnyRecord, index: number) {
     priority: Number(block.priority || 5),
     noRepeatArtistCount: Number(block.noRepeatArtistCount || 5),
     noRepeatTitleCount: Number(block.noRepeatTitleCount || 10),
+    interruptBroadcast: Boolean(block.interruptBroadcast),
+    prioritizeOverRequests: Boolean(block.prioritizeOverRequests),
   };
 }
 
@@ -90,6 +92,8 @@ function makeNewBlock(index: number) {
       priority: 5,
       noRepeatArtistCount: 5,
       noRepeatTitleCount: 10,
+      interruptBroadcast: false,
+      prioritizeOverRequests: false,
     },
     index
   );
@@ -525,6 +529,28 @@ export default function SmartZjSchedulePage() {
                 onChange={(event: ChangeEvent<HTMLInputElement>) => updateBlock(index, { fallbackLanes: splitLanes(event.target.value) })}
               />
             </label>
+
+            <div style={{ border: "1px solid rgba(255,255,255,0.14)", borderRadius: "12px", padding: "12px", background: "#0d0d0d", display: "grid", gap: "10px" }}>
+              <label style={{ display: "flex", alignItems: "center", gap: "10px", fontWeight: 800 }}>
+                <input
+                  type="checkbox"
+                  checked={Boolean(block.interruptBroadcast)}
+                  onChange={(event: ChangeEvent<HTMLInputElement>) => updateBlock(index, { interruptBroadcast: event.target.checked })}
+                  style={{ width: "16px", height: "16px" }}
+                />
+                <span>Interrupt Other Broadcast To Play</span>
+              </label>
+
+              <label style={{ display: "flex", alignItems: "center", gap: "10px", fontWeight: 800 }}>
+                <input
+                  type="checkbox"
+                  checked={Boolean(block.prioritizeOverRequests)}
+                  onChange={(event: ChangeEvent<HTMLInputElement>) => updateBlock(index, { prioritizeOverRequests: event.target.checked })}
+                  style={{ width: "16px", height: "16px" }}
+                />
+                <span>Prioritize Over Listener Requests</span>
+              </label>
+            </div>
 
             <label style={labelStyle}>
               <span>Days</span>
