@@ -371,8 +371,117 @@ function blockMatchesTime(block: AnyRecord, now: AnyRecord) {
 
 function getActiveBlock(schedule: AnyRecord, now: AnyRecord) {
   const blocks = Array.isArray(schedule.blocks) ? schedule.blocks : [];
-  return blocks.find((block: AnyRecord) => blockMatchesTime(block, now)) || null;
+
+  function cleanValue(value: unknown) {
+    return String(value ?? "").trim();
+  }
+
+  function toMinutes(value: unknown) {
+    const text = cleanValue(value);
+    const match = text.match(/^(\d{1,2}):(\d{2})/);
+    if (!match) return -1;
+
+    const hour = Math.max(0, Math.min(23, Number(match[1])));
+    const minute = Math.max(0, Math.min(59, Number(match[2])));
+
+    return hour * 60 + minute;
+  }
+
+  function currentMinutes() {
+    const direct =
+      Number(now?.minuteOfDay) ||
+      Number(now?.minutesOfDay) ||
+      Number(now?.minutes);
+
+    if (Number.isFinite(direct) && direct >= 0) return direct;
+
+    const hour = Number(now?.hour);
+    const minute = Number(now?.minute);
+
+    if (Number.isFinite(hour) && Number.isFinite(minute)) {
+      return hour * 60 + minute;
+    }
+
+    return toMinutes(now?.time || now?.hhmm || now?.clock);
+  }
+
+  function currentDayKey() {
+    return cleanValue(
+      now?.dayKey ||
+        now?.day ||
+        now?.weekday ||
+        now?.shortDay ||
+        ""
+    )
+      .toLowerCase()
+      .slice(0, 3);
+  }
+
+  function dayMatches(block: AnyRecord) {
+    const days = Array.isArray(block?.days) ? block.days : [];
+    if (!days.length) return true;
+
+    const today = currentDayKey();
+    if (!today) return true;
+
+    return days
+      .map((day: unknown) => cleanValue(day).toLowerCase().slice(0, 3))
+      .includes(today);
+  }
+
+  function isActive(block: AnyRecord) {
+    const start = toMinutes(block?.start);
+    const end = toMinutes(block?.end);
+    const current = currentMinutes();
+
+    // SMARTZJ_IGNORE_ZERO_LENGTH_SCHEDULE_BLOCK_V1
+    // A 00:00-00:00 or same-start/end block is a draft/empty block, not an all-day hijack.
+    if (start < 0 || end < 0 || current < 0 || start === end) return false;
+    if (!dayMatches(block)) return false;
+
+    if (start < end) {
+      return current >= start && current < end;
+    }
+
+    // Overnight block, example 22:00-05:00.
+    return current >= start || current < end;
+  }
+
+  function durationMinutes(block: AnyRecord) {
+    const start = toMinutes(block?.start);
+    const end = toMinutes(block?.end);
+    if (start < 0 || end < 0 || start === end) return 99999;
+    return start < end ? end - start : 1440 - start + end;
+  }
+
+  const activeBlocks = blocks.filter((block: AnyRecord) => isActive(block));
+
+  activeBlocks.sort((a: AnyRecord, b: AnyRecord) => {
+    const priorityA = Number(a?.priority || 5);
+    const priorityB = Number(b?.priority || 5);
+
+    if (priorityA !== priorityB) return priorityB - priorityA;
+
+    // Same priority: more specific/shorter block wins over broad blocks.
+    const durationA = durationMinutes(a);
+    const durationB = durationMinutes(b);
+
+    if (durationA !== durationB) return durationA - durationB;
+
+    return toMinutes(b?.start) - toMinutes(a?.start);
+  });
+
+  const selected = activeBlocks[0] || null;
+
+  if (!selected) return null;
+
+  return {
+    ...selected,
+    scheduleSelectionRule: "HIGHEST_PRIORITY_ACTIVE_BLOCK",
+    activeBlockCount: activeBlocks.length,
+  };
 }
+
 
 function choosePlayableLane(schedule: AnyRecord, block: AnyRecord | null, counts: Record<string, number>) {
   const primaryLane = canonicalLane(
