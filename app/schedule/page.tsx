@@ -45,6 +45,7 @@ function normalizeBlock(block: AnyRecord, index: number) {
     end: clean(block.end) || "01:00",
     primaryLane: clean(block.primaryLane || block.lane || block.genreLane || "Fresh-Dancehall"),
     fallbackLanes: splitLanes(block.fallbackLanes || []),
+    playbackOrder: clean(block.playbackOrder || "shuffled"),
     // SMARTZJ_BLOCK_REPEAT_GUARDS_EDITOR_V1
     startDate: clean(block.startDate || ""),
     endDate: clean(block.endDate || ""),
@@ -65,6 +66,7 @@ function makeNewBlock(index: number) {
       end: "13:00",
       primaryLane: "Fresh-Dancehall",
       fallbackLanes: ["Dancehall", "Reggae", "R-n-B"],
+      playbackOrder: "shuffled",
       startDate: "",
       endDate: "",
       priority: 5,
@@ -434,6 +436,19 @@ export default function SmartZjSchedulePage() {
                 />
               </label>
             </div>
+
+            <label style={labelStyle}>
+              <span>Song Playback Order</span>
+              <select
+                style={inputStyle}
+                value={clean(block.playbackOrder || "shuffled")}
+                onChange={(event: ChangeEvent<HTMLSelectElement>) => updateBlock(index, { playbackOrder: event.target.value })}
+              >
+                <option value="shuffled">Shuffled</option>
+                <option value="random">Random</option>
+                <option value="sequential">Sequential</option>
+              </select>
+            </label>
 
             <label style={labelStyle}>
               <span>Primary lane</span>
