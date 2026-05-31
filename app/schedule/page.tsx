@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import type { ChangeEvent } from "react";
@@ -334,7 +334,7 @@ export default function SmartZjSchedulePage() {
               <div style={smallButtonRowStyle}>
                 {openBlockIndex === index ? (
                   <>
-                    <button style={smallButtonStyle} onClick={() => saveSchedule()} disabled={saving}>Save This Block</button>
+                    <button style={smallButtonStyle} onClick={() => saveSchedule()} disabled={saving}>Update Block</button>
                     <button style={smallButtonStyle} onClick={() => setOpenBlockIndex(null)}>Close</button>
                   </>
                 ) : (
