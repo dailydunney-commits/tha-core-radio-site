@@ -158,23 +158,33 @@ function writeJson(filePath: string, data: AnyRecord) {
   fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
 }
 
+// SMARTZJ_GENERIC_LANE_PRESERVE_V1
 function canonicalLane(value: unknown) {
-  const text = String(value ?? "")
+  const raw = String(value ?? "").trim();
+  const cleaned = raw
     .replace(/[_/\\]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  const key = cleaned
+    .replace(/[-_\/\\]+/g, " ")
     .replace(/\s+/g, " ")
     .trim()
     .toLowerCase();
 
-  if (!text) return "";
-  if (text === "any ready lane" || text === "any-ready-lane") return "ANY_READY_LANE";
-  if (text.includes("ole school dancehall") || text.includes("old school dancehall")) return "Ole-School-Dancehall";
-  if (text.includes("fresh dancehall")) return "Fresh-Dancehall";
-  if (text.includes("hip hop") || text.includes("hip-hop") || text.includes("hiphop")) return "Hip-Hop";
-  if (text.includes("r n b") || text.includes("r-n-b") || text.includes("r&b") || text.includes("rnb")) return "R-n-B";
-  if (text.includes("reggae")) return "Reggae";
-  if (text.includes("dancehall")) return "Dancehall";
+  if (!key) return "";
+  if (key === "any ready lane") return "ANY_READY_LANE";
 
-  return text
+  // Friendly aliases only. Specific lanes must not collapse into broad lanes.
+  if (key === "ole school dancehall" || key === "old school dancehall") return "Ole-School-Dancehall";
+  if (key === "fresh dancehall") return "Fresh-Dancehall";
+  if (key === "hip hop" || key === "hiphop") return "Hip-Hop";
+  if (key === "r n b" || key === "r b" || key === "rnb") return "R-n-B";
+  if (key === "reggae") return "Reggae";
+  if (key === "dancehall") return "Dancehall";
+
+  // Preserve future/custom lanes instead of forcing them into broad categories.
+  return cleaned
     .split(" ")
     .filter(Boolean)
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
@@ -182,6 +192,18 @@ function canonicalLane(value: unknown) {
 }
 
 function rowLane(row: AnyRecord) {
+  const directLane = canonicalLane(
+    row.genreLane ||
+      row.genre ||
+      row.lane ||
+      row.folder ||
+      ""
+  );
+
+  if (directLane && directLane !== "Unknown") {
+    return directLane;
+  }
+
   const idPath = String(
     row.id ||
       row.trackId ||
@@ -196,14 +218,7 @@ function rowLane(row: AnyRecord) {
       ? idPath.split(/[\\/]+/).filter(Boolean)[0]
       : "";
 
-  return canonicalLane(
-    firstPathPart ||
-      row.genreLane ||
-      row.genre ||
-      row.lane ||
-      row.folder ||
-      "Unknown"
-  );
+  return canonicalLane(firstPathPart || "Unknown");
 }
 
 function publicAudioExists(url: string) {
