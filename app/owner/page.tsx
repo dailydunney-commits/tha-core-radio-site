@@ -2324,6 +2324,16 @@ const SELECTED_DISPLAY_MEMORY_KEY = "tha-core-owner-selected-display-v1";
         <AudioSafetyCenterPanel />
 
       <section className="central-log">
+          {/* OWNER_ADMIN_MENU_V1 */}
+          <details className="owner-admin-menu">
+            <summary>OWNER MENU</summary>
+            <div className="owner-admin-menu-grid">
+              <a href="/owner">Owner Control Panel</a>
+              <a href="/schedule">Schedule Editor</a>
+              <a href="/owner?panel=smartzj-clean-bleep">Clean / Bleep Tracks</a>
+              <a href="/owner?panel=audio-safety">Audio Safety Center</a>
+            </div>
+          </details>
           <PanelHeading left="Central Control Log" right="Above Studio" />
 
           <div className="log-row">
@@ -2641,6 +2651,52 @@ const SELECTED_DISPLAY_MEMORY_KEY = "tha-core-owner-selected-display-v1";
       <style jsx global>{`
         * { box-sizing: border-box; }
         body { margin: 0; }
+
+        .owner-admin-menu {
+          margin: 14px 0 18px;
+          border: 1px solid rgba(255,255,255,0.16);
+          border-radius: 18px;
+          background: rgba(0,0,0,0.72);
+          padding: 14px;
+          box-shadow: 0 0 24px rgba(255,0,0,0.18);
+        }
+
+        .owner-admin-menu summary {
+          cursor: pointer;
+          list-style: none;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 999px;
+          border: 1px solid rgba(255,223,46,0.55);
+          background: linear-gradient(135deg, #180000, #450000);
+          color: #ffdf2e;
+          padding: 12px 18px;
+          font-weight: 1000;
+          letter-spacing: 0.12em;
+        }
+
+        .owner-admin-menu summary::-webkit-details-marker {
+          display: none;
+        }
+
+        .owner-admin-menu-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+          gap: 10px;
+          margin-top: 14px;
+        }
+
+        .owner-admin-menu-grid a {
+          text-decoration: none;
+          border: 1px solid rgba(255,255,255,0.16);
+          border-radius: 14px;
+          padding: 13px;
+          background: rgba(255,255,255,0.06);
+          color: #fff;
+          font-weight: 900;
+          text-align: center;
+        }
 
         .control-page {
           min-height: 100vh;
