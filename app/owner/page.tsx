@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 
 
@@ -48,6 +48,7 @@ const padModes: PadMode[] = [
 ];
 
 const pads: Pad[] = [
+  { label: "Jingles Folder", mode: "JINGLES", message: "Jingles folder selected.", color: "blue" },
   { label: "Station ID", mode: "JINGLES", message: "Tha Core official station ID fired.", color: "yellow" },
   { label: "Big Intro", mode: "JINGLES", message: "Big intro jingle fired.", color: "orange" },
   { label: "You Locked In", mode: "JINGLES", message: "You are locked in to Tha Core Online Radio.", color: "green" },
@@ -2329,7 +2330,7 @@ const SELECTED_DISPLAY_MEMORY_KEY = "tha-core-owner-selected-display-v1";
 
         {showAudioSafetyPanel ? (
           <section className="owner-panel-focus panel">
-            <PanelHeading left="Audio Safety Center" right="Held • Clean/Bleep Jobs • Safe Queue" />
+            <PanelHeading left="Audio Safety Center" right="Held â€¢ Clean/Bleep Jobs â€¢ Safe Queue" />
             <AudioSafetyCenterPanel />
           </section>
         ) : null}
@@ -2649,7 +2650,7 @@ const SELECTED_DISPLAY_MEMORY_KEY = "tha-core-owner-selected-display-v1";
         <footer className="footer-dock panel">
           <PanelHeading
             left={showCleanBleepPanel ? "Clean / Bleep Tracks" : "SmartDJ Command"}
-            right={showCleanBleepPanel ? "Playlist • Bleep Check • Safety Queue" : "Main command input"}
+            right={showCleanBleepPanel ? "Playlist â€¢ Bleep Check â€¢ Safety Queue" : "Main command input"}
           />
             <OwnerSmartDjCommand />
             {showCleanBleepPanel ? (
@@ -4187,6 +4188,7 @@ function ControlSlider({
 
 
 // SMARTDJ_DISPATCH_LOADED_MESSAGE_COUNT_ONLY_V1
+
 
 
 
