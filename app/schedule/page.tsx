@@ -19,6 +19,24 @@ const LANES = [
 
 const DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 
+// SMARTZJ_BLOCK_COLOR_ACCENTS_V1
+const BLOCK_COLORS = [
+  "#ff3b30",
+  "#ff9500",
+  "#ffcc00",
+  "#34c759",
+  "#00c7be",
+  "#007aff",
+  "#5856d6",
+  "#af52de",
+  "#ff2d55",
+  "#a2845e",
+];
+
+function blockAccent(index: number) {
+  return BLOCK_COLORS[index % BLOCK_COLORS.length];
+}
+
 function clean(value: unknown) {
   return String(value ?? "").trim();
 }
@@ -328,9 +346,16 @@ export default function SmartZjSchedulePage() {
 
       <section style={blockGridStyle}>
         {blocks.map((block: AnyRecord, index: number) => (
-          <article key={`${block.id}-${index}`} style={blockCardStyle}>
+          <article
+            key={`${block.id}-${index}`}
+            style={{
+              ...blockCardStyle,
+              borderColor: blockAccent(index),
+              boxShadow: `0 0 0 1px ${blockAccent(index)}44, 0 18px 40px rgba(0,0,0,0.28)`,
+            }}
+          >
             <div style={blockTopStyle}>
-              <strong>#{index + 1}</strong>
+              <strong style={{ color: blockAccent(index) }}>#{index + 1}</strong>
               <div style={smallButtonRowStyle}>
                 {openBlockIndex === index ? (
                   <>
