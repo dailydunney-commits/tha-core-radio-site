@@ -505,6 +505,67 @@ function laneHistoryName(cleanTracks: AnyTrack[], track?: AnyTrack) {
   return canonicalSmartZjLane(getSmartZjGenreLane(sourceTrack) || sourceTrack.genreLane || "SmartZJ Clean Mix") || "SmartZJ-Clean-Mix";
 }
 
+function normalizeSmartZjRepeatText(value: any) {
+  return cleanText(value)
+    .toLowerCase()
+    .replace(/\b(official|music|video|audio|mp3|clean|version|radio|edit|lyric|lyrics|visualizer|ft|feat|featuring)\b/g, " ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function smartZjRepeatTitleKey(track: AnyTrack) {
+  return normalizeSmartZjRepeatText(titleFromTrack(track));
+}
+
+function smartZjRepeatArtistKey(track: AnyTrack) {
+  const explicitArtist = normalizeSmartZjRepeatText(artistFromTrack(track));
+
+  if (explicitArtist && explicitArtist !== "azuracast") {
+    return explicitArtist.split(" ").slice(0, 3).join(" ");
+  }
+
+  return smartZjRepeatTitleKey(track).split(" ").slice(0, 2).join(" ");
+}
+
+function pickSmartZjAntiRepeatCandidate(
+  tracks: AnyTrack[],
+  currentKey: string,
+  recentKeySet: Set<string>,
+  recentTitleSet: Set<string>,
+  recentArtistSet: Set<string>,
+  preferNewest: boolean
+) {
+  const candidates = tracks
+    .map((track) => ({
+      track,
+      key: getTrackKey(track),
+      titleKey: smartZjRepeatTitleKey(track),
+      artistKey: smartZjRepeatArtistKey(track),
+      readyTime: getFreshReadyTime(track),
+    }))
+    .filter((item) => item.key && item.key !== currentKey);
+
+  const stages = [
+    candidates.filter((item) => !recentKeySet.has(item.key) && !recentTitleSet.has(item.titleKey) && !recentArtistSet.has(item.artistKey)),
+    candidates.filter((item) => !recentKeySet.has(item.key) && !recentTitleSet.has(item.titleKey)),
+    candidates.filter((item) => !recentKeySet.has(item.key)),
+    candidates,
+  ];
+
+  for (const stage of stages) {
+    if (stage.length <= 0) continue;
+
+    if (preferNewest) {
+      stage.sort((a, b) => b.readyTime - a.readyTime);
+    }
+
+    return stage[0].track;
+  }
+
+  return undefined;
+}
+
 function chooseSmartZjFreshFirstNext(cleanTracks: AnyTrack[], currentKey: string, playerState: Record<string, any>) {
   const freshState = readFreshFirstState();
   const laneHistory = readLanePlayHistory();
@@ -528,6 +589,18 @@ function chooseSmartZjFreshFirstNext(cleanTracks: AnyTrack[], currentKey: string
     Array.isArray(freshState.knownKeys) ? freshState.knownKeys.map(String) : []
   );
 
+  const recentKeySet = new Set(
+    Array.isArray(freshState.recentKeys) ? freshState.recentKeys.map(String) : []
+  );
+
+  const recentTitleSet = new Set(
+    Array.isArray(freshState.recentTitleKeys) ? freshState.recentTitleKeys.map(String) : []
+  );
+
+  const recentArtistSet = new Set(
+    Array.isArray(freshState.recentArtistKeys) ? freshState.recentArtistKeys.map(String) : []
+  );
+
   const hasKnownHistory = knownKeys.size > 0;
 
   const unplayedTracks = cleanTracks.filter((track) => {
@@ -544,27 +617,41 @@ function chooseSmartZjFreshFirstNext(cleanTracks: AnyTrack[], currentKey: string
       : [];
 
     if (freshNewTracks.length > 0) {
-      freshNewTracks.sort((a, b) => getFreshReadyTime(b) - getFreshReadyTime(a));
+      const picked = pickSmartZjAntiRepeatCandidate(
+        freshNewTracks,
+        currentKey,
+        recentKeySet,
+        recentTitleSet,
+        recentArtistSet,
+        true
+      ) || freshNewTracks[0];
 
-      const picked = freshNewTracks[0];
       const pickedKey = getTrackKey(picked);
       const index = cleanTracks.findIndex((track) => getTrackKey(track) === pickedKey);
 
       return {
         track: picked,
         index: index >= 0 ? index : 0,
-        reason: "FRESH_NEW_CLEAN_TRACK_FIRST",
+        reason: "FRESH_NEW_CLEAN_TRACK_FIRST_ANTI_REPEAT",
       };
     }
 
-    const picked = unplayedTracks[0];
+    const picked = pickSmartZjAntiRepeatCandidate(
+      unplayedTracks,
+      currentKey,
+      recentKeySet,
+      recentTitleSet,
+      recentArtistSet,
+      false
+    ) || unplayedTracks[0];
+
     const pickedKey = getTrackKey(picked);
     const index = cleanTracks.findIndex((track) => getTrackKey(track) === pickedKey);
 
     return {
       track: picked,
       index: index >= 0 ? index : 0,
-      reason: "LANE_ROUND_UNPLAYED_CLEAN_TRACK",
+      reason: "LANE_ROUND_UNPLAYED_CLEAN_TRACK_ANTI_REPEAT",
     };
   }
 
@@ -573,14 +660,22 @@ function chooseSmartZjFreshFirstNext(cleanTracks: AnyTrack[], currentKey: string
     return key && key !== currentKey;
   });
 
-  const picked = resetTracks[0] || cleanTracks[0];
+  const picked = pickSmartZjAntiRepeatCandidate(
+    resetTracks,
+    currentKey,
+    recentKeySet,
+    recentTitleSet,
+    recentArtistSet,
+    true
+  ) || resetTracks[0] || cleanTracks[0];
+
   const pickedKey = getTrackKey(picked);
   const index = cleanTracks.findIndex((track) => getTrackKey(track) === pickedKey);
 
   return {
     track: picked,
     index: index >= 0 ? index : 0,
-    reason: "LANE_ROUND_COMPLETE_RESET",
+    reason: "LANE_ROUND_COMPLETE_RESET_ANTI_REPEAT",
   };
 }
 
@@ -615,6 +710,11 @@ function rememberSmartZjFreshFirstPlay(track: AnyTrack, cleanTracks: AnyTrack[])
 
   const previousKnown = Array.isArray(freshState.knownKeys) ? freshState.knownKeys.map(String) : [];
   const previousRecent = Array.isArray(freshState.recentKeys) ? freshState.recentKeys.map(String) : [];
+  const previousRecentTitles = Array.isArray(freshState.recentTitleKeys) ? freshState.recentTitleKeys.map(String) : [];
+  const previousRecentArtists = Array.isArray(freshState.recentArtistKeys) ? freshState.recentArtistKeys.map(String) : [];
+
+  const playedTitleKey = smartZjRepeatTitleKey(track);
+  const playedArtistKey = smartZjRepeatArtistKey(track);
 
   const knownKeys = Array.from(new Set([...previousKnown, ...allKeys])).slice(-5000);
   const recentLimit = Math.max(1, Math.min(500, cleanTracks.length || 1));
@@ -622,6 +722,16 @@ function rememberSmartZjFreshFirstPlay(track: AnyTrack, cleanTracks: AnyTrack[])
     playedKey,
     ...previousRecent.filter((key) => key && key !== playedKey),
   ].filter(Boolean).slice(0, recentLimit);
+
+  const recentTitleKeys = [
+    playedTitleKey,
+    ...previousRecentTitles.filter((key) => key && key !== playedTitleKey),
+  ].filter(Boolean).slice(0, Math.min(80, recentLimit));
+
+  const recentArtistKeys = [
+    playedArtistKey,
+    ...previousRecentArtists.filter((key) => key && key !== playedArtistKey),
+  ].filter(Boolean).slice(0, Math.min(40, recentLimit));
 
   const updatedLaneState = {
     ok: true,
@@ -658,6 +768,8 @@ function rememberSmartZjFreshFirstPlay(track: AnyTrack, cleanTracks: AnyTrack[])
     laneRemainingCount: Math.max(allKeys.length - playedKeys.length, 0),
     knownKeys,
     recentKeys,
+    recentTitleKeys,
+    recentArtistKeys,
     updatedAt: now,
   });
 }
