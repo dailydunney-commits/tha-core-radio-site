@@ -83,6 +83,7 @@ export default function SmartZjSchedulePage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState("Loading SmartZJ schedule...");
+  const [openBlockIndex, setOpenBlockIndex] = useState<number | null>(null);
 
   async function loadSchedule() {
     setLoading(true);
@@ -331,11 +332,31 @@ export default function SmartZjSchedulePage() {
             <div style={blockTopStyle}>
               <strong>#{index + 1}</strong>
               <div style={smallButtonRowStyle}>
-                <button style={smallButtonStyle} onClick={() => saveSchedule()} disabled={saving}>Save This Block</button>
+                {openBlockIndex === index ? (
+                  <>
+                    <button style={smallButtonStyle} onClick={() => saveSchedule()} disabled={saving}>Save This Block</button>
+                    <button style={smallButtonStyle} onClick={() => setOpenBlockIndex(null)}>Close</button>
+                  </>
+                ) : (
+                  <button style={smallButtonStyle} onClick={() => setOpenBlockIndex(index)}>Edit Block</button>
+                )}
                 <button style={smallButtonStyle} onClick={() => duplicateBlock(index)}>Duplicate</button>
                 <button style={smallDangerStyle} onClick={() => deleteBlock(index)}>Delete</button>
               </div>
             </div>
+
+            {/* SMARTZJ_ONE_BLOCK_EDITOR_UI_V1 */}
+            {openBlockIndex !== index ? (
+              <div style={{ marginTop: "14px", border: "1px solid rgba(255,255,255,0.12)", borderRadius: "14px", padding: "14px", background: "#101010" }}>
+                <p style={{ margin: "0 0 8px", fontWeight: 900 }}>{clean(block.name) || `Schedule Block ${index + 1}`}</p>
+                <p style={{ margin: "0 0 6px", color: "#ccc" }}>Time: {clean(block.start)} - {clean(block.end)}</p>
+                <p style={{ margin: "0 0 6px", color: "#ccc" }}>Lane: {clean(block.primaryLane)}</p>
+                <p style={{ margin: "0 0 6px", color: "#ccc" }}>Playback: {clean(block.playbackOrder || "shuffled")}</p>
+                <p style={{ margin: "0 0 6px", color: "#ccc" }}>Priority: {Number(block.priority || 5)}</p>
+                <p style={{ margin: 0, color: "#ccc" }}>Days: {joinLanes(block.days)}</p>
+              </div>
+            ) : (
+              <>
 
             <label style={labelStyle}>
               <span>Name</span>
@@ -480,6 +501,8 @@ export default function SmartZjSchedulePage() {
                 onChange={(event: ChangeEvent<HTMLInputElement>) => updateBlock(index, { days: splitLanes(event.target.value) })}
               />
             </label>
+              </>
+            )}
           </article>
         ))}
       </section>
