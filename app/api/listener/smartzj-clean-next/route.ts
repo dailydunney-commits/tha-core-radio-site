@@ -922,6 +922,22 @@ function getScheduleJingleHoldSeconds(trackOrBroadcast: AnyTrack | Record<string
   return Math.max(7, duration);
 }
 
+const DEFAULT_SONGS_BETWEEN_SCHEDULE_JINGLES = 3;
+
+function getSongsBetweenScheduleJingles(policy: Record<string, any> | null | undefined) {
+  const raw =
+    policy?.songsBetweenJingles ??
+    policy?.jingleEverySongs ??
+    policy?.jingleEvery ??
+    DEFAULT_SONGS_BETWEEN_SCHEDULE_JINGLES;
+
+  const value = Number(raw);
+
+  if (!Number.isFinite(value)) return DEFAULT_SONGS_BETWEEN_SCHEDULE_JINGLES;
+
+  return Math.max(1, Math.min(12, Math.floor(value)));
+}
+
 function loadScheduleJingleTracksFromDrops(): AnyTrack[] {
   const dropsDir = join(process.cwd(), "public", "drops");
 
@@ -1011,6 +1027,12 @@ async function runMiniAutoNext(req?: NextRequest) {
     return publicCleanAudioExists(audioUrl);
   });
 
+  const requestedLaneKey = laneKey(requestedLane || "");
+
+  if (requestedLaneKey !== "jingles") {
+    cleanTracks = cleanTracks.filter((track) => !isSmartZjJingleTrack(track));
+  }
+
   const skippedMissingAudioCount = laneCleanTracks.length - cleanTracks.length;
 
   if (!cleanTracks.length) {
@@ -1040,6 +1062,12 @@ async function runMiniAutoNext(req?: NextRequest) {
   const playerState = readJson<Record<string, any>>(PLAYER_STATE_FILE, {
     index: -1,
   });
+
+  const songsBetweenScheduleJingles = getSongsBetweenScheduleJingles(schedulePolicy);
+  const songsSinceScheduleJingle = Math.max(
+    0,
+    Number(playerState.songsSinceScheduleJingle || 0)
+  );
 
   const currentKey = getCurrentKey();
 
@@ -1090,7 +1118,9 @@ async function runMiniAutoNext(req?: NextRequest) {
       : [];
 
   const shouldInsertScheduleJingle =
-    Boolean(scheduleJingleTracks.length) && currentBroadcastLane !== "jingles";
+    Boolean(scheduleJingleTracks.length) &&
+    currentBroadcastLane !== "jingles" &&
+    songsSinceScheduleJingle >= songsBetweenScheduleJingles;
 
   if (shouldInsertScheduleJingle) {
     const lastScheduleJingleAudioUrl = String(playerState.lastScheduleJingleAudioUrl || "");
@@ -1112,6 +1142,10 @@ async function runMiniAutoNext(req?: NextRequest) {
   const title = titleFromTrack(track);
   const artist = artistFromTrack(track);
   const genreLane = getSmartZjGenreLane(track);
+  const selectedIsScheduleJingle = isSmartZjJingleTrack(track);
+  const nextSongsSinceScheduleJingle = selectedIsScheduleJingle
+    ? 0
+    : Math.min(999, songsSinceScheduleJingle + 1);
 
   const broadcast = {
     ok: true,
@@ -1150,6 +1184,9 @@ async function runMiniAutoNext(req?: NextRequest) {
     scheduleJingleInsert: Boolean(shouldInsertScheduleJingle),
     scheduleModeActive,
     scheduleJingleTrackCount: scheduleJingleTracks.length,
+    songsBetweenScheduleJingles,
+    songsSinceScheduleJingle,
+    nextSongsSinceScheduleJingle,
     track: {
       ...track,
       genreLane,
@@ -1185,7 +1222,9 @@ async function runMiniAutoNext(req?: NextRequest) {
     selectedLane: requestedLane,
     laneLocked: Boolean(requestedLane),
     skippedMissingAudioCount,
-    lastScheduleJingleAudioUrl: isSmartZjJingleTrack(track)
+    songsBetweenScheduleJingles,
+    songsSinceScheduleJingle: nextSongsSinceScheduleJingle,
+    lastScheduleJingleAudioUrl: selectedIsScheduleJingle
       ? audioUrl
       : String(playerState.lastScheduleJingleAudioUrl || ""),
     updatedAt: now,
