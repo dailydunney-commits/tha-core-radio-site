@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
+﻿import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import { join } from "path";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -96,6 +96,8 @@ async function getSchedulePolicy() {
       requestPriorityBlocked: Boolean(data?.requestPriorityBlocked || data?.activeBlock?.prioritizeOverRequests),
       interruptBroadcast: Boolean(data?.interruptBroadcast || data?.activeBlock?.interruptBroadcast),
       prioritizeOverRequests: Boolean(data?.prioritizeOverRequests || data?.activeBlock?.prioritizeOverRequests),
+      playJinglesBetweenTracks: Boolean(data?.playJinglesBetweenTracks || data?.activeBlock?.playJinglesBetweenTracks),
+      allowJingleOverlay: Boolean(data?.allowJingleOverlay || data?.activeBlock?.allowJingleOverlay),
       activeBlockId: cleanText(data?.activeBlock?.id || ""),
       activeBlockName: cleanText(data?.activeBlock?.name || ""),
     };
@@ -107,6 +109,8 @@ async function getSchedulePolicy() {
       requestPriorityBlocked: false,
       interruptBroadcast: false,
       prioritizeOverRequests: false,
+      playJinglesBetweenTracks: false,
+      allowJingleOverlay: false,
       activeBlockId: "",
       activeBlockName: "",
     };
@@ -889,6 +893,10 @@ function getSmartZjGenreLane(track: AnyTrack) {
   );
 }
 
+function isSmartZjJingleTrack(track: AnyTrack) {
+  return laneKey(getSmartZjGenreLane(track)) === "jingles";
+}
+
 async function runMiniAutoNext(req?: NextRequest) {
   const allCleanTracks = readSmartTracks();
   const requestedLane = await getRequestedLane(req);
@@ -898,7 +906,7 @@ async function runMiniAutoNext(req?: NextRequest) {
     ? allCleanTracks.filter((track) => trackMatchesLane(track, requestedLane))
     : allCleanTracks;
 
-  const cleanTracks = laneCleanTracks.filter((track) => {
+  let cleanTracks = laneCleanTracks.filter((track) => {
     const audioUrl = pickSafeUrl(track);
     return publicCleanAudioExists(audioUrl);
   });
@@ -934,6 +942,26 @@ async function runMiniAutoNext(req?: NextRequest) {
   });
 
   const currentKey = getCurrentKey();
+
+  const currentBroadcastState = readJson<Record<string, any>>(CURRENT_BROADCAST_FILE, {});
+  const currentBroadcastLane = laneKey(
+    currentBroadcastState?.genreLane ||
+      currentBroadcastState?.track?.genreLane ||
+      currentBroadcastState?.currentBroadcast?.genreLane ||
+      ""
+  );
+
+  const scheduleJingleTracks =
+    Boolean(schedulePolicy?.playJinglesBetweenTracks) && Boolean(requestedLane)
+      ? allCleanTracks.filter((track) => isSmartZjJingleTrack(track))
+      : [];
+
+  const shouldInsertScheduleJingle =
+    Boolean(scheduleJingleTracks.length) && currentBroadcastLane !== "jingles";
+
+  if (shouldInsertScheduleJingle) {
+    cleanTracks = scheduleJingleTracks;
+  }
 
   const selection = chooseSmartZjFreshFirstNext(cleanTracks, currentKey, playerState);
   const nextIndex = selection.index;
@@ -971,8 +999,14 @@ async function runMiniAutoNext(req?: NextRequest) {
       skippedMissingAudioCount,
       scheduleOverrideActive: Boolean(schedulePolicy?.scheduleOverrideActive),
       requestPriorityBlocked: Boolean(schedulePolicy?.requestPriorityBlocked),
+      playJinglesBetweenTracks: Boolean(schedulePolicy?.playJinglesBetweenTracks),
+      allowJingleOverlay: Boolean(schedulePolicy?.allowJingleOverlay),
+      scheduleJingleInsert: Boolean(shouldInsertScheduleJingle),
     },
     schedulePolicy: schedulePolicy || null,
+    playJinglesBetweenTracks: Boolean(schedulePolicy?.playJinglesBetweenTracks),
+    allowJingleOverlay: Boolean(schedulePolicy?.allowJingleOverlay),
+    scheduleJingleInsert: Boolean(shouldInsertScheduleJingle),
     track: {
       ...track,
       genreLane,
@@ -1048,3 +1082,5 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   return runMiniAutoNext(req);
 }
+
+

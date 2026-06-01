@@ -605,6 +605,8 @@ function buildScheduleResponse() {
     requestPriorityBlocked: Boolean(activeBlock?.prioritizeOverRequests),
     interruptBroadcast: Boolean(activeBlock?.interruptBroadcast),
     prioritizeOverRequests: Boolean(activeBlock?.prioritizeOverRequests),
+    playJinglesBetweenTracks: Boolean(activeBlock?.playJinglesBetweenTracks),
+    allowJingleOverlay: Boolean(activeBlock?.allowJingleOverlay),
     fallbackMinPlayable: schedule.fallbackMinPlayable || 25,
     rawAzuraBlocked: true,
     schedule,
