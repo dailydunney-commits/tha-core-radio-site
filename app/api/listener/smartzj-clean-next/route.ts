@@ -1,4 +1,4 @@
-﻿import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
+﻿import { existsSync, mkdirSync, readFileSync, writeFileSync , readdirSync } from "fs";
 import { join } from "path";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -897,8 +897,75 @@ function isSmartZjJingleTrack(track: AnyTrack) {
   return laneKey(getSmartZjGenreLane(track)) === "jingles";
 }
 
+function loadScheduleJingleTracksFromDrops(): AnyTrack[] {
+  const dropsDir = join(process.cwd(), "public", "drops");
+
+  if (!existsSync(dropsDir)) return [];
+
+  return readdirSync(dropsDir)
+    .filter((fileName) => fileName.toLowerCase().endsWith(".mp3"))
+    .sort((a, b) => a.localeCompare(b))
+    .map((fileName) => {
+      const safeFileName = fileName.replace(/\\/g, "/").split("/").pop() || fileName;
+      const title = safeFileName
+        .replace(/\.mp3$/i, "")
+        .replace(/[-_]+/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+
+      const url = `/drops/${safeFileName}`;
+      const trackId = `Jingles/${safeFileName}`;
+
+      return {
+        id: trackId,
+        trackId,
+        title: title || safeFileName,
+        artist: "Tha Core",
+        source: "SCHEDULE_JINGLES",
+        genreLane: "Jingles",
+        lane: "Jingles",
+        folder: "Jingles",
+        audioUrl: url,
+        streamUrl: url,
+        cleanAudioUrl: url,
+        processedAudioUrl: url,
+        status: "READY",
+        safetyStatus: "READY",
+        cleanStatus: "PROCESSED_AUDIO_READY",
+        bleepJobStatus: "PROCESSED_AUDIO_READY",
+        needsBleep: false,
+        held: false,
+        rawAudioBlocked: true,
+        safetyNote:
+          "Auto-loaded approved Tha Core public/drop jingle for SmartZJ schedule between-track use.",
+      };
+    });
+}
+
+function mergeScheduleJinglesWithCleanTracks(tracks: AnyTrack[]) {
+  const merged = [...tracks];
+  const seen = new Set(
+    merged.map((track) =>
+      String(track.trackId || track.id || track.audioUrl || "").toLowerCase()
+    )
+  );
+
+  for (const jingle of loadScheduleJingleTracksFromDrops()) {
+    const key = String(jingle.trackId || jingle.id || jingle.audioUrl || "").toLowerCase();
+    const urlKey = String(jingle.audioUrl || "").toLowerCase();
+
+    if (seen.has(key) || seen.has(urlKey)) continue;
+
+    merged.push(jingle);
+    seen.add(key);
+    seen.add(urlKey);
+  }
+
+  return merged;
+}
+
 async function runMiniAutoNext(req?: NextRequest) {
-  const allCleanTracks = readSmartTracks();
+  const allCleanTracks = mergeScheduleJinglesWithCleanTracks(readSmartTracks());
   const requestedLane = await getRequestedLane(req);
   const schedulePolicy = requestedLane ? await getSchedulePolicy() : null;
 
