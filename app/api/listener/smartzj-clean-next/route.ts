@@ -897,13 +897,43 @@ function isSmartZjJingleTrack(track: AnyTrack) {
   return laneKey(getSmartZjGenreLane(track)) === "jingles";
 }
 
+const SCHEDULE_JINGLE_DURATION_SECONDS: Record<string, number> = {
+  "ad-drop.mp3": 9,
+  "dj-drop.mp3": 15,
+  "hype-drop.mp3": 371,
+  "next-jingle.mp3": 150,
+  "sponsor-drop.mp3": 10,
+  "station-id.mp3": 46,
+  "voice-drop.mp3": 7,
+};
+
+function getScheduleJingleHoldSeconds(trackOrBroadcast: AnyTrack | Record<string, any>) {
+  const audioUrl = String(
+    trackOrBroadcast?.audioUrl ||
+      trackOrBroadcast?.streamUrl ||
+      trackOrBroadcast?.listen_url ||
+      trackOrBroadcast?.track?.audioUrl ||
+      ""
+  );
+
+  const fileName = audioUrl.replace(/\\/g, "/").split("/").pop()?.toLowerCase() || "";
+  const duration = SCHEDULE_JINGLE_DURATION_SECONDS[fileName] || 15;
+
+  return Math.max(7, duration);
+}
+
 function loadScheduleJingleTracksFromDrops(): AnyTrack[] {
   const dropsDir = join(process.cwd(), "public", "drops");
 
   if (!existsSync(dropsDir)) return [];
 
   return readdirSync(dropsDir)
-    .filter((fileName) => fileName.toLowerCase().endsWith(".mp3"))
+    .filter((fileName) => {
+      const lowerFileName = fileName.toLowerCase();
+      if (!lowerFileName.endsWith(".mp3")) return false;
+      const duration = SCHEDULE_JINGLE_DURATION_SECONDS[lowerFileName] || 15;
+      return duration >= 14 && duration <= 46;
+    })
     .sort((a, b) => a.localeCompare(b))
     .map((fileName) => {
       const safeFileName = fileName.replace(/\\/g, "/").split("/").pop() || fileName;
@@ -936,6 +966,7 @@ function loadScheduleJingleTracksFromDrops(): AnyTrack[] {
         needsBleep: false,
         held: false,
         rawAudioBlocked: true,
+        durationSeconds: SCHEDULE_JINGLE_DURATION_SECONDS[safeFileName.toLowerCase()] || 15,
         safetyNote:
           "Auto-loaded approved Tha Core public/drop jingle for SmartZJ schedule between-track use.",
       };
@@ -1019,6 +1050,39 @@ async function runMiniAutoNext(req?: NextRequest) {
       currentBroadcastState?.currentBroadcast?.genreLane ||
       ""
   );
+
+  if (currentBroadcastLane === "jingles") {
+    const startedAtMs = Date.parse(String(currentBroadcastState?.startedAt || ""));
+    const ageSeconds = Number.isFinite(startedAtMs)
+      ? Math.max(0, Math.floor((Date.now() - startedAtMs) / 1000))
+      : 9999;
+    const holdSeconds = getScheduleJingleHoldSeconds(currentBroadcastState);
+
+    if (ageSeconds < holdSeconds) {
+      return NextResponse.json(
+        {
+          ok: true,
+          route: "/api/listener/smartzj-clean-next",
+          action: "SMARTZJ_JINGLE_HOLD",
+          status: "WAITING_FOR_JINGLE_TO_FINISH",
+          title: currentBroadcastState?.title || currentBroadcastState?.track?.title || "Jingle",
+          genreLane: "Jingles",
+          audioUrl: currentBroadcastState?.audioUrl || currentBroadcastState?.track?.audioUrl || "",
+          streamUrl: currentBroadcastState?.streamUrl || currentBroadcastState?.audioUrl || "",
+          listen_url: currentBroadcastState?.listen_url || currentBroadcastState?.audioUrl || "",
+          ageSeconds,
+          holdSeconds,
+          remainingHoldSeconds: Math.max(0, holdSeconds - ageSeconds),
+          scheduleJingleHoldActive: true,
+          message: "SmartZJ is holding the current jingle/drop until its safe play time finishes.",
+          currentBroadcast: currentBroadcastState,
+        },
+        {
+          headers: { "Cache-Control": "no-store, no-cache, must-revalidate" },
+        }
+      );
+    }
+  }
 
   const scheduleJingleTracks =
     Boolean(schedulePolicy?.playJinglesBetweenTracks) && scheduleModeActive
