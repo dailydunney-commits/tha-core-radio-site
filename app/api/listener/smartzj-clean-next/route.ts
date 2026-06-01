@@ -967,7 +967,9 @@ function mergeScheduleJinglesWithCleanTracks(tracks: AnyTrack[]) {
 async function runMiniAutoNext(req?: NextRequest) {
   const allCleanTracks = mergeScheduleJinglesWithCleanTracks(readSmartTracks());
   const requestedLane = await getRequestedLane(req);
-  const schedulePolicy = requestedLane ? await getSchedulePolicy() : null;
+  const schedulePolicy = await getSchedulePolicy();
+  const scheduleModeActive =
+    Boolean(requestedLane) || Boolean(schedulePolicy?.scheduleOverrideActive);
 
   const laneCleanTracks = requestedLane
     ? allCleanTracks.filter((track) => trackMatchesLane(track, requestedLane))
@@ -1019,7 +1021,7 @@ async function runMiniAutoNext(req?: NextRequest) {
   );
 
   const scheduleJingleTracks =
-    Boolean(schedulePolicy?.playJinglesBetweenTracks) && Boolean(requestedLane)
+    Boolean(schedulePolicy?.playJinglesBetweenTracks) && scheduleModeActive
       ? allCleanTracks.filter((track) => isSmartZjJingleTrack(track))
       : [];
 
@@ -1069,11 +1071,15 @@ async function runMiniAutoNext(req?: NextRequest) {
       playJinglesBetweenTracks: Boolean(schedulePolicy?.playJinglesBetweenTracks),
       allowJingleOverlay: Boolean(schedulePolicy?.allowJingleOverlay),
       scheduleJingleInsert: Boolean(shouldInsertScheduleJingle),
+      scheduleModeActive,
+      scheduleJingleTrackCount: scheduleJingleTracks.length,
     },
     schedulePolicy: schedulePolicy || null,
     playJinglesBetweenTracks: Boolean(schedulePolicy?.playJinglesBetweenTracks),
     allowJingleOverlay: Boolean(schedulePolicy?.allowJingleOverlay),
     scheduleJingleInsert: Boolean(shouldInsertScheduleJingle),
+    scheduleModeActive,
+    scheduleJingleTrackCount: scheduleJingleTracks.length,
     track: {
       ...track,
       genreLane,
@@ -1149,5 +1155,4 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   return runMiniAutoNext(req);
 }
-
 
