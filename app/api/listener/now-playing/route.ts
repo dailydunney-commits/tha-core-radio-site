@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, writeFileSync } from "fs";
+﻿import { existsSync, readFileSync, writeFileSync } from "fs";
 import { join } from "path";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -234,9 +234,12 @@ export async function GET(request: NextRequest) {
   if (!isSafeUrl(audioUrl)) {
     return standby("Selected audio blocked by public safety gate.");
   }
+if (audioUrl.includes("/audio/smartdj/test-bleeped-clean.mp3")) {
+ return standby("Live listener test fallback blocked. Waiting for approved SmartZJ current broadcast.");
+}
 
-  const title = String(track.title || "Safe Rotation Track").trim();
-  const artist = String(track.artist || "Tha Core Online Radio").trim();
+const title = String(track.title || "Safe Rotation Track").trim();
+const artist = String(track.artist || "Tha Core Online Radio").trim();
 
   return NextResponse.json({
     ok: true,
@@ -268,3 +271,4 @@ export async function GET(request: NextRequest) {
       : "Playing approved safe rotation track. Raw Azura remains blocked."
   }, { headers: { "Cache-Control": "no-store, no-cache, must-revalidate" } });
 }
+
