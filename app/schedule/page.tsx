@@ -72,6 +72,8 @@ function normalizeBlock(block: AnyRecord, index: number) {
     noRepeatTitleCount: Number(block.noRepeatTitleCount || 10),
     interruptBroadcast: Boolean(block.interruptBroadcast),
     prioritizeOverRequests: Boolean(block.prioritizeOverRequests),
+    playJinglesBetweenTracks: Boolean(block.playJinglesBetweenTracks),
+    allowJingleOverlay: Boolean(block.allowJingleOverlay),
   };
 }
 
@@ -94,6 +96,8 @@ function makeNewBlock(index: number) {
       noRepeatTitleCount: 10,
       interruptBroadcast: false,
       prioritizeOverRequests: false,
+      playJinglesBetweenTracks: false,
+      allowJingleOverlay: false,
     },
     index
   );
@@ -549,6 +553,26 @@ export default function SmartZjSchedulePage() {
                   style={{ width: "16px", height: "16px" }}
                 />
                 <span>Prioritize Over Listener Requests</span>
+              </label>
+
+              <label style={{ display: "flex", alignItems: "center", gap: "10px", fontWeight: 800 }}>
+                <input
+                  type="checkbox"
+                  checked={Boolean(block.playJinglesBetweenTracks)}
+                  onChange={(event: ChangeEvent<HTMLInputElement>) => updateBlock(index, { playJinglesBetweenTracks: event.target.checked })}
+                  style={{ width: "16px", height: "16px" }}
+                />
+                <span>Play Jingles Between Tracks</span>
+              </label>
+
+              <label style={{ display: "flex", alignItems: "center", gap: "10px", fontWeight: 800 }}>
+                <input
+                  type="checkbox"
+                  checked={Boolean(block.allowJingleOverlay)}
+                  onChange={(event: ChangeEvent<HTMLInputElement>) => updateBlock(index, { allowJingleOverlay: event.target.checked })}
+                  style={{ width: "16px", height: "16px" }}
+                />
+                <span>Allow Jingle Overlay</span>
               </label>
             </div>
 
