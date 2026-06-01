@@ -938,6 +938,28 @@ function getSongsBetweenScheduleJingles(policy: Record<string, any> | null | und
   return Math.max(1, Math.min(12, Math.floor(value)));
 }
 
+const SMARTZJ_MIN_MUSIC_PLAY_SECONDS = 120;
+
+function getBroadcastAgeSeconds(currentBroadcastState: Record<string, any>) {
+  const startedAtMs = Date.parse(String(currentBroadcastState?.startedAt || ""));
+  return Number.isFinite(startedAtMs)
+    ? Math.max(0, Math.floor((Date.now() - startedAtMs) / 1000))
+    : 9999;
+}
+
+function shouldBypassSmartZjEarlyHold(req?: NextRequest) {
+  const params = req?.nextUrl?.searchParams;
+
+  return Boolean(
+    params?.get("force") === "1" ||
+      params?.get("manual") === "1" ||
+      params?.get("ended") === "1" ||
+      params?.get("ownerMonitorEnded") ||
+      params?.get("listenerEnded") ||
+      params?.get("watchdogEnded")
+  );
+}
+
 function loadScheduleJingleTracksFromDrops(): AnyTrack[] {
   const dropsDir = join(process.cwd(), "public", "drops");
 
@@ -1078,6 +1100,43 @@ async function runMiniAutoNext(req?: NextRequest) {
       currentBroadcastState?.currentBroadcast?.genreLane ||
       ""
   );
+
+  const currentBroadcastStatus = String(currentBroadcastState?.status || "");
+  const bypassSmartZjEarlyHold = shouldBypassSmartZjEarlyHold(req);
+
+  if (
+    currentBroadcastStatus === "SMARTDJ_BROADCASTING" &&
+    currentBroadcastLane &&
+    currentBroadcastLane !== "jingles" &&
+    !bypassSmartZjEarlyHold
+  ) {
+    const ageSeconds = getBroadcastAgeSeconds(currentBroadcastState);
+
+    if (ageSeconds < SMARTZJ_MIN_MUSIC_PLAY_SECONDS) {
+      return NextResponse.json(
+        {
+          ok: true,
+          route: "/api/listener/smartzj-clean-next",
+          action: "SMARTZJ_CURRENT_TRACK_HOLD",
+          status: "WAITING_FOR_CURRENT_TRACK_TO_PLAY",
+          title: currentBroadcastState?.title || currentBroadcastState?.track?.title || "Current Track",
+          genreLane: currentBroadcastState?.genreLane || currentBroadcastState?.track?.genreLane || currentBroadcastLane,
+          audioUrl: currentBroadcastState?.audioUrl || currentBroadcastState?.track?.audioUrl || "",
+          streamUrl: currentBroadcastState?.streamUrl || currentBroadcastState?.audioUrl || "",
+          listen_url: currentBroadcastState?.listen_url || currentBroadcastState?.audioUrl || "",
+          ageSeconds,
+          holdSeconds: SMARTZJ_MIN_MUSIC_PLAY_SECONDS,
+          remainingHoldSeconds: Math.max(0, SMARTZJ_MIN_MUSIC_PLAY_SECONDS - ageSeconds),
+          smartZjEarlySkipGuardActive: true,
+          message: "SmartZJ blocked an early AutoNext call so the current clean track can keep playing.",
+          currentBroadcast: currentBroadcastState,
+        },
+        {
+          headers: { "Cache-Control": "no-store, no-cache, must-revalidate" },
+        }
+      );
+    }
+  }
 
   if (currentBroadcastLane === "jingles") {
     const startedAtMs = Date.parse(String(currentBroadcastState?.startedAt || ""));
