@@ -1093,7 +1093,13 @@ async function runMiniAutoNext(req?: NextRequest) {
     Boolean(scheduleJingleTracks.length) && currentBroadcastLane !== "jingles";
 
   if (shouldInsertScheduleJingle) {
-    cleanTracks = scheduleJingleTracks;
+    const lastScheduleJingleAudioUrl = String(playerState.lastScheduleJingleAudioUrl || "");
+    const rotatedScheduleJingles =
+      scheduleJingleTracks.length > 1
+        ? scheduleJingleTracks.filter((track) => pickSafeUrl(track) !== lastScheduleJingleAudioUrl)
+        : scheduleJingleTracks;
+
+    cleanTracks = rotatedScheduleJingles.length ? rotatedScheduleJingles : scheduleJingleTracks;
   }
 
   const selection = chooseSmartZjFreshFirstNext(cleanTracks, currentKey, playerState);
@@ -1179,6 +1185,9 @@ async function runMiniAutoNext(req?: NextRequest) {
     selectedLane: requestedLane,
     laneLocked: Boolean(requestedLane),
     skippedMissingAudioCount,
+    lastScheduleJingleAudioUrl: isSmartZjJingleTrack(track)
+      ? audioUrl
+      : String(playerState.lastScheduleJingleAudioUrl || ""),
     updatedAt: now,
   });
 
