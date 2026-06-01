@@ -548,6 +548,43 @@ function choosePlayableLane(schedule: AnyRecord, block: AnyRecord | null, counts
   };
 }
 
+async function triggerScheduleInterruptHandoff(response: AnyRecord) {
+  if (!response?.activeBlock?.interruptBroadcast) {
+    return {
+      triggered: false,
+      reason: "ACTIVE_BLOCK_INTERRUPT_NOT_ENABLED",
+    };
+  }
+
+  try {
+    const res = await fetch(
+      "http://127.0.0.1:3101/api/listener/smartzj-clean-next?lane=schedule&scheduleInterrupt=1",
+      {
+        method: "POST",
+        cache: "no-store",
+        headers: { "Cache-Control": "no-store" },
+      }
+    );
+
+    const text = await res.text().catch(() => "");
+
+    return {
+      triggered: true,
+      ok: res.ok,
+      status: res.status,
+      reason: "ACTIVE_BLOCK_INTERRUPT_HANDOFF_REQUESTED",
+      responsePreview: text.slice(0, 500),
+    };
+  } catch (error) {
+    return {
+      triggered: true,
+      ok: false,
+      reason: "ACTIVE_BLOCK_INTERRUPT_HANDOFF_FAILED",
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
 function buildScheduleResponse() {
   const schedule = getSchedule();
   const now = timePartsForZone(String(schedule.timezone || "America/Jamaica"));
