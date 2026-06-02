@@ -1,4 +1,4 @@
-﻿import { existsSync, mkdirSync, readFileSync, writeFileSync , readdirSync } from "fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync , readdirSync } from "fs";
 import { join } from "path";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -1066,6 +1066,49 @@ function filterSmartZjRecentDuplicateTitles(
 
   return filtered.length >= Math.min(8, tracks.length) ? filtered : tracks;
 }
+
+function smartZjCanonicalSongKey(track: AnyTrack) {
+  const lane = cleanText(track?.genreLane || track?.lane || "").toLowerCase();
+  const rawValue = String(
+    track?.azuraRelativePath ||
+      track?.sourceFilePath ||
+      track?.localAudioPath ||
+      track?.trackId ||
+      track?.id ||
+      track?.title ||
+      track?.audioUrl ||
+      ""
+  );
+
+  const fileName = rawValue.split(/[\\/]/).pop() || rawValue;
+
+  let key = fileName.toLowerCase();
+  key = key.replace(/\.(mp3|wav|m4a|aac)$/gi, "");
+  key = key.replace(/^smartdj[-_\s]*local[-_\s]*clean[-_\s]*/gi, "");
+  key = key.replace(/[-_\s]*(verified[-_\s]*clean|real[-_\s]*bleeped|second[-_\s]*scan[-_\s]*bleeped)$/gi, "");
+  key = key.replace(/_mp3(_\d+)?$/gi, "");
+  key = key.replace(/[-_\s]*(official|video|lyrics|audio|clean|version|promo)\b/gi, " ");
+  key = key.replace(/[_\-]+/g, " ");
+  key = key.replace(/\s+/g, " ").trim();
+
+  return `${lane || "any"}:${key || cleanText(rawValue).toLowerCase()}`;
+}
+
+function dedupeSmartZjTracksBySongKey(tracks: AnyTrack[]) {
+  const seen = new Set<string>();
+  const deduped: AnyTrack[] = [];
+
+  for (const track of tracks) {
+    const key = smartZjCanonicalSongKey(track);
+    if (!key || seen.has(key)) continue;
+
+    seen.add(key);
+    deduped.push(track);
+  }
+
+  return deduped.length ? deduped : tracks;
+}
+
 async function runMiniAutoNext(req?: NextRequest) {
   const allCleanTracks = mergeScheduleJinglesWithCleanTracks(readSmartTracks());
   const requestedLane = await getRequestedLane(req);
@@ -1285,14 +1328,14 @@ const currentKey = getCurrentKey();
       requestPriorityBlocked: Boolean(schedulePolicy?.requestPriorityBlocked),
       playJinglesBetweenTracks: Boolean(schedulePolicy?.playJinglesBetweenTracks),
       allowJingleOverlay: Boolean(schedulePolicy?.allowJingleOverlay),
-      scheduleJingleInsert: Boolean(shouldInsertScheduleJingle),
+      scheduleJingleInsert: Boolean(selectedIsScheduleJingle),
       scheduleModeActive,
       scheduleJingleTrackCount: scheduleJingleTracks.length,
     },
     schedulePolicy: schedulePolicy || null,
     playJinglesBetweenTracks: Boolean(schedulePolicy?.playJinglesBetweenTracks),
     allowJingleOverlay: Boolean(schedulePolicy?.allowJingleOverlay),
-    scheduleJingleInsert: Boolean(shouldInsertScheduleJingle),
+    scheduleJingleInsert: Boolean(selectedIsScheduleJingle),
     scheduleModeActive,
     scheduleJingleTrackCount: scheduleJingleTracks.length,
     songsBetweenScheduleJingles,
@@ -1388,4 +1431,3 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   return runMiniAutoNext(req);
 }
-
