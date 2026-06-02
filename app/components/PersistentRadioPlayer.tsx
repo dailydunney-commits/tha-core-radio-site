@@ -177,11 +177,11 @@ useEffect(() => {
       } catch {}
 
       if (Date.now() - startedWaitingAt < 90000) {
-        window.setTimeout(waitForNextBroadcast, 2000);
+        window.setTimeout(waitForNextBroadcast, 750);
       }
     };
 
-    window.setTimeout(waitForNextBroadcast, 1500);
+    window.setTimeout(waitForNextBroadcast, 250);
   };
 
     audio.addEventListener("ended", handleEnded);
@@ -779,5 +779,6 @@ const styles: Record<string, CSSProperties> = {
     boxShadow: "0 0 18px #ff1744",
   },
 };
+
 
 
