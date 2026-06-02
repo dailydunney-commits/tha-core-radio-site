@@ -113,7 +113,7 @@ useEffect(() => {
     }
 
     const started = Date.parse(startedAt);
-    if (Number.isFinite(started)) {
+    if (!sameAudioUrl && Number.isFinite(started)) {
       const elapsed = Math.max(0, Math.floor((Date.now() - started) / 1000));
       const duration = Number(audio.duration || 0);
       let target = elapsed;
@@ -368,7 +368,7 @@ useEffect(() => {
 
         const started = Date.parse(startedAt);
 
-        if (Number.isFinite(started)) {
+        if (!sameAudioUrl && Number.isFinite(started)) {
           const elapsed = Math.max(0, Math.floor((Date.now() - started) / 1000));
           const duration = Number(audio.duration || 0);
           let target = elapsed;
@@ -478,7 +478,7 @@ try {
   const startedAt = String(currentBroadcast?.startedAt || data?.live?.broadcast_start || "");
   const started = Date.parse(startedAt);
 
-  if (Number.isFinite(started)) {
+  if (!sameAudioUrl && Number.isFinite(started)) {
     const elapsed = Math.max(0, Math.floor((Date.now() - started) / 1000));
     const duration = Number(audio.duration || 0);
     let target = elapsed;
