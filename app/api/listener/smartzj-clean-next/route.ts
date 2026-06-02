@@ -1233,10 +1233,16 @@ async function runMiniAutoNext(req?: NextRequest) {
     cleanTracks = rotatedScheduleJingles.length ? rotatedScheduleJingles : scheduleJingleTracks;
   }
 
-  const selection = chooseSmartZjFreshFirstNext(cleanTracks, currentKey, playerState);
+  const selectionSourceTracks = shouldInsertScheduleJingle
+    ? scheduleJingleTracks
+    : filterSmartZjRecentDuplicateTitles(cleanTracks, playerState);
+
+  const selection = chooseSmartZjFreshFirstNext(selectionSourceTracks, currentKey, playerState);
   const nextIndex = selection.index;
   const track = selection.track;
-  const selectionReason = selection.reason;
+  const selectionReason = shouldInsertScheduleJingle
+    ? `${selection.reason}_SCHEDULE_JINGLE_INSERT`
+    : `${selection.reason}_DUPLICATE_TITLE_LOCK`;
   const audioUrl = pickSafeUrl(track);
   const now = new Date().toISOString();
 
