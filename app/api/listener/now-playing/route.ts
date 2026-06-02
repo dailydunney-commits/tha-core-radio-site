@@ -156,8 +156,8 @@ async function trySmartZjRecovery(reason: string) {
         song: { text: `${artist} - ${title}`, artist, title, album: "", art: null },
         playlist: "Recovered Clean SmartZJ Broadcast",
         is_request: false,
-        elapsed: 0,
-        remaining: 0
+        elapsed: getElapsedSecondsFromStartedAt(data?.currentBroadcast?.startedAt || data?.startedAt),
+        remaining: getRemainingSeconds(data?.currentBroadcast || data, data?.currentBroadcast?.track || data?.track || {})
       },
       playing_next: null,
       song_history: [],
@@ -273,8 +273,8 @@ export async function GET(request: NextRequest) {
             },
             playlist: "Current Clean SmartDJ Broadcast",
             is_request: false,
-            elapsed: 0,
-            remaining: 0
+            elapsed: getElapsedSecondsFromStartedAt(current?.startedAt),
+         remaining: getRemainingSeconds(current, track)
           },
           playing_next: null,
           song_history: [],
