@@ -1173,7 +1173,7 @@ async function runMiniAutoNext(req?: NextRequest) {
 
   const scheduleJingleTracks =
     Boolean(schedulePolicy?.playJinglesBetweenTracks) && scheduleModeActive
-      ? allCleanTracks.filter((track) => isSmartZjJingleTrack(track))
+      ? loadScheduleJingleTracksFromDrops()
       : [];
 
   const shouldInsertScheduleJingle =
