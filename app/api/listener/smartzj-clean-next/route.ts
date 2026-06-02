@@ -11,7 +11,6 @@ const DATA_DIR = join(process.cwd(), ".data");
 const SMARTDJ_STATE_FILE = join(DATA_DIR, "smartdj-state.json");
 const CURRENT_BROADCAST_FILE = join(DATA_DIR, "current-broadcast.json");
 const PLAYER_STATE_FILE = join(DATA_DIR, "smartzj-mini-autonext.json");
-const SMARTZJ_JINGLE_COUNTER_FILE = join(DATA_DIR, "smartzj-jingle-counter.json");
 const FRESH_FIRST_STATE_FILE = join(DATA_DIR, "smartzj-fresh-first-queue.json");
 const LANE_PLAY_HISTORY_FILE = join(DATA_DIR, "smartzj-lane-play-history.json");
 const BACKGROUND_CLEAN_STATE_FILE = join(DATA_DIR, "smartdj-background-clean-state.json");
