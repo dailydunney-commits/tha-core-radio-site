@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
@@ -742,4 +742,3 @@ const styles: Record<string, CSSProperties> = {
     boxShadow: "0 0 18px #ff1744",
   },
 };
-
