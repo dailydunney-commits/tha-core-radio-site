@@ -1280,11 +1280,19 @@ const currentKey = getCurrentKey();
     cleanTracks = rotatedScheduleJingles.length ? rotatedScheduleJingles : scheduleJingleTracks;
   }
 
+  cleanTracks = shouldInsertScheduleJingle
+    ? cleanTracks
+    : dedupeSmartZjTracksBySongKey(cleanTracks);
+
   const selectionSourceTracks = shouldInsertScheduleJingle
-    ? scheduleJingleTracks
+    ? cleanTracks
     : filterSmartZjRecentDuplicateTitles(cleanTracks, playerState);
 
-  const selection = chooseSmartZjFreshFirstNext(selectionSourceTracks, currentKey, playerState);
+  const dedupedSelectionSourceTracks = shouldInsertScheduleJingle
+    ? selectionSourceTracks
+    : dedupeSmartZjTracksBySongKey(selectionSourceTracks);
+
+  const selection = chooseSmartZjFreshFirstNext(dedupedSelectionSourceTracks, currentKey, playerState);
   const nextIndex = selection.index;
   const track = selection.track;
   const selectionReason = shouldInsertScheduleJingle
