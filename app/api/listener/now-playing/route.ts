@@ -93,6 +93,33 @@ function standby(message: string) {
   }, { headers: { "Cache-Control": "no-store, no-cache, must-revalidate" } });
 }
 
+function getElapsedSecondsFromStartedAt(startedAt: any) {
+  const startedAtMs = Date.parse(String(startedAt || ""));
+
+  if (!Number.isFinite(startedAtMs)) return 0;
+
+  return Math.max(0, Math.floor((Date.now() - startedAtMs) / 1000));
+}
+
+function getDurationSecondsFromTrack(current: any, track: any) {
+  const raw =
+    track?.durationSeconds ??
+    current?.durationSeconds ??
+    current?.track?.durationSeconds ??
+    current?.sequence?.durationSeconds ??
+    0;
+
+  const value = Number(raw);
+
+  return Number.isFinite(value) && value > 0 ? Math.floor(value) : 0;
+}
+
+function getRemainingSeconds(current: any, track: any) {
+  const duration = getDurationSecondsFromTrack(current, track);
+  const elapsed = getElapsedSecondsFromStartedAt(current?.startedAt);
+
+  return duration > 0 ? Math.max(0, duration - elapsed) : 0;
+}
 async function trySmartZjRecovery(reason: string) {
   try {
     const res = await fetch("http://127.0.0.1:3101/api/listener/smartzj-clean-next?lane=schedule", {
