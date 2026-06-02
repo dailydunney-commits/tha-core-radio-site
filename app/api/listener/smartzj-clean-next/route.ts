@@ -1033,6 +1033,38 @@ function mergeScheduleJinglesWithCleanTracks(tracks: AnyTrack[]) {
   return merged;
 }
 
+function smartZjDuplicateTitleKey(track: AnyTrack) {
+  return cleanText(titleFromTrack(track))
+    .toLowerCase()
+    .replace(/\([^)]*\)/g, " ")
+    .replace(/\b(clean|radio|edit|official|audio|video|lyrics|mp3|verified|real|bleeped|version|visualizer|feat|ft)\b/g, " ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function smartZjRecentTitleKeys(value: unknown) {
+  return Array.isArray(value)
+    ? value.map((item) => cleanText(item).toLowerCase()).filter(Boolean).slice(0, 20)
+    : [];
+}
+
+function filterSmartZjRecentDuplicateTitles(
+  tracks: AnyTrack[],
+  playerState: Record<string, any>
+) {
+  const recentTitleKeys = smartZjRecentTitleKeys(playerState.recentTitleKeys);
+  const currentTitleKey = cleanText(playerState.currentTitleKey || "").toLowerCase();
+
+  const filtered = tracks.filter((track) => {
+    const key = smartZjDuplicateTitleKey(track);
+    if (!key) return true;
+    if (key === currentTitleKey) return false;
+    return !recentTitleKeys.includes(key);
+  });
+
+  return filtered.length >= Math.min(8, tracks.length) ? filtered : tracks;
+}
 async function runMiniAutoNext(req?: NextRequest) {
   const allCleanTracks = mergeScheduleJinglesWithCleanTracks(readSmartTracks());
   const requestedLane = await getRequestedLane(req);
@@ -1085,7 +1117,7 @@ async function runMiniAutoNext(req?: NextRequest) {
     index: -1,
   });
 
-  const songsBetweenScheduleJingles = getSongsBetweenScheduleJingles(schedulePolicy);
+  const songsBetweenScheduleJingles = Math.max(1, Number(playerState.songsBetweenScheduleJingles || 0) || getSongsBetweenScheduleJingles(schedulePolicy) || 3);
   const songsSinceScheduleJingle = Math.max(
     0,
     Number(playerState.songsSinceScheduleJingle || 0)
@@ -1278,7 +1310,7 @@ async function runMiniAutoNext(req?: NextRequest) {
   };
 
   writeJson(CURRENT_BROADCAST_FILE, broadcast);
-  rememberSmartZjFreshFirstPlay(track, cleanTracks);
+  if (!selectedIsScheduleJingle) rememberSmartZjFreshFirstPlay(track, cleanTracks);
 
   writeJson(PLAYER_STATE_FILE, {
     ok: true,
