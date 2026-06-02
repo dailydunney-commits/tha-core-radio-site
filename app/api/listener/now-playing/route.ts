@@ -1,4 +1,4 @@
-﻿import { existsSync, readFileSync, writeFileSync } from "fs";
+import { existsSync, readFileSync, writeFileSync } from "fs";
 import { join } from "path";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -202,9 +202,10 @@ export async function GET(request: NextRequest) {
 
       if (
         currentStatus === "SMARTDJ_BROADCASTING" &&
-        isSafeUrl(currentAudioUrl) &&
-        !publicAudioFileExists(currentAudioUrl)
-      ) {
+      !currentAudioUrl.startsWith("/drops/") &&
+      isSafeUrl(currentAudioUrl) &&
+      !publicAudioFileExists(currentAudioUrl)
+   ) {
         try {
           const healLane = pickHealLane(current, track);
 
@@ -233,9 +234,9 @@ export async function GET(request: NextRequest) {
 
       if (
         currentStatus === "SMARTDJ_BROADCASTING" &&
-        isSafeUrl(currentAudioUrl) &&
-        publicAudioFileExists(currentAudioUrl)
-      ) {
+      isSafeUrl(currentAudioUrl) &&
+      (currentAudioUrl.startsWith("/drops/") || publicAudioFileExists(currentAudioUrl))
+   ) {
         const title = String(
           track?.title ||
             current?.title ||
@@ -354,4 +355,3 @@ export async function GET(request: NextRequest) {
       : "Playing approved safe rotation track. Raw Azura remains blocked."
   }, { headers: { "Cache-Control": "no-store, no-cache, must-revalidate" } });
 }
-
