@@ -93,6 +93,59 @@ function standby(message: string) {
   }, { headers: { "Cache-Control": "no-store, no-cache, must-revalidate" } });
 }
 
+async function trySmartZjRecovery(reason: string) {
+  try {
+    const res = await fetch("http://127.0.0.1:3101/api/listener/smartzj-clean-next?lane=schedule", {
+      method: "POST",
+      cache: "no-store",
+    });
+
+    if (!res.ok) return null;
+
+    const data = await res.json();
+    const audioUrl = String(data?.audioUrl || data?.streamUrl || data?.listen_url || "").trim();
+
+    if (!audioUrl || !isSafeUrl(audioUrl) || !publicAudioFileExists(audioUrl)) return null;
+
+    const title = String(data?.title || data?.currentBroadcast?.title || "Approved SmartZJ Track").trim();
+    const artist = String(data?.artist || data?.currentBroadcast?.artist || "Tha Core Online Radio").trim();
+
+    return NextResponse.json({
+      ok: true,
+      mode: "CURRENT_BROADCAST",
+      safety: "CLEAN_OR_BLEEPED_CURRENT_BROADCAST",
+      is_online: true,
+      audioUrl,
+      streamUrl: audioUrl,
+      listen_url: audioUrl,
+      station: {
+        name: "Tha Core Online Radio",
+        listen_url: audioUrl,
+        mounts: [{ name: "Recovered SmartZJ Current Broadcast", url: audioUrl, is_default: true }]
+      },
+      listeners: { total: 0, unique: 0, current: 0 },
+      live: { is_live: true, streamer_name: "", broadcast_start: data?.currentBroadcast?.startedAt || null, art: null },
+      now_playing: {
+        song: { text: `${artist} - ${title}`, artist, title, album: "", art: null },
+        playlist: "Recovered Clean SmartZJ Broadcast",
+        is_request: false,
+        elapsed: 0,
+        remaining: 0
+      },
+      playing_next: null,
+      song_history: [],
+      cache: null,
+      recoveryReason: reason,
+      message: "Recovered listener output through SmartZJ clean-next instead of falling to standby. Raw Azura remains blocked.",
+      currentBroadcast: data?.currentBroadcast || data,
+    }, { headers: { "Cache-Control": "no-store, no-cache, must-revalidate" } });
+  } catch {
+    return null;
+  }
+
+  return null;
+}
+
 export async function GET(request: NextRequest) {
   const shouldAdvance = new URL(request.url).searchParams.get("advance") === "1";
 
@@ -234,12 +287,15 @@ export async function GET(request: NextRequest) {
   if (!isSafeUrl(audioUrl)) {
     return standby("Selected audio blocked by public safety gate.");
   }
-if (audioUrl.includes("/audio/smartdj/test-bleeped-clean.mp3")) {
- return standby("Live listener test fallback blocked. Waiting for approved SmartZJ current broadcast.");
+  if (audioUrl.includes("/audio/smartdj/test-bleeped-clean.mp3")) {
+ const recovered = await trySmartZjRecovery("TEST_FALLBACK_BLOCKED");
+ if (recovered) return recovered;
+
+    return standby("Live listener test fallback blocked. Waiting for approved SmartZJ current broadcast.");
 }
 
-const title = String(track.title || "Safe Rotation Track").trim();
-const artist = String(track.artist || "Tha Core Online Radio").trim();
+  const title = String(track.title || "Safe Rotation Track").trim();
+  const artist = String(track.artist || "Tha Core Online Radio").trim();
 
   return NextResponse.json({
     ok: true,
