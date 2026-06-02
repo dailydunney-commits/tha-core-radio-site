@@ -143,9 +143,41 @@ useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
 
-    const handleEnded = () => {
-      setIsPlaying(false); setMessage("Track ended. Waiting for control panel broadcast brain...");
+  const handleEnded = () => {
+    const endedUrl = audio.src;
+    setIsPlaying(false);
+    setMessage("Track ended. Waiting for control panel broadcast brain...");
+
+    const startedWaitingAt = Date.now();
+
+    const waitForNextBroadcast = async () => {
+      try {
+        const response = await fetch(`/api/listener/now-playing?endedFollow=${Date.now()}`, { cache: "no-store" });
+        const data = await response.json().catch(() => null);
+        const currentBroadcast = data?.currentBroadcast || {};
+        const nextUrl = String(data?.streamUrl || data?.audioUrl || data?.listen_url || currentBroadcast?.audioUrl || "").trim();
+
+        if (nextUrl) {
+          const absoluteNextUrl = new URL(nextUrl, window.location.origin).href;
+          if (absoluteNextUrl !== endedUrl) {
+            audio.src = nextUrl;
+            audio.load();
+            audio.volume = Math.max(0.75, Number(volume || 0));
+            await audio.play();
+            setIsPlaying(true);
+            setMessage("Following control panel broadcast");
+            return;
+          }
+        }
+      } catch {}
+
+      if (Date.now() - startedWaitingAt < 90000) {
+        window.setTimeout(waitForNextBroadcast, 2000);
+      }
     };
+
+    window.setTimeout(waitForNextBroadcast, 1500);
+  };
 
     audio.addEventListener("ended", handleEnded);
 
