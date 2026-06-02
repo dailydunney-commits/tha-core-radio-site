@@ -1053,13 +1053,7 @@ function filterSmartZjRecentDuplicateTitles(
   tracks: AnyTrack[],
   playerState: Record<string, any>
 ) {
-  const freshState = readFreshFirstState();
-  const recentTitleKeys = Array.from(
-    new Set([
-      ...smartZjRecentTitleKeys(playerState.recentTitleKeys),
-      ...smartZjRecentTitleKeys(freshState.recentTitleKeys),
-    ])
-  );
+  const recentTitleKeys = smartZjRecentTitleKeys(playerState.recentTitleKeys);
   const currentTitleKey = cleanText(playerState.currentTitleKey || "").toLowerCase();
 
   const filtered = tracks.filter((track) => {
@@ -1123,28 +1117,10 @@ async function runMiniAutoNext(req?: NextRequest) {
     index: -1,
   });
 
-  const songsBetweenScheduleJingles = Math.max(
-    1,
-    Number(playerState.songsBetweenScheduleJingles || 0) ||
-      getSongsBetweenScheduleJingles(schedulePolicy) ||
-      3
-  );
-
-  const currentBroadcastSongsSinceScheduleJingle = Math.max(
-    0,
-    Number(
-      currentBroadcastState?.nextSongsSinceScheduleJingle ??
-        currentBroadcastState?.songsSinceScheduleJingle ??
-        currentBroadcastState?.sequence?.nextSongsSinceScheduleJingle ??
-        currentBroadcastState?.sequence?.songsSinceScheduleJingle ??
-        0
-    )
-  );
-
+  const songsBetweenScheduleJingles = Math.max(1, Number(playerState.songsBetweenScheduleJingles || 0) || getSongsBetweenScheduleJingles(schedulePolicy) || 3);
   const songsSinceScheduleJingle = Math.max(
     0,
-    Number(playerState.songsSinceScheduleJingle || 0),
-    currentBroadcastSongsSinceScheduleJingle
+    Number(playerState.songsSinceScheduleJingle || 0)
   );
 
   const currentKey = getCurrentKey();
