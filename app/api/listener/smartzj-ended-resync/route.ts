@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 
@@ -18,8 +18,13 @@ async function getJson(path: string, init?: RequestInit) {
   return res.json().catch(() => ({}));
 }
 
-export async function POST() {
+export async function POST(request: NextRequest) {
   const now = Date.now();
+  const requestUrl = new URL(request.url);
+  const requestedLane = requestUrl.searchParams.get("lane") || "schedule";
+  const cleanNextPath =
+    `/api/listener/smartzj-clean-next?lane=${encodeURIComponent(requestedLane)}` +
+    `&ended=1&ownerMonitorEnded=1&controlPanelBrain=1&endedResync=${now}`;
 
   if (now - lastKickAt < 30000) {
     const current = await getJson(`/api/listener/now-playing?endedCooldown=${now}`);
@@ -34,7 +39,7 @@ export async function POST() {
 
   lastKickAt = now;
 
-  const nextResult = await getJson(`/api/listener/smartzj-clean-next?lane=schedule&endedResync=${now}`, {
+  const nextResult = await getJson(cleanNextPath, {
     method: "POST",
   });
 
@@ -46,6 +51,7 @@ export async function POST() {
     ok: true,
     action: "ENDED_RESYNC_KICKED_NEXT_ONCE",
     kicked: true,
+    cleanNextPath,
     nextResult,
     current,
   });
