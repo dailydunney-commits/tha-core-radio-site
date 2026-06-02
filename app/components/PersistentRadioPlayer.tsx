@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
@@ -144,7 +144,7 @@ useEffect(() => {
     if (!audio) return;
 
     const handleEnded = () => {
-      void playNextSmartZjCleanTrack(true);
+      setIsPlaying(false); setMessage("Track ended. Waiting for control panel broadcast brain...");
     };
 
     audio.addEventListener("ended", handleEnded);
@@ -742,3 +742,4 @@ const styles: Record<string, CSSProperties> = {
     boxShadow: "0 0 18px #ff1744",
   },
 };
+
