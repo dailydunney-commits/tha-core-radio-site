@@ -1170,13 +1170,23 @@ async function runMiniAutoNext(req?: NextRequest) {
       );
     }
   }
+  const schedulePolicyAny = (schedulePolicy || {}) as Record<string, any>;
+
+  const scheduleJingleEnabled =
+    Boolean(schedulePolicy?.playJinglesBetweenTracks) ||
+    Boolean(schedulePolicyAny.enableJingles) ||
+    Boolean(schedulePolicyAny.jinglesEnabled) ||
+    Number(playerState.songsBetweenScheduleJingles || 0) > 0;
+
+  const scheduleJingleModeActive = scheduleModeActive || scheduleJingleEnabled;
 
   const scheduleJingleTracks =
-    Boolean(schedulePolicy?.playJinglesBetweenTracks) && scheduleModeActive
+    scheduleJingleEnabled && scheduleJingleModeActive
       ? loadScheduleJingleTracksFromDrops()
       : [];
 
   const shouldInsertScheduleJingle =
+    scheduleJingleEnabled &&
     Boolean(scheduleJingleTracks.length) &&
     currentBroadcastLane !== "jingles" &&
     songsSinceScheduleJingle >= songsBetweenScheduleJingles;
