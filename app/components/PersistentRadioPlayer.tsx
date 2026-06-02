@@ -150,6 +150,11 @@ useEffect(() => {
 
     const startedWaitingAt = Date.now();
 
+    void fetch(`/api/listener/smartzj-ended-resync?publicEnded=1&endedFollow=${Date.now()}`, {
+      method: "POST",
+      cache: "no-store",
+    }).catch(() => null);
+
     const waitForNextBroadcast = async () => {
       try {
         const response = await fetch(`/api/listener/now-playing?endedFollow=${Date.now()}`, { cache: "no-store" });
@@ -774,4 +779,5 @@ const styles: Record<string, CSSProperties> = {
     boxShadow: "0 0 18px #ff1744",
   },
 };
+
 
