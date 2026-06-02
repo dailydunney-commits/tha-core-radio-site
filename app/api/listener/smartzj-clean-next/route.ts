@@ -11,6 +11,7 @@ const DATA_DIR = join(process.cwd(), ".data");
 const SMARTDJ_STATE_FILE = join(DATA_DIR, "smartdj-state.json");
 const CURRENT_BROADCAST_FILE = join(DATA_DIR, "current-broadcast.json");
 const PLAYER_STATE_FILE = join(DATA_DIR, "smartzj-mini-autonext.json");
+const SMARTZJ_JINGLE_COUNTER_FILE = join(DATA_DIR, "smartzj-jingle-counter.json");
 const FRESH_FIRST_STATE_FILE = join(DATA_DIR, "smartzj-fresh-first-queue.json");
 const LANE_PLAY_HISTORY_FILE = join(DATA_DIR, "smartzj-lane-play-history.json");
 const BACKGROUND_CLEAN_STATE_FILE = join(DATA_DIR, "smartdj-background-clean-state.json");
@@ -1117,13 +1118,16 @@ async function runMiniAutoNext(req?: NextRequest) {
     index: -1,
   });
 
-  const songsBetweenScheduleJingles = Math.max(1, Number(playerState.songsBetweenScheduleJingles || 0) || getSongsBetweenScheduleJingles(schedulePolicy) || 3);
+  const jingleCounterState = readJson<Record<string, any>>(SMARTZJ_JINGLE_COUNTER_FILE, {
+    songsSinceScheduleJingle: 0,
+  });
+const songsBetweenScheduleJingles = Math.max(1, Number(playerState.songsBetweenScheduleJingles || 0) || getSongsBetweenScheduleJingles(schedulePolicy) || 3);
   const songsSinceScheduleJingle = Math.max(
     0,
-    Number(playerState.songsSinceScheduleJingle || 0)
+    Number(playerState.songsSinceScheduleJingle || 0),
+    Number(jingleCounterState.songsSinceScheduleJingle || 0)
   );
-
-  const currentKey = getCurrentKey();
+const currentKey = getCurrentKey();
 
   const currentBroadcastState = readJson<Record<string, any>>(CURRENT_BROADCAST_FILE, {});
   const currentBroadcastLane = laneKey(
@@ -1334,6 +1338,16 @@ async function runMiniAutoNext(req?: NextRequest) {
     lastScheduleJingleAudioUrl: selectedIsScheduleJingle
       ? audioUrl
       : String(playerState.lastScheduleJingleAudioUrl || ""),
+    updatedAt: now,
+  });
+
+  writeJson(SMARTZJ_JINGLE_COUNTER_FILE, {
+    ok: true,
+    songsBetweenScheduleJingles,
+    songsSinceScheduleJingle: nextSongsSinceScheduleJingle,
+    lastScheduleJingleAudioUrl: selectedIsScheduleJingle
+      ? audioUrl
+      : String(jingleCounterState.lastScheduleJingleAudioUrl || playerState.lastScheduleJingleAudioUrl || ""),
     updatedAt: now,
   });
 
