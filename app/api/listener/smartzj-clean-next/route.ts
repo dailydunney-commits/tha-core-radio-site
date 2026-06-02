@@ -1033,97 +1033,6 @@ function mergeScheduleJinglesWithCleanTracks(tracks: AnyTrack[]) {
   return merged;
 }
 
-function smartZjMemoryKey(value: any) {
-  return cleanText(value).toLowerCase();
-}
-
-function smartZjTitleKey(track: AnyTrack) {
-  return smartZjMemoryKey(track?.title || track?.trackTitle || track?.id || track?.trackId || pickSafeUrl(track));
-}
-
-function smartZjArtistKey(track: AnyTrack) {
-  return smartZjMemoryKey(track?.artist || track?.artistName || "unknown");
-}
-
-function smartZjRecentList(value: any) {
-  return Array.isArray(value)
-    ? value.map((item) => smartZjMemoryKey(item)).filter(Boolean).slice(0, 20)
-    : [];
-}
-
-function smartZjShuffleTracks<T>(tracks: T[]) {
-  const shuffled = [...tracks];
-
-  for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-  }
-
-  return shuffled;
-}
-
-function smartZjShouldShuffle(policy: Record<string, any> | null | undefined) {
-  const raw = String(
-    policy?.playOrder ||
-      policy?.orderMode ||
-      policy?.rotationMode ||
-      policy?.schedulePlayOrder ||
-      policy?.shuffleMode ||
-      ""
-  ).toLowerCase();
-
-  return Boolean(policy?.shuffle || policy?.shuffleEnabled || raw.includes("shuffle") || raw.includes("random"));
-}
-
-function prepareSmartZjSelectionTracks(
-  tracks: AnyTrack[],
-  playerState: Record<string, any>,
-  schedulePolicy: Record<string, any> | null | undefined,
-  isJinglePick: boolean
-) {
-  if (isJinglePick || tracks.length <= 2) {
-    return {
-      tracks,
-      reasonSuffix: isJinglePick ? "JINGLE_PICK" : "SMALL_POOL",
-    };
-  }
-
-  const recentTitleKeys = smartZjRecentList(playerState.recentTitleKeys);
-  const recentArtistKeys = smartZjRecentList(playerState.recentArtistKeys);
-  const currentTitleKey = smartZjMemoryKey(playerState.currentTitle || "");
-  const currentArtistKey = smartZjMemoryKey(playerState.currentArtist || "");
-
-  let prepared = tracks.filter((track) => {
-    const titleKey = smartZjTitleKey(track);
-    const artistKey = smartZjArtistKey(track);
-
-    if (titleKey && titleKey === currentTitleKey) return false;
-    if (titleKey && recentTitleKeys.includes(titleKey)) return false;
-
-    if (tracks.length > 12 && artistKey && artistKey === currentArtistKey) return false;
-    if (tracks.length > 20 && artistKey && recentArtistKeys.slice(0, 4).includes(artistKey)) return false;
-
-    return true;
-  });
-
-  if (prepared.length < Math.min(8, tracks.length)) {
-    prepared = tracks.filter((track) => {
-      const titleKey = smartZjTitleKey(track);
-      return titleKey && titleKey !== currentTitleKey && !recentTitleKeys.slice(0, 4).includes(titleKey);
-    });
-  }
-
-  if (!prepared.length) prepared = tracks;
-
-  const shuffleOn = smartZjShouldShuffle(schedulePolicy) || Boolean(schedulePolicy?.scheduleOverrideActive);
-  const finalTracks = shuffleOn ? smartZjShuffleTracks(prepared) : prepared;
-
-  return {
-    tracks: finalTracks,
-    reasonSuffix: shuffleOn ? "SHUFFLE_RECENT_MEMORY" : "RECENT_MEMORY",
-  };
-}
-
 async function runMiniAutoNext(req?: NextRequest) {
   const allCleanTracks = mergeScheduleJinglesWithCleanTracks(readSmartTracks());
   const requestedLane = await getRequestedLane(req);
@@ -1282,17 +1191,10 @@ async function runMiniAutoNext(req?: NextRequest) {
     cleanTracks = rotatedScheduleJingles.length ? rotatedScheduleJingles : scheduleJingleTracks;
   }
 
-  const preparedSelection = prepareSmartZjSelectionTracks(
-    cleanTracks,
-    playerState,
-    schedulePolicy,
-    shouldInsertScheduleJingle
-  );
-  const selectionTracks = preparedSelection.tracks;
-  const selection = chooseSmartZjFreshFirstNext(selectionTracks, currentKey, playerState);
+  const selection = chooseSmartZjFreshFirstNext(cleanTracks, currentKey, playerState);
   const nextIndex = selection.index;
   const track = selection.track;
-  const selectionReason = `${selection.reason}_${preparedSelection.reasonSuffix}`;
+  const selectionReason = selection.reason;
   const audioUrl = pickSafeUrl(track);
   const now = new Date().toISOString();
 
@@ -1316,13 +1218,13 @@ async function runMiniAutoNext(req?: NextRequest) {
     listen_url: audioUrl,
     startedAt: now,
     updatedAt: now,
-    message: `SmartZJ Mini AutoNext ${genreLane} item ${nextIndex + 1} of ${selectionTracks.length}. Fresh-first: ${selectionReason}. Raw Azura blocked.`,
+    message: `SmartZJ Mini AutoNext ${genreLane} item ${nextIndex + 1} of ${cleanTracks.length}. Fresh-first: ${selectionReason}. Raw Azura blocked.`,
     sequence: {
       mode: "SMARTZJ_MINI_AUTONEXT",
       index: nextIndex,
       itemNumber: nextIndex + 1,
-      total: selectionTracks.length,
-      isLast: nextIndex + 1 === selectionTracks.length,
+      total: cleanTracks.length,
+      isLast: nextIndex + 1 === cleanTracks.length,
       selectionReason,
       requestedLane,
       laneLocked: Boolean(requestedLane),
@@ -1366,13 +1268,13 @@ async function runMiniAutoNext(req?: NextRequest) {
   };
 
   writeJson(CURRENT_BROADCAST_FILE, broadcast);
-  rememberSmartZjFreshFirstPlay(track, selectionTracks);
+  rememberSmartZjFreshFirstPlay(track, cleanTracks);
 
   writeJson(PLAYER_STATE_FILE, {
     ok: true,
     mode: "SMARTZJ_MINI_AUTONEXT",
     index: nextIndex,
-    total: selectionTracks.length,
+    total: cleanTracks.length,
     currentTitle: title,
     currentArtist: artist,
     currentAudioUrl: audioUrl,
@@ -1381,17 +1283,6 @@ async function runMiniAutoNext(req?: NextRequest) {
     skippedMissingAudioCount,
     songsBetweenScheduleJingles,
     songsSinceScheduleJingle: nextSongsSinceScheduleJingle,
-    recentTitleKeys: selectedIsScheduleJingle
-      ? smartZjRecentList(playerState.recentTitleKeys)
-      : [smartZjTitleKey(track), ...smartZjRecentList(playerState.recentTitleKeys)]
-          .filter(Boolean)
-          .slice(0, 20),
-    recentArtistKeys: selectedIsScheduleJingle
-      ? smartZjRecentList(playerState.recentArtistKeys)
-      : [smartZjArtistKey(track), ...smartZjRecentList(playerState.recentArtistKeys)]
-          .filter(Boolean)
-          .slice(0, 20),
-    shuffleRecentMemoryActive: !selectedIsScheduleJingle,
     lastScheduleJingleAudioUrl: selectedIsScheduleJingle
       ? audioUrl
       : String(playerState.lastScheduleJingleAudioUrl || ""),
@@ -1403,13 +1294,13 @@ async function runMiniAutoNext(req?: NextRequest) {
       ok: true,
       route: "/api/listener/smartzj-clean-next",
       action: "SMARTZJ_MINI_AUTONEXT",
-      cleanTrackCount: selectionTracks.length,
+      cleanTrackCount: cleanTracks.length,
       allCleanTrackCount: allCleanTracks.length,
       laneTrackCount: laneCleanTracks.length,
       skippedMissingAudioCount,
       index: nextIndex,
       itemNumber: nextIndex + 1,
-      isLast: nextIndex + 1 === selectionTracks.length,
+      isLast: nextIndex + 1 === cleanTracks.length,
       selectionReason,
       requestedLane,
       laneLocked: Boolean(requestedLane),
@@ -1435,5 +1326,4 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   return runMiniAutoNext(req);
 }
-
 
