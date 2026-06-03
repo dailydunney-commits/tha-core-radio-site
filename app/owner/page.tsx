@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 
 
@@ -165,6 +165,218 @@ function AutoDjGateStatusCard({ autoDj }: { autoDj: boolean }) {
   const tone = !autoDj ? "red" : held ? "red" : "yellow";
 
   return <StatusCard label="AutoDJ" value={value} tone={tone} />;
+}
+function SmartZjRequestTimerPanel() {
+  const [requestBlock, setRequestBlock] = useState<any>(null);
+  const [status, setStatus] = useState("Loading SmartZJ request timer...");
+
+  async function loadRequestTimer() {
+    try {
+      const response = await fetch(`/api/radio/smartzj-request-block?controlPanelTimer=${Date.now()}`, {
+        cache: "no-store",
+      });
+
+      const data = await response.json().catch(() => null);
+
+      if (!data?.ok) {
+        setStatus("Request timer unavailable.");
+        return;
+      }
+
+      setRequestBlock(data);
+      setStatus("Request timer live.");
+    } catch {
+      setStatus("Request timer could not reach SmartZJ request block.");
+    }
+  }
+
+  useEffect(() => {
+    let alive = true;
+
+    async function tick() {
+      if (!alive) return;
+      await loadRequestTimer();
+    }
+
+    void tick();
+
+    const timer = window.setInterval(() => {
+      void tick();
+    }, 5000);
+
+    return () => {
+      alive = false;
+      window.clearInterval(timer);
+    };
+  }, []);
+
+  const controlTimer = requestBlock?.controlPanelTimer || {};
+  const nextReady = controlTimer?.nextReadyRequest || null;
+  const queue = Array.isArray(requestBlock?.queue) ? requestBlock.queue : [];
+
+  return (
+    <section className="owner-request-timer-panel panel">
+      <style jsx>{`
+        .owner-request-timer-panel {
+          border: 1px solid rgba(255, 215, 0, 0.35);
+          border-radius: 18px;
+          padding: 16px;
+          margin: 14px 0;
+          background: linear-gradient(135deg, rgba(20, 0, 0, 0.92), rgba(0, 0, 0, 0.96));
+          box-shadow: 0 0 20px rgba(255, 0, 0, 0.18);
+        }
+
+        .request-timer-head {
+          display: flex;
+          justify-content: space-between;
+          gap: 12px;
+          align-items: flex-start;
+          margin-bottom: 12px;
+        }
+
+        .request-timer-head strong {
+          display: block;
+          color: #ffd54a;
+          letter-spacing: 0.08em;
+          font-size: 0.9rem;
+        }
+
+        .request-timer-head span,
+        .request-timer-status {
+          color: rgba(255, 255, 255, 0.72);
+          font-size: 0.78rem;
+        }
+
+        .request-timer-grid {
+          display: grid;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 10px;
+          margin-bottom: 12px;
+        }
+
+        .request-timer-box {
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          border-radius: 12px;
+          padding: 10px;
+          background: rgba(255, 255, 255, 0.05);
+        }
+
+        .request-timer-box span {
+          display: block;
+          color: rgba(255, 255, 255, 0.62);
+          font-size: 0.7rem;
+          text-transform: uppercase;
+        }
+
+        .request-timer-box strong {
+          color: #ffffff;
+          font-size: 1rem;
+        }
+
+        .request-next {
+          border: 1px solid rgba(0, 255, 136, 0.25);
+          border-radius: 12px;
+          padding: 10px;
+          margin-bottom: 10px;
+          background: rgba(0, 255, 136, 0.08);
+        }
+
+        .request-next strong {
+          color: #7CFFB2;
+        }
+
+        .request-list {
+          display: grid;
+          gap: 8px;
+        }
+
+        .request-row {
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          border-radius: 12px;
+          padding: 10px;
+          background: rgba(255, 255, 255, 0.04);
+        }
+
+        .request-row strong {
+          display: block;
+          color: #fff;
+        }
+
+        .request-row span {
+          display: block;
+          color: rgba(255, 255, 255, 0.68);
+          font-size: 0.76rem;
+          margin-top: 3px;
+        }
+
+        @media (max-width: 900px) {
+          .request-timer-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+          }
+        }
+      `}</style>
+
+      <div className="request-timer-head">
+        <div>
+          <strong>SMARTZJ REQUEST TIMER — CONTROL PANEL</strong>
+          <span>Owner queue brain. Separate from listener/homepage timer.</span>
+        </div>
+        <div className="request-timer-status">{status}</div>
+      </div>
+
+      <div className="request-timer-grid">
+        <div className="request-timer-box">
+          <span>Active Requests</span>
+          <strong>{controlTimer?.activeQueueCount ?? 0}</strong>
+        </div>
+        <div className="request-timer-box">
+          <span>Ready Playable</span>
+          <strong>{controlTimer?.readyPlayableCount ?? 0}</strong>
+        </div>
+        <div className="request-timer-box">
+          <span>Schedule Allows</span>
+          <strong>{controlTimer?.scheduleAllowsRequests ? "YES" : "WAIT"}</strong>
+        </div>
+        <div className="request-timer-box">
+          <span>Current Remaining</span>
+          <strong>{controlTimer?.currentBroadcast?.remainingSeconds ?? 0}s</strong>
+        </div>
+      </div>
+
+      {controlTimer?.blockedReason && (
+        <div className="request-next">
+          <strong>REQUESTS WAITING:</strong> {controlTimer.blockedReason}
+        </div>
+      )}
+
+      {nextReady ? (
+        <div className="request-next">
+          <strong>NEXT REQUEST:</strong> {nextReady.artist ? `${nextReady.artist} - ` : ""}{nextReady.title}
+          <br />
+          <span>Requested by {nextReady.requestedBy || "Listener"} • {nextReady.estimatedWaitLabel || "Waiting"}</span>
+        </div>
+      ) : (
+        <div className="request-next">
+          <strong>NEXT REQUEST:</strong> No READY request waiting for broadcast.
+        </div>
+      )}
+
+      <div className="request-list">
+        {queue.slice(0, 5).map((item: any) => {
+          const timer = item?.controlPanelTimer || {};
+          return (
+            <div className="request-row" key={item.requestId || item.id || item.title}>
+              <strong>
+                #{timer.queuePosition || "-"} {item.artist ? `${item.artist} - ` : ""}{item.title || "Requested Song"}
+              </strong>
+              <span>Status: {timer.requestPlayStatus || item.status || "WAITING"}</span>
+              <span>Wait: {timer.estimatedWaitLabel || "Waiting"} {timer.blockedReason ? `• ${timer.blockedReason}` : ""}</span>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
 }
 function SmartDjSafetyQueuePanel() {
   // Old duplicate SmartDJ Safety Queue removed.
@@ -2655,7 +2867,8 @@ const SELECTED_DISPLAY_MEMORY_KEY = "tha-core-owner-selected-display-v1";
             <OwnerSmartDjCommand />
             {showCleanBleepPanel ? (
               <>
-                <SmartDjControlPlaylist />
+                <SmartZjRequestTimerPanel />
+          <SmartDjControlPlaylist />
                 <SmartDjSafetyQueuePanel />
               </>
             ) : null}
@@ -4188,9 +4401,3 @@ function ControlSlider({
 
 
 // SMARTDJ_DISPATCH_LOADED_MESSAGE_COUNT_ONLY_V1
-
-
-
-
-
-
