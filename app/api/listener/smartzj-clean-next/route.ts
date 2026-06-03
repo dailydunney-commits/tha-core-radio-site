@@ -1302,13 +1302,16 @@ const currentKey = getCurrentKey();
 
   const currentBroadcastStatus = String(currentBroadcastState?.status || "");
   const bypassSmartZjEarlyHold = shouldBypassSmartZjEarlyHold(req);
-
-  if (
+  const scheduleInterruptBroadcast = Boolean(schedulePolicy?.interruptBroadcast);
+  const allowEarlyScheduleInterrupt = scheduleModeActive && scheduleInterruptBroadcast;
+  const shouldHoldCurrentTrack =
     currentBroadcastStatus === "SMARTDJ_BROADCASTING" &&
     currentBroadcastLane &&
     currentBroadcastLane !== "jingles" &&
-    !bypassSmartZjEarlyHold
-  ) {
+    !allowEarlyScheduleInterrupt &&
+    !bypassSmartZjEarlyHold;
+
+  if (shouldHoldCurrentTrack) {
     const ageSeconds = getBroadcastAgeSeconds(currentBroadcastState);
 
     if (ageSeconds < SMARTZJ_MIN_MUSIC_PLAY_SECONDS) {
@@ -1327,7 +1330,9 @@ const currentKey = getCurrentKey();
           holdSeconds: SMARTZJ_MIN_MUSIC_PLAY_SECONDS,
           remainingHoldSeconds: Math.max(0, SMARTZJ_MIN_MUSIC_PLAY_SECONDS - ageSeconds),
           smartZjEarlySkipGuardActive: true,
-          message: "SmartZJ blocked an early AutoNext call so the current clean track can keep playing.",
+          interruptBroadcast: scheduleInterruptBroadcast,
+          scheduleModeActive,
+          message: "SmartZJ blocked an early AutoNext call because this schedule block is set to wait until the current clean track finishes.",
           currentBroadcast: currentBroadcastState,
         },
         {
