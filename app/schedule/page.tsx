@@ -314,6 +314,28 @@ export default function SmartZjSchedulePage() {
       setSaving(false);
     }
   }
+
+  async function refreshScheduleAndKickBroadcast() {
+    setSaving(true);
+    setStatus("Refreshing schedule and checking active block...");
+
+    try {
+      await loadSchedule();
+
+      await fetch(`/api/listener/smartzj-ended-resync?lane=schedule&scheduleRefresh=1&controlPanelBrain=1&t=${Date.now()}`, {
+        method: "POST",
+        cache: "no-store",
+      }).catch(() => null);
+
+      await loadSchedule();
+
+      setStatus("Schedule refreshed. Active block sent to broadcast brain.");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Schedule refresh failed.");
+    } finally {
+      setSaving(false);
+    }
+  }
   async function resetSchedule() {
     if (!window.confirm("Reset SmartZJ schedule to defaults?")) return;
 
@@ -352,10 +374,7 @@ export default function SmartZjSchedulePage() {
         </p>
         <p style={statusStyle}>{status}</p>
         <div style={buttonRowStyle}>
-          <button style={primaryButtonStyle} onClick={saveSchedule} disabled={saving}>
-            {saving ? "Saving..." : "Save Schedule"}
-          </button>
-          <button style={buttonStyle} onClick={() => void loadSchedule()} disabled={saving}>
+          <button style={buttonStyle} onClick={() => void refreshScheduleAndKickBroadcast()} disabled={saving}>
             Refresh
           </button>
           <button style={dangerButtonStyle} onClick={resetSchedule} disabled={saving}>
