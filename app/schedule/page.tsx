@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import type { ChangeEvent } from "react";
@@ -253,6 +253,67 @@ export default function SmartZjSchedulePage() {
     }
   }
 
+
+  async function updateSingleBlock(index: number) {
+    if (!draft) return;
+
+    const normalizedBlocks = blocks.map((block: AnyRecord, blockIndex: number) =>
+      normalizeBlock(block, blockIndex)
+    );
+
+    const block = normalizedBlocks[index];
+    if (!block) {
+      setStatus("Block not found.");
+      return;
+    }
+
+    const blockName = clean(block.name) || `Schedule Block ${index + 1}`;
+
+    setSaving(true);
+    setStatus(`Updating ${blockName}...`);
+
+    try {
+      const cleanSchedule = {
+        ...draft,
+        enabled: Boolean(draft.enabled),
+        timezone: clean(draft.timezone) || "America/Jamaica",
+        fallbackMinPlayable: Number(draft.fallbackMinPlayable || 25),
+        defaultFallbackLanes: splitLanes(draft.defaultFallbackLanes),
+        blocks: normalizedBlocks,
+      };
+
+      const res = await fetch("/api/radio/smartzj-schedule", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        cache: "no-store",
+        body: JSON.stringify({ schedule: cleanSchedule }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || data?.ok === false) {
+        throw new Error(data?.message || "Block update failed.");
+      }
+
+      const savedSchedule = data?.schedule || cleanSchedule;
+
+      setResponse(data);
+      setDraft({
+        ...savedSchedule,
+        blocks: Array.isArray(savedSchedule.blocks)
+          ? savedSchedule.blocks.map((savedBlock: AnyRecord, savedIndex: number) =>
+              normalizeBlock(savedBlock, savedIndex)
+            )
+          : normalizedBlocks,
+      });
+
+      setOpenBlockIndex(null);
+      setStatus(`${blockName} updated and closed.`);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Block update failed.");
+    } finally {
+      setSaving(false);
+    }
+  }
   async function resetSchedule() {
     if (!window.confirm("Reset SmartZJ schedule to defaults?")) return;
 
@@ -373,8 +434,8 @@ export default function SmartZjSchedulePage() {
               <div style={smallButtonRowStyle}>
                 {openBlockIndex === index ? (
                   <>
-                    <button style={smallButtonStyle} onClick={() => { void saveSchedule(); setOpenBlockIndex(null); }} disabled={saving}>Update Block</button>
-                    <button style={smallButtonStyle} onClick={() => setOpenBlockIndex(null)}>Close</button>
+                    <button style={smallButtonStyle} onClick={() => void updateSingleBlock(index)} disabled={saving}>Update Block</button>
+                    <button style={smallButtonStyle} onClick={() => { setOpenBlockIndex(null); void loadSchedule(); }}>Close</button>
                   </>
                 ) : (
                   <button style={smallButtonStyle} onClick={() => setOpenBlockIndex(index)}>Edit Block</button>
@@ -632,4 +693,3 @@ const twoColStyle = { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10p
 const smallButtonRowStyle = { display: "flex", gap: "8px" };
 const smallButtonStyle = { ...buttonStyle, padding: "8px 10px", fontSize: "12px" };
 const smallDangerStyle = { ...smallButtonStyle, background: "#5c1111" };
-
