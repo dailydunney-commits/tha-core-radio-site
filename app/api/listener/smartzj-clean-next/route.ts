@@ -1311,7 +1311,7 @@ const currentKey = getCurrentKey();
     ? selectionSourceTracks
     : dedupeSmartZjTracksBySongKey(selectionSourceTracks);
 
-  const playbackOrder = cleanText(schedulePolicy?.playbackOrder || "shuffled").toLowerCase();
+  const playbackOrder = cleanText(((schedulePolicy || {}) as Record<string, any>).playbackOrder || "shuffled").toLowerCase();
   const selection = chooseSmartZjPlaybackOrderNext(
     dedupedSelectionSourceTracks,
     currentKey,
