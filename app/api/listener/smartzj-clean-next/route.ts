@@ -18,6 +18,7 @@ const BACKGROUND_CLEAN_STATE_FILE = join(DATA_DIR, "smartdj-background-clean-sta
 const SMARTZJ_LIVE_READY_POOL_FILE = join(DATA_DIR, "smartzj-live-ready-pool.json");
 const SMARTZJ_EMERGENCY_HOLD_FILE = join(DATA_DIR, "smartzj-emergency-hold.json");
 const SMARTZJ_BROADCAST_MODE_FILE = join(DATA_DIR, "smartzj-broadcast-mode.json");
+const SMARTZJ_REQUEST_BLOCK_FILE = join(DATA_DIR, "smartzj-request-block.json");
 
 function readJson<T>(filePath: string, fallback: T): T {
   try {
@@ -261,6 +262,94 @@ function publicCleanAudioExists(url: string) {
   return existsSync(filePath);
 }
 
+function readSmartZjRequestBlock() {
+  return readJson<Record<string, any>>(SMARTZJ_REQUEST_BLOCK_FILE, {
+    ok: true,
+    blockType: "SONG_REQUESTS",
+    queue: [],
+  });
+}
+
+function writeSmartZjRequestBlock(block: Record<string, any>) {
+  writeJson(SMARTZJ_REQUEST_BLOCK_FILE, {
+    ...block,
+    ok: true,
+    blockType: "SONG_REQUESTS",
+    queue: Array.isArray(block.queue) ? block.queue : [],
+    updatedAt: new Date().toISOString(),
+  });
+}
+
+function getNextReadySmartZjRequest(schedulePolicy: Record<string, any> | null | undefined) {
+  if (Boolean(schedulePolicy?.prioritizeOverRequests || schedulePolicy?.requestPriorityBlocked)) {
+    return null;
+  }
+
+  const block = readSmartZjRequestBlock();
+  const queue = Array.isArray(block.queue) ? block.queue : [];
+
+  for (const item of queue) {
+    const status = cleanText(item?.status).toUpperCase();
+    if (status !== "REQUEST_READY") continue;
+    if (item?.ready === false) continue;
+    if (!item?.track || typeof item.track !== "object") continue;
+
+    const track = item.track as AnyTrack;
+    const audioUrl = pickSafeUrl(track);
+
+    if (!audioUrl || !publicCleanAudioExists(audioUrl)) continue;
+
+    return {
+      item,
+      track: {
+        ...track,
+        id: cleanText(track.id || track.trackId || item.requestId || item.id || item.title),
+        trackId: cleanText(track.trackId || track.id || item.requestId || item.id || item.title),
+        title: cleanText(track.title || item.title || "Listener Request"),
+        artist: cleanText(track.artist || item.artist || "AzuraCast"),
+        source: "SMARTZJ_REQUEST_BLOCK",
+        requestId: cleanText(item.requestId || item.id),
+        requestedBy: cleanText(item.requestedBy || "Listener"),
+        requestPriority: "REQUEST_PRIORITY_NEXT",
+        audioUrl,
+        cleanAudioUrl: audioUrl,
+        processedAudioUrl: audioUrl,
+        safetyStatus: "READY",
+        cleanStatus: "PROCESSED_AUDIO_READY",
+        needsBleep: false,
+        held: false,
+        rawAudioBlocked: true,
+      },
+    };
+  }
+
+  return null;
+}
+
+function markSmartZjRequestPlayed(requestId: string) {
+  if (!requestId) return;
+
+  const block = readSmartZjRequestBlock();
+  const queue = Array.isArray(block.queue) ? block.queue : [];
+  const now = new Date().toISOString();
+
+  writeSmartZjRequestBlock({
+    ...block,
+    queue: queue.map((item: Record<string, any>) => {
+      const itemId = cleanText(item.requestId || item.id);
+      if (itemId !== requestId) return item;
+
+      return {
+        ...item,
+        status: "PLAYED",
+        ready: false,
+        playedAt: now,
+        updatedAt: now,
+        message: "Request was sent to SmartZJ current broadcast.",
+      };
+    }),
+  });
+}
 function isRawAzuraUrl(url: string) {
   const text = url.toLowerCase();
 
