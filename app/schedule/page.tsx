@@ -373,7 +373,7 @@ export default function SmartZjSchedulePage() {
               <div style={smallButtonRowStyle}>
                 {openBlockIndex === index ? (
                   <>
-                    <button style={smallButtonStyle} onClick={() => saveSchedule()} disabled={saving}>Update Block</button>
+                    <button style={smallButtonStyle} onClick={() => { void saveSchedule(); setOpenBlockIndex(null); }} disabled={saving}>Update Block</button>
                     <button style={smallButtonStyle} onClick={() => setOpenBlockIndex(null)}>Close</button>
                   </>
                 ) : (
@@ -632,3 +632,4 @@ const twoColStyle = { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10p
 const smallButtonRowStyle = { display: "flex", gap: "8px" };
 const smallButtonStyle = { ...buttonStyle, padding: "8px 10px", fontSize: "12px" };
 const smallDangerStyle = { ...smallButtonStyle, background: "#5c1111" };
+
