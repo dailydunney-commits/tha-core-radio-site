@@ -717,6 +717,84 @@ function chooseSmartZjPlaybackOrderNext(
   playbackOrder: unknown
 ) {
   const order = cleanText(playbackOrder || "shuffled").toLowerCase();
+  const freshState = readFreshFirstState();
+
+  const recentKeySet = new Set(
+    Array.isArray(freshState.recentKeys) ? freshState.recentKeys.map(String) : []
+  );
+
+  const recentTitleSet = new Set(
+    Array.isArray(freshState.recentTitleKeys) ? freshState.recentTitleKeys.map(String) : []
+  );
+
+  const recentArtistSet = new Set(
+    Array.isArray(freshState.recentArtistKeys) ? freshState.recentArtistKeys.map(String) : []
+  );
+
+  const candidates = cleanTracks.filter((track) => {
+    const key = getTrackKey(track);
+    return key && key !== currentKey;
+  });
+
+  if (order === "random") {
+    const randomized = [...candidates];
+
+    for (let i = randomized.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [randomized[i], randomized[j]] = [randomized[j], randomized[i]];
+    }
+
+    const picked =
+      pickSmartZjAntiRepeatCandidate(
+        randomized,
+        currentKey,
+        recentKeySet,
+        recentTitleSet,
+        recentArtistSet,
+        false
+      ) || randomized[0] || cleanTracks[0];
+
+    const pickedKey = getTrackKey(picked);
+    const index = cleanTracks.findIndex((track) => getTrackKey(track) === pickedKey);
+
+    return {
+      track: picked,
+      index: index >= 0 ? index : 0,
+      reason: "SCHEDULE_RANDOM_ANTI_REPEAT",
+    };
+  }
+
+  if (order === "sequential") {
+    const currentIndex = cleanTracks.findIndex((track) => getTrackKey(track) === currentKey);
+    const startIndex = currentIndex >= 0 ? currentIndex + 1 : 0;
+
+    const ordered = cleanTracks
+      .slice(startIndex)
+      .concat(cleanTracks.slice(0, startIndex))
+      .filter((track) => {
+        const key = getTrackKey(track);
+        return key && key !== currentKey;
+      });
+
+    const picked =
+      pickSmartZjAntiRepeatCandidate(
+        ordered,
+        currentKey,
+        recentKeySet,
+        recentTitleSet,
+        recentArtistSet,
+        false
+      ) || ordered[0] || cleanTracks[0];
+
+    const pickedKey = getTrackKey(picked);
+    const index = cleanTracks.findIndex((track) => getTrackKey(track) === pickedKey);
+
+    return {
+      track: picked,
+      index: index >= 0 ? index : 0,
+      reason: "SCHEDULE_SEQUENTIAL_NEXT_ANTI_REPEAT",
+    };
+  }
 
   if (order === "shuffled" || order === "shuffle") {
     const selection = chooseSmartZjFreshFirstNext(cleanTracks, currentKey, playerState);
@@ -727,7 +805,12 @@ function chooseSmartZjPlaybackOrderNext(
     };
   }
 
-  return chooseSmartZjFreshFirstNext(cleanTracks, currentKey, playerState);
+  const selection = chooseSmartZjFreshFirstNext(cleanTracks, currentKey, playerState);
+
+  return {
+    ...selection,
+    reason: `SCHEDULE_DEFAULT_SHUFFLE_${selection.reason}`,
+  };
 }
 function rememberSmartZjFreshFirstPlay(track: AnyTrack, cleanTracks: AnyTrack[]) {
   const freshState = readFreshFirstState();
