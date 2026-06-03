@@ -99,6 +99,9 @@ async function getSchedulePolicy() {
       prioritizeOverRequests: Boolean(data?.prioritizeOverRequests || data?.activeBlock?.prioritizeOverRequests),
       playJinglesBetweenTracks: Boolean(data?.playJinglesBetweenTracks || data?.activeBlock?.playJinglesBetweenTracks),
       allowJingleOverlay: Boolean(data?.allowJingleOverlay || data?.activeBlock?.allowJingleOverlay),
+      playbackOrder: cleanText(data?.playbackOrder || data?.activeBlock?.playbackOrder || "shuffled").toLowerCase(),
+      noRepeatTitleCount: Number(data?.noRepeatTitleCount ?? data?.activeBlock?.noRepeatTitleCount ?? 10),
+      noRepeatArtistCount: Number(data?.noRepeatArtistCount ?? data?.activeBlock?.noRepeatArtistCount ?? 5),
       activeBlockId: cleanText(data?.activeBlock?.id || ""),
       activeBlockName: cleanText(data?.activeBlock?.name || ""),
     };
@@ -112,6 +115,9 @@ async function getSchedulePolicy() {
       prioritizeOverRequests: false,
       playJinglesBetweenTracks: false,
       allowJingleOverlay: false,
+      playbackOrder: "shuffled",
+      noRepeatTitleCount: 10,
+      noRepeatArtistCount: 5,
       activeBlockId: "",
       activeBlockName: "",
     };
