@@ -710,6 +710,25 @@ function chooseSmartZjFreshFirstNext(cleanTracks: AnyTrack[], currentKey: string
   };
 }
 
+function chooseSmartZjPlaybackOrderNext(
+  cleanTracks: AnyTrack[],
+  currentKey: string,
+  playerState: Record<string, any>,
+  playbackOrder: unknown
+) {
+  const order = cleanText(playbackOrder || "shuffled").toLowerCase();
+
+  if (order === "shuffled" || order === "shuffle") {
+    const selection = chooseSmartZjFreshFirstNext(cleanTracks, currentKey, playerState);
+
+    return {
+      ...selection,
+      reason: `SCHEDULE_SHUFFLE_FULL_LANE_${selection.reason}`,
+    };
+  }
+
+  return chooseSmartZjFreshFirstNext(cleanTracks, currentKey, playerState);
+}
 function rememberSmartZjFreshFirstPlay(track: AnyTrack, cleanTracks: AnyTrack[]) {
   const freshState = readFreshFirstState();
   const laneHistory = readLanePlayHistory();
@@ -1292,7 +1311,13 @@ const currentKey = getCurrentKey();
     ? selectionSourceTracks
     : dedupeSmartZjTracksBySongKey(selectionSourceTracks);
 
-  const selection = chooseSmartZjFreshFirstNext(dedupedSelectionSourceTracks, currentKey, playerState);
+  const playbackOrder = cleanText(schedulePolicy?.playbackOrder || "shuffled").toLowerCase();
+  const selection = chooseSmartZjPlaybackOrderNext(
+    dedupedSelectionSourceTracks,
+    currentKey,
+    playerState,
+    playbackOrder
+  );
   const nextIndex = selection.index;
   const track = selection.track;
   const selectionReason = shouldInsertScheduleJingle
@@ -1341,6 +1366,7 @@ const currentKey = getCurrentKey();
       scheduleJingleTrackCount: scheduleJingleTracks.length,
     },
     schedulePolicy: schedulePolicy || null,
+    playbackOrder,
     playJinglesBetweenTracks: Boolean(schedulePolicy?.playJinglesBetweenTracks),
     allowJingleOverlay: Boolean(schedulePolicy?.allowJingleOverlay),
     scheduleJingleInsert: Boolean(selectedIsScheduleJingle),
