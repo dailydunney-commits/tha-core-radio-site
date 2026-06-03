@@ -318,7 +318,7 @@ function SmartZjRequestTimerPanel() {
 
       <div className="request-timer-head">
         <div>
-          <strong>SMARTZJ REQUEST TIMER — CONTROL PANEL</strong>
+          <strong>SMARTZJ REQUEST TIMER â€” CONTROL PANEL</strong>
           <span>Owner queue brain. Separate from listener/homepage timer.</span>
         </div>
         <div className="request-timer-status">{status}</div>
@@ -353,7 +353,7 @@ function SmartZjRequestTimerPanel() {
         <div className="request-next">
           <strong>NEXT REQUEST:</strong> {nextReady.artist ? `${nextReady.artist} - ` : ""}{nextReady.title}
           <br />
-          <span>Requested by {nextReady.requestedBy || "Listener"} • {nextReady.estimatedWaitLabel || "Waiting"}</span>
+          <span>Requested by {nextReady.requestedBy || "Listener"} â€¢ {nextReady.estimatedWaitLabel || "Waiting"}</span>
         </div>
       ) : (
         <div className="request-next">
@@ -370,7 +370,7 @@ function SmartZjRequestTimerPanel() {
                 #{timer.queuePosition || "-"} {item.artist ? `${item.artist} - ` : ""}{item.title || "Requested Song"}
               </strong>
               <span>Status: {timer.requestPlayStatus || item.status || "WAITING"}</span>
-              <span>Wait: {timer.estimatedWaitLabel || "Waiting"} {timer.blockedReason ? `• ${timer.blockedReason}` : ""}</span>
+              <span>Wait: {timer.estimatedWaitLabel || "Waiting"} {timer.blockedReason ? `â€¢ ${timer.blockedReason}` : ""}</span>
             </div>
           );
         })}
@@ -2542,7 +2542,7 @@ const SELECTED_DISPLAY_MEMORY_KEY = "tha-core-owner-selected-display-v1";
 
         {showAudioSafetyPanel ? (
           <section className="owner-panel-focus panel">
-            <PanelHeading left="Audio Safety Center" right="Held â€¢ Clean/Bleep Jobs â€¢ Safe Queue" />
+            <PanelHeading left="Audio Safety Center" right="Held Ã¢â‚¬Â¢ Clean/Bleep Jobs Ã¢â‚¬Â¢ Safe Queue" />
             <AudioSafetyCenterPanel />
           </section>
         ) : null}
@@ -2862,9 +2862,10 @@ const SELECTED_DISPLAY_MEMORY_KEY = "tha-core-owner-selected-display-v1";
         <footer className="footer-dock panel">
           <PanelHeading
             left={showCleanBleepPanel ? "Clean / Bleep Tracks" : "SmartDJ Command"}
-            right={showCleanBleepPanel ? "Playlist â€¢ Bleep Check â€¢ Safety Queue" : "Main command input"}
+            right={showCleanBleepPanel ? "Playlist Ã¢â‚¬Â¢ Bleep Check Ã¢â‚¬Â¢ Safety Queue" : "Main command input"}
           />
             <OwnerSmartDjCommand />
+            <SmartZjRequestTimerPanel />
             {showCleanBleepPanel ? (
               <>
                 <SmartZjRequestTimerPanel />
