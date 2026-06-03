@@ -1369,7 +1369,6 @@ const currentKey = getCurrentKey();
       scheduleJingleTrackCount: scheduleJingleTracks.length,
     },
     schedulePolicy: schedulePolicy || null,
-    playbackOrder,
     playJinglesBetweenTracks: Boolean(schedulePolicy?.playJinglesBetweenTracks),
     allowJingleOverlay: Boolean(schedulePolicy?.allowJingleOverlay),
     scheduleJingleInsert: Boolean(selectedIsScheduleJingle),
