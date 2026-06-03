@@ -386,7 +386,7 @@ async function addRequestTimers(block: AnyRecord) {
 
   const nextReady = timerQueue.find((item: AnyRecord) =>
     item?.controlPanelTimer?.requestPlayStatus === "READY_AFTER_CURRENT_TRACK"
-  );
+  ) as AnyRecord | undefined;
 
   return {
     ...block,
