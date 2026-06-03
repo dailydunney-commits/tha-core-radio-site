@@ -714,21 +714,33 @@ function chooseSmartZjPlaybackOrderNext(
   cleanTracks: AnyTrack[],
   currentKey: string,
   playerState: Record<string, any>,
-  playbackOrder: unknown
+  playbackOrder: unknown,
+  noRepeatTitleCount: unknown,
+  noRepeatArtistCount: unknown
 ) {
   const order = cleanText(playbackOrder || "shuffled").toLowerCase();
+  const noRepeatTitleLimit = Math.max(0, Math.min(200, Math.floor(Number(noRepeatTitleCount ?? 10) || 0)));
+  const noRepeatArtistLimit = Math.max(0, Math.min(100, Math.floor(Number(noRepeatArtistCount ?? 5) || 0)));
   const freshState = readFreshFirstState();
 
   const recentKeySet = new Set(
     Array.isArray(freshState.recentKeys) ? freshState.recentKeys.map(String) : []
   );
 
+  const recentTitleKeys = Array.isArray(freshState.recentTitleKeys)
+    ? freshState.recentTitleKeys.map(String)
+    : [];
+
+  const recentArtistKeys = Array.isArray(freshState.recentArtistKeys)
+    ? freshState.recentArtistKeys.map(String)
+    : [];
+
   const recentTitleSet = new Set(
-    Array.isArray(freshState.recentTitleKeys) ? freshState.recentTitleKeys.map(String) : []
+    noRepeatTitleLimit > 0 ? recentTitleKeys.slice(-noRepeatTitleLimit) : []
   );
 
   const recentArtistSet = new Set(
-    Array.isArray(freshState.recentArtistKeys) ? freshState.recentArtistKeys.map(String) : []
+    noRepeatArtistLimit > 0 ? recentArtistKeys.slice(-noRepeatArtistLimit) : []
   );
 
   const candidates = cleanTracks.filter((track) => {
@@ -1399,7 +1411,9 @@ const currentKey = getCurrentKey();
     dedupedSelectionSourceTracks,
     currentKey,
     playerState,
-    playbackOrder
+    playbackOrder,
+    schedulePolicyAny.noRepeatTitleCount,
+    schedulePolicyAny.noRepeatArtistCount
   );
   const nextIndex = selection.index;
   const track = selection.track;
