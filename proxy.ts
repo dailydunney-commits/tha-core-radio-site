@@ -50,6 +50,8 @@ export function proxy(request: NextRequest) {
     smartZjPathname.startsWith("/api/radio/smartzj-folder-rotation/") ||
     smartZjPathname === "/api/radio/smartzj-schedule" ||
     smartZjPathname.startsWith("/api/radio/smartzj-schedule/") ||
+    smartZjPathname === "/api/radio/smartzj-request-block" ||
+    smartZjPathname.startsWith("/api/radio/smartzj-request-block/") ||
     smartZjPathname === "/api/radio/smartzj-watchdog" ||
     smartZjPathname.startsWith("/api/radio/smartzj-watchdog/");
 
