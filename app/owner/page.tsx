@@ -104,7 +104,6 @@ const footerTools: FooterTool[] = [
   { label: "Store", href: "/store", note: "Store shortcut ready", color: "green" },
   { label: "Community Chat", href: "/chat", note: "Community and chat shortcut ready", color: "orange" },
   { label: "Upload", href: "/upload", note: "Upload center shortcut ready", color: "yellow" },
-  { label: "Requests", href: "/requests", note: "Song request shortcut ready", color: "green" },
   { label: "Schedule", href: "/schedule", note: "Show schedule shortcut ready", color: "blue" },
   { label: "Promos", href: "/promos", note: "Promo tools shortcut ready", color: "red" },
 ];
@@ -2547,8 +2546,7 @@ const SELECTED_DISPLAY_MEMORY_KEY = "tha-core-owner-selected-display-v1";
             <AudioSafetyCenterPanel />
           </section>
         ) : null}
-
-        {/* OWNER_CLEAN_BLEEP_DEDICATED_PANEL_V1 */}
+{/* OWNER_CLEAN_BLEEP_DEDICATED_PANEL_V1 */}
         {showCleanBleepPanel ? (
           <section className="owner-panel-focus panel">
             <PanelHeading left="Clean / Bleep Tracks" right="Playlist - Bleep Check - Safety Queue" />
@@ -2893,6 +2891,12 @@ const SELECTED_DISPLAY_MEMORY_KEY = "tha-core-owner-selected-display-v1";
 
       <style jsx global>{`
         * { box-sizing: border-box; }
+
+        /* OWNER_FOCUS_HIDE_MAIN_STUDIO_GLOBAL_RULE_V1 */
+        .owner-panel-focus ~ section,
+        .owner-panel-focus ~ footer {
+          display: none !important;
+        }
         body { margin: 0; }
 
         .owner-admin-menu {
