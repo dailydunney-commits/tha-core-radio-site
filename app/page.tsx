@@ -643,14 +643,6 @@ export default function HomePage() {
               <a href="/store" style={styles.goldButton}>
                 Visit Store
               </a>
-
-              <button
-                type="button"
-                onClick={() => setShowShoutout((value) => !value)}
-                style={styles.darkButton}
-              >
-                Drop Shoutout
-              </button>
             </div>
           </div>
 
@@ -721,7 +713,7 @@ export default function HomePage() {
               />
             </label>
           </div>
-        {showShoutout ? (
+        {false && showShoutout ? (
           <section style={styles.shoutoutBox}>
             <div>
               <p style={styles.kickerGold}>LIVE SHOUTOUT</p>
@@ -775,7 +767,7 @@ export default function HomePage() {
 
           <div style={styles.panel}>
             <p style={styles.kickerGold}>COMMUNITY</p>
-            <h2 style={styles.sectionTitle}>Chat, shoutouts, and uploads</h2>
+            <h2 style={styles.sectionTitle}>Chat and uploads</h2>
             <p style={styles.sectionText}>
               Join the community, send music, upload entries, vote on content,
               and stay connected while the radio plays.
@@ -852,7 +844,7 @@ export default function HomePage() {
 
           <div style={styles.fomoCard}>
             <p style={styles.fomoNumber}>Community</p>
-            <p style={styles.fomoText}>Chat, uploads, and shoutouts</p>
+            <p style={styles.fomoText}>Chat and uploads</p>
           </div>
         </section>
       </section>
