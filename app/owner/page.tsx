@@ -2884,7 +2884,6 @@ const SELECTED_DISPLAY_MEMORY_KEY = "tha-core-owner-selected-display-v1";
         <footer className="footer-dock panel">
           <PanelHeading left="SmartDJ Command" right="Main command input" />
             <OwnerSmartDjCommand />
-            {!showCleanBleepPanel && !showSongRequestsPanel ? <SmartZjRequestTimerPanel /> : null}
         </footer>
       </section>
 
