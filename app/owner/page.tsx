@@ -2897,6 +2897,16 @@ const SELECTED_DISPLAY_MEMORY_KEY = "tha-core-owner-selected-display-v1";
         .owner-panel-focus ~ footer {
           display: none !important;
         }
+
+        /* OWNER_FOCUS_HIDE_TOP_STUDIO_HEADER_V2 */
+        .shell:has(.owner-panel-focus) > .topbar,
+        .shell:has(.owner-panel-focus) > .status-row,
+        .shell:has(.owner-panel-focus) > .now-playing-bar,
+        .shell:has(.owner-panel-focus) > .main-studio,
+        .shell:has(.owner-panel-focus) > .central-log,
+        .shell:has(.owner-panel-focus) > .footer-dock {
+          display: none !important;
+        }
         body { margin: 0; }
 
         .owner-admin-menu {
