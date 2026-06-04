@@ -2551,7 +2551,6 @@ const SELECTED_DISPLAY_MEMORY_KEY = "tha-core-owner-selected-display-v1";
           <section className="owner-panel-focus panel">
             <PanelHeading left="Clean / Bleep Tracks" right="Playlist - Bleep Check - Safety Queue" />
             <OwnerSmartDjCommand />
-            <SmartZjRequestTimerPanel />
             <SmartDjControlPlaylist />
             <SmartDjSafetyQueuePanel />
           </section>
