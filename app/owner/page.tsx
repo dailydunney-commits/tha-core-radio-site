@@ -1759,6 +1759,7 @@ const SELECTED_DISPLAY_MEMORY_KEY = "tha-core-owner-selected-display-v1";
       : "main";
   const showCleanBleepPanel = activeOwnerPanel === "smartzj-clean-bleep";
   const showAudioSafetyPanel = activeOwnerPanel === "audio-safety";
+  const showSongRequestsPanel = activeOwnerPanel === "song-requests";
 
   const broadcastLabel = useMemo(() => {
     if (broadcast === "live" && liveDj) return "LIVE DJ ON AIR";
@@ -2547,6 +2548,29 @@ const SELECTED_DISPLAY_MEMORY_KEY = "tha-core-owner-selected-display-v1";
           </section>
         ) : null}
 
+        {/* OWNER_CLEAN_BLEEP_DEDICATED_PANEL_V1 */}
+        {showCleanBleepPanel ? (
+          <section className="owner-panel-focus panel">
+            <PanelHeading left="Clean / Bleep Tracks" right="Playlist - Bleep Check - Safety Queue" />
+            <OwnerSmartDjCommand />
+            <SmartZjRequestTimerPanel />
+            <SmartDjControlPlaylist />
+            <SmartDjSafetyQueuePanel />
+          </section>
+        ) : null}
+
+        {/* OWNER_SONG_REQUESTS_DEDICATED_PANEL_V1 */}
+        {showSongRequestsPanel ? (
+          <section className="owner-panel-focus panel">
+            <PanelHeading left="Song Requests" right="Request timer - Clean gate - Owner queue control" />
+            <SmartZjRequestTimerPanel />
+            <div className="owner-admin-menu-grid">
+              <a href="/requests">Open Public Request Page</a>
+              <a href="/owner?panel=smartzj-clean-bleep">Open Clean / Bleep Tracks</a>
+            </div>
+          </section>
+        ) : null}
+
       <section className="central-log">
           {/* OWNER_ADMIN_MENU_V1 */}
           <details className="owner-admin-menu">
@@ -2554,6 +2578,7 @@ const SELECTED_DISPLAY_MEMORY_KEY = "tha-core-owner-selected-display-v1";
             <div className="owner-admin-menu-grid">
               <a href="/schedule">Schedule Editor</a>
               <a href="/owner?panel=smartzj-clean-bleep">Clean / Bleep Tracks</a>
+              <a href="/owner?panel=song-requests">Song Requests</a>
               <a href="/owner?panel=audio-safety">Audio Safety Center</a>
               {footerTools
                 .filter((tool) => tool.label !== "Schedule")
@@ -2860,19 +2885,9 @@ const SELECTED_DISPLAY_MEMORY_KEY = "tha-core-owner-selected-display-v1";
         </section>
 
         <footer className="footer-dock panel">
-          <PanelHeading
-            left={showCleanBleepPanel ? "Clean / Bleep Tracks" : "SmartDJ Command"}
-            right={showCleanBleepPanel ? "Playlist - Bleep Check - Safety Queue" : "Main command input"}
-          />
+          <PanelHeading left="SmartDJ Command" right="Main command input" />
             <OwnerSmartDjCommand />
-            {!showCleanBleepPanel ? <SmartZjRequestTimerPanel /> : null}
-            {showCleanBleepPanel ? (
-              <>
-                <SmartZjRequestTimerPanel />
-          <SmartDjControlPlaylist />
-                <SmartDjSafetyQueuePanel />
-              </>
-            ) : null}
+            {!showCleanBleepPanel && !showSongRequestsPanel ? <SmartZjRequestTimerPanel /> : null}
         </footer>
       </section>
 
