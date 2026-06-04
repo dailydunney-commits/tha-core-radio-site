@@ -172,154 +172,6 @@ function shortenText(text: string, maxLength = 72) {
   return `${text.slice(0, maxLength).trim()}...`;
 }
 
-function ListenerRequestTimerCard() {
-  const [publicQueue, setPublicQueue] = useState<any[]>([]);
-  const [status, setStatus] = useState("Checking listener requests...");
-
-  async function loadListenerRequestTimer() {
-    try {
-      const response = await fetch(`/api/radio/smartzj-request-block?listenerTimer=${Date.now()}`, {
-        cache: "no-store",
-      });
-
-      const data = await response.json().catch(() => null);
-      const queue = Array.isArray(data?.listenerTimer?.publicQueue)
-        ? data.listenerTimer.publicQueue
-        : [];
-
-      setPublicQueue(queue);
-      setStatus(queue.length ? "Listener request timer live." : "No listener requests waiting.");
-    } catch {
-      setStatus("Request timer is temporarily unavailable.");
-    }
-  }
-
-  useEffect(() => {
-    let alive = true;
-
-    async function tick() {
-      if (!alive) return;
-      await loadListenerRequestTimer();
-    }
-
-    void tick();
-
-    const timer = window.setInterval(() => {
-      void tick();
-    }, 10000);
-
-    return () => {
-      alive = false;
-      window.clearInterval(timer);
-    };
-  }, []);
-
-  const activeRequests = publicQueue.filter((item) => {
-    const playStatus = String(item?.requestPlayStatus || "").toUpperCase();
-    return playStatus !== "BROADCAST_COMPLETE" && playStatus !== "CANCELLED";
-  });
-
-  const topRequest = activeRequests[0] || null;
-
-  if (!topRequest) {
-    return (
-      <section style={listenerRequestStyles.card}>
-        <strong style={listenerRequestStyles.title}>Song Request Timer</strong>
-        <span style={listenerRequestStyles.text}>{status}</span>
-      </section>
-    );
-  }
-
-  return (
-    <section style={listenerRequestStyles.card}>
-      <div style={listenerRequestStyles.head}>
-        <div>
-          <strong style={listenerRequestStyles.title}>Song Request Timer</strong>
-          <span style={listenerRequestStyles.text}>Public listener update. No owner controls shown.</span>
-        </div>
-        <strong style={listenerRequestStyles.badge}>
-          #{topRequest.requestPosition || 1}
-        </strong>
-      </div>
-
-      <div style={listenerRequestStyles.song}>
-        {topRequest.artist ? `${topRequest.artist} - ` : ""}{topRequest.title || "Requested Song"}
-      </div>
-
-      <div style={listenerRequestStyles.timerLine}>
-        {topRequest.estimatedWaitLabel || "Waiting"}
-      </div>
-
-      <div style={listenerRequestStyles.message}>
-        {topRequest.message || "Your request is in the queue."}
-      </div>
-
-      {activeRequests.length > 1 && (
-        <div style={listenerRequestStyles.small}>
-          {activeRequests.length} active listener request(s) waiting.
-        </div>
-      )}
-    </section>
-  );
-}
-
-const listenerRequestStyles: Record<string, CSSProperties> = {
-  card: {
-    border: "1px solid rgba(255, 215, 0, 0.35)",
-    borderRadius: 18,
-    padding: 14,
-    margin: "14px 0",
-    background: "linear-gradient(135deg, rgba(10, 0, 0, 0.9), rgba(0, 0, 0, 0.92))",
-    boxShadow: "0 0 18px rgba(255, 0, 0, 0.18)",
-  },
-  head: {
-    display: "flex",
-    justifyContent: "space-between",
-    gap: 12,
-    alignItems: "center",
-  },
-  title: {
-    display: "block",
-    color: "#ffd54a",
-    letterSpacing: "0.08em",
-    textTransform: "uppercase",
-    fontSize: "0.82rem",
-  },
-  text: {
-    display: "block",
-    color: "rgba(255, 255, 255, 0.72)",
-    fontSize: "0.78rem",
-    marginTop: 4,
-  },
-  badge: {
-    color: "#111",
-    background: "#ffd54a",
-    borderRadius: 999,
-    padding: "6px 10px",
-    fontSize: "0.82rem",
-  },
-  song: {
-    color: "#fff",
-    fontWeight: 800,
-    marginTop: 10,
-    fontSize: "0.95rem",
-  },
-  timerLine: {
-    color: "#7CFFB2",
-    fontWeight: 800,
-    marginTop: 6,
-  },
-  message: {
-    color: "rgba(255, 255, 255, 0.78)",
-    fontSize: "0.8rem",
-    marginTop: 6,
-  },
-  small: {
-    color: "rgba(255, 255, 255, 0.55)",
-    fontSize: "0.72rem",
-    marginTop: 8,
-  },
-};
 export default function HomePage() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -847,8 +699,6 @@ export default function HomePage() {
         </section>
 
           {/* HOME_PUBLIC_CONTROL_PAD_V1 */}
-          <ListenerRequestTimerCard />
-
           <div style={styles.playerLine}>
             <button type="button" onClick={toggleRadio} style={styles.fullPlayButton}>
               {isPlaying ? "Pause Live" : "Play Live"}
@@ -1648,3 +1498,5 @@ const styles: Record<string, CSSProperties> = {
 
 
 // REAL_LOGO_CIRCLE_FILE_FINAL_V1
+
+
