@@ -651,7 +651,29 @@ function smartZjRepeatArtistKey(track: AnyTrack) {
     return explicitArtist.split(" ").slice(0, 3).join(" ");
   }
 
-  return smartZjRepeatTitleKey(track).split(" ").slice(0, 2).join(" ");
+  // SMARTZJ_STRICT_ARTIST_FAMILY_KEY_V1
+  // If real artist metadata is missing/AzuraCast, use a stricter artist-family key from the title.
+  // This stops same-artist runs like "nicodemus suzy wong" then "nicodemus spring valley".
+  const fallbackWords = smartZjRepeatTitleKey(track).split(" ").filter(Boolean);
+  if (fallbackWords.length <= 0) return "";
+
+  const first = fallbackWords[0];
+  const twoWordPrefixes = new Set(["a", "dj", "mc", "lil", "young", "big", "baby", "king", "queen"]);
+
+  if (twoWordPrefixes.has(first) && fallbackWords.length >= 2) {
+    return fallbackWords.slice(0, 2).join(" ");
+  }
+
+  return first;
+}
+
+// SMARTZJ_ARTIST_HISTORY_FAMILY_KEYS_V1
+function smartZjRepeatArtistHistoryKeys(value: unknown) {
+  const cleanValue = normalizeSmartZjRepeatText(value);
+  if (!cleanValue) return [];
+
+  const firstWord = cleanValue.split(" ").filter(Boolean)[0] || "";
+  return Array.from(new Set([cleanValue, firstWord].filter(Boolean)));
 }
 
 function pickSmartZjAntiRepeatCandidate(
@@ -724,7 +746,7 @@ function chooseSmartZjFreshFirstNext(cleanTracks: AnyTrack[], currentKey: string
   );
 
   const recentArtistSet = new Set(
-    Array.isArray(freshState.recentArtistKeys) ? freshState.recentArtistKeys.map(String) : []
+    Array.isArray(freshState.recentArtistKeys) ? freshState.recentArtistKeys.flatMap((key: unknown) => smartZjRepeatArtistHistoryKeys(key)) : []
   );
 
   const hasKnownHistory = knownKeys.size > 0;
@@ -827,7 +849,7 @@ function chooseSmartZjPlaybackOrderNext(
     : [];
 
   const recentArtistKeys = Array.isArray(freshState.recentArtistKeys)
-    ? freshState.recentArtistKeys.map(String)
+    ? freshState.recentArtistKeys.flatMap((key: unknown) => smartZjRepeatArtistHistoryKeys(key))
     : [];
 
   // SMARTZJ_SCHEDULE_NO_REPEAT_RECENT_WINDOW_FIX_V1
@@ -837,7 +859,7 @@ function chooseSmartZjPlaybackOrderNext(
   );
 
   const recentArtistSet = new Set(
-    noRepeatArtistLimit > 0 ? recentArtistKeys.slice(0, noRepeatArtistLimit) : []
+    noRepeatArtistLimit > 0 ? recentArtistKeys.slice(0, noRepeatArtistLimit).flatMap((key: unknown) => smartZjRepeatArtistHistoryKeys(key)) : []
   );
 
   const candidates = cleanTracks.filter((track) => {
@@ -954,7 +976,7 @@ function rememberSmartZjFreshFirstPlay(track: AnyTrack, cleanTracks: AnyTrack[])
   const previousKnown = Array.isArray(freshState.knownKeys) ? freshState.knownKeys.map(String) : [];
   const previousRecent = Array.isArray(freshState.recentKeys) ? freshState.recentKeys.map(String) : [];
   const previousRecentTitles = Array.isArray(freshState.recentTitleKeys) ? freshState.recentTitleKeys.map(String) : [];
-  const previousRecentArtists = Array.isArray(freshState.recentArtistKeys) ? freshState.recentArtistKeys.map(String) : [];
+  const previousRecentArtists = Array.isArray(freshState.recentArtistKeys) ? freshState.recentArtistKeys.flatMap((key: unknown) => smartZjRepeatArtistHistoryKeys(key)) : [];
 
   const playedTitleKey = smartZjRepeatTitleKey(track);
   const playedArtistKey = smartZjRepeatArtistKey(track);
