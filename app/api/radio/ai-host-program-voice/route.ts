@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { mkdir, writeFile } from "fs/promises";
 import { join } from "path";
 import crypto from "crypto";
@@ -16,6 +16,9 @@ type ProgramVoiceBody = {
   maxChunkChars?: number;
   maxChunks?: number;
   approved?: boolean;
+  brandSpeechName?: string;
+  targetDurationSeconds?: number;
+  minDurationSeconds?: number;
 };
 
 const DEFAULT_TTS_MODEL = process.env.OPENAI_AI_HOST_TTS_MODEL || "gpt-4o-mini-tts";
@@ -90,6 +93,16 @@ function estimateSeconds(text: string) {
   return Math.max(8, Math.round((words / 145) * 60));
 }
 
+// NIA_TTS_BRAND_PRONUNCIATION_V1
+// Keep the written brand as "Tha Core", but guide TTS to pronounce it naturally.
+function normalizeSpeechForTts(text: string, brandSpeechName: string) {
+  const spokenBrand = cleanText(brandSpeechName, "The Core", 80);
+  return String(text || "")
+    .replace(/\bTha Core\b/g, spokenBrand)
+    .replace(/\bTHA CORE\b/g, spokenBrand.toUpperCase())
+    .replace(/\btha core\b/g, spokenBrand.toLowerCase());
+}
+
 async function generateSpeechMp3(input: {
   apiKey: string;
   model: string;
@@ -150,6 +163,11 @@ export async function POST(req: NextRequest) {
     const blockType = cleanText(body.blockType, "news-program", 120);
     const voiceCandidate = cleanText(body.voice, DEFAULT_VOICE, 40).toLowerCase();
     const voice = ALLOWED_VOICES.has(voiceCandidate) ? voiceCandidate : DEFAULT_VOICE;
+    const brandSpeechName = cleanText(
+      body.brandSpeechName,
+      process.env.AI_HOST_BRAND_SPEECH_NAME || "The Core",
+      80
+    );
     const script = cleanText(body.script, "", 30000);
 
     if (!body.approved) {
@@ -195,6 +213,34 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // NIA_PROGRAM_DURATION_GUARD_V1
+    const minDurationSeconds = Math.max(
+      0,
+      Math.min(
+        3600,
+        Number(body.minDurationSeconds || body.targetDurationSeconds || 0)
+      )
+    );
+    const estimatedScriptSeconds = chunks.reduce(
+      (sum, chunk) => sum + estimateSeconds(chunk),
+      0
+    );
+
+    if (minDurationSeconds && estimatedScriptSeconds < Math.round(minDurationSeconds * 0.9)) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "SCRIPT_TOO_SHORT_FOR_TARGET_DURATION",
+          message: "The script is too short for the requested program length. Add more verified content or lower the target duration.",
+          estimatedScriptSeconds,
+          requestedMinimumSeconds: minDurationSeconds,
+          estimatedMinutes: Math.round((estimatedScriptSeconds / 60) * 10) / 10,
+          requestedMinutes: Math.round((minDurationSeconds / 60) * 10) / 10,
+        },
+        { status: 422 }
+      );
+    }
+
     await mkdir(PUBLIC_AI_HOST_DIR, { recursive: true });
     await mkdir(DATA_PROGRAM_DIR, { recursive: true });
 
@@ -213,7 +259,7 @@ export async function POST(req: NextRequest) {
         apiKey,
         model: DEFAULT_TTS_MODEL,
         voice,
-        text: chunkText,
+        text: normalizeSpeechForTts(chunkText, brandSpeechName),
       });
 
       const fileName = `ai-host-program-${slugify(programName)}-part-${String(partNumber).padStart(
