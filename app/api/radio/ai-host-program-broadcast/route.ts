@@ -363,63 +363,94 @@ export async function POST(req: NextRequest) {
         { status: 422 }
       );
     }
-
+    const state = await readJson<AnyRecord>(STATE_FILE, {});
     let partIndex = 0;
 
     if (action === "next") {
-      const state = await readJson<AnyRecord>(STATE_FILE, {});
-      const forceNext = body.forceNext === true || body.force === true;
+      const expectedCurrentPartIndex =
+        body.expectedCurrentPartIndex ?? body.expectedPartIndex;
+      const expectedCurrentPartNumber =
+        body.expectedCurrentPartNumber ?? body.expectedPartNumber;
 
-      if (!state?.active) {
+      const hasExpectedIndex =
+        expectedCurrentPartIndex !== undefined &&
+        expectedCurrentPartIndex !== null &&
+        expectedCurrentPartIndex !== "";
+
+      const hasExpectedNumber =
+        expectedCurrentPartNumber !== undefined &&
+        expectedCurrentPartNumber !== null &&
+        expectedCurrentPartNumber !== "";
+
+      const forceNext = body.force === true || body.forceNext === true;
+
+      if (state.active === false) {
         return NextResponse.json({
           ok: true,
           phase: "NIA_PROGRAM_BROADCAST_QUEUE_V1",
-          action: "next-ignored-program-not-active",
-          message: "No active Nia program is running. Duplicate or late next ignored.",
-          state,
+          action: "next-ignored-program-complete",
+          currentPartIndex: state.currentPartIndex,
+          currentPartNumber: state.currentPartNumber,
+          totalParts: state.totalParts || totalParts,
+          smartZjReturn: state.smartZjReturn || null,
         });
       }
 
-      if (state?.programId && !sameProgramId(state.programId, manifest.programId)) {
+      if (!forceNext && !hasExpectedIndex && !hasExpectedNumber) {
         return NextResponse.json(
           {
             ok: false,
             phase: "NIA_PROGRAM_BROADCAST_QUEUE_V1",
-            action: "next-blocked-wrong-program",
-            message: "Active Nia program does not match requested programId.",
-            activeProgramId: state.programId,
-            requestedProgramId: manifest.programId,
+            error: "NIA_PROGRAM_NEXT_REQUIRES_EXPECTED_PART",
+            currentPartIndex: state.currentPartIndex,
+            currentPartNumber: state.currentPartNumber,
+            totalParts,
           },
           { status: 409 }
         );
       }
 
-      const waitSeconds = secondsUntilIso(state.expectedEndAt);
-      if (!forceNext && waitSeconds > 1) {
+      if (
+        hasExpectedIndex &&
+        Number(expectedCurrentPartIndex) !== Number(state.currentPartIndex || 0)
+      ) {
         return NextResponse.json({
           ok: true,
           phase: "NIA_PROGRAM_BROADCAST_QUEUE_V1",
-          action: "next-ignored-current-part-still-playing",
-          message: "Current Nia part is still inside its expected play window. Next ignored to prevent skipping.",
-          currentPartIndex: Number(state.currentPartIndex || 0),
-          currentPartNumber: Number(state.currentPartNumber || 1),
-          totalParts: Number(state.totalParts || totalParts),
-          expectedEndAt: state.expectedEndAt,
-          waitSeconds,
-          state,
+          action: "stale-next-ignored",
+          expectedCurrentPartIndex: Number(expectedCurrentPartIndex),
+          actualCurrentPartIndex: Number(state.currentPartIndex || 0),
+          currentPartNumber: state.currentPartNumber,
+          totalParts,
         });
       }
 
-      if (!forceNext && recentAdvanceBlocked(state, 12)) {
+      if (
+        hasExpectedNumber &&
+        Number(expectedCurrentPartNumber) !== Number(state.currentPartNumber || 1)
+      ) {
         return NextResponse.json({
           ok: true,
           phase: "NIA_PROGRAM_BROADCAST_QUEUE_V1",
-          action: "next-ignored-duplicate-advance",
-          message: "A Nia part advanced recently. Duplicate next ignored to prevent part skipping.",
-          currentPartIndex: Number(state.currentPartIndex || 0),
-          currentPartNumber: Number(state.currentPartNumber || 1),
-          totalParts: Number(state.totalParts || totalParts),
-          state,
+          action: "stale-next-ignored",
+          expectedCurrentPartNumber: Number(expectedCurrentPartNumber),
+          actualCurrentPartNumber: Number(state.currentPartNumber || 1),
+          currentPartIndex: state.currentPartIndex,
+          totalParts,
+        });
+      }
+
+      const expectedEndMs = Date.parse(String(state.expectedEndAt || ""));
+      if (!forceNext && Number.isFinite(expectedEndMs) && Date.now() < expectedEndMs) {
+        return NextResponse.json({
+          ok: true,
+          phase: "NIA_PROGRAM_BROADCAST_QUEUE_V1",
+          action: "early-next-ignored",
+          currentPartIndex: state.currentPartIndex,
+          currentPartNumber: state.currentPartNumber,
+          totalParts,
+          expectedEndAt: state.expectedEndAt,
+          waitMs: Math.max(0, expectedEndMs - Date.now()),
         });
       }
 
@@ -428,6 +459,16 @@ export async function POST(req: NextRequest) {
       partIndex = Math.max(0, Number(body.partIndex || 0));
     } else {
       partIndex = 0;
+    }
+    if (partIndex >= totalParts && state.active === false && state.lastAction === "complete-return-to-music") {
+      return NextResponse.json({
+        ok: true,
+        phase: "NIA_PROGRAM_BROADCAST_QUEUE_V1",
+        action: "complete-return-already-done",
+        programId: manifest.programId,
+        totalParts,
+        smartZjReturn: state.smartZjReturn || null,
+      });
     }
 
     if (partIndex >= totalParts) {
