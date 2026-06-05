@@ -647,14 +647,38 @@ function smartZjRepeatTitleKey(track: AnyTrack) {
 function smartZjRepeatArtistKey(track: AnyTrack) {
   const explicitArtist = normalizeSmartZjRepeatText(artistFromTrack(track));
 
-  if (explicitArtist && explicitArtist !== "azuracast") {
+    // SMARTZJ_WEAK_ARTIST_METADATA_FALLBACK_V1
+  // If metadata says AzuraCast, Tha Core, or lane names, ignore it and derive artist from title/file name.
+  const weakArtistKeys = new Set([
+    "azuracast",
+    "tha core",
+    "smartzj",
+    "smart dj",
+    "jingles",
+    "test jingles",
+    "dancehall",
+    "fresh dancehall",
+    "ole school dancehall",
+    "old school dancehall",
+    "reggae",
+    "hip hop",
+    "r n b",
+    "rnb",
+    "smartzj clean mix"
+  ]);
+
+  if (explicitArtist && !weakArtistKeys.has(explicitArtist)) {
     return explicitArtist.split(" ").slice(0, 3).join(" ");
   }
 
   // SMARTZJ_STRICT_ARTIST_FAMILY_KEY_V1
   // If real artist metadata is missing/AzuraCast, use a stricter artist-family key from the title.
   // This stops same-artist runs like "nicodemus suzy wong" then "nicodemus spring valley".
-  const fallbackWords = smartZjRepeatTitleKey(track).split(" ").filter(Boolean);
+  const fallbackTitleKey = smartZjRepeatTitleKey(track)
+    .replace(/^(fresh dancehall|ole school dancehall|old school dancehall|dancehall|reggae|hip hop|r n b|rnb|jingles|test jingles)\s+/i, "")
+    .trim();
+
+  const fallbackWords = fallbackTitleKey.split(" ").filter(Boolean);
   if (fallbackWords.length <= 0) return "";
 
   const first = fallbackWords[0];
@@ -1506,6 +1530,12 @@ const currentKey = getCurrentKey();
       ? loadScheduleJingleTracksFromDrops()
       : [];
 
+  // SMARTZJ_SCHEDULE_JINGLE_FULL_POOL_ROTATION_V1
+  // Rotate through all approved short jingles before repeating.
+  const recentScheduleJingleAudioUrls = Array.isArray(playerState.recentScheduleJingleAudioUrls)
+    ? playerState.recentScheduleJingleAudioUrls.map(String).filter(Boolean)
+    : [];
+
   const shouldInsertScheduleJingle =
     scheduleJingleEnabled &&
     Boolean(scheduleJingleTracks.length) &&
@@ -1514,12 +1544,23 @@ const currentKey = getCurrentKey();
 
   if (shouldInsertScheduleJingle) {
     const lastScheduleJingleAudioUrl = String(playerState.lastScheduleJingleAudioUrl || "");
-    const rotatedScheduleJingles =
+    const recentScheduleJingleSet = new Set(recentScheduleJingleAudioUrls);
+
+    const unseenScheduleJingles =
+      scheduleJingleTracks.length > 1
+        ? scheduleJingleTracks.filter((track) => !recentScheduleJingleSet.has(pickSafeUrl(track)))
+        : scheduleJingleTracks;
+
+    const notLastScheduleJingles =
       scheduleJingleTracks.length > 1
         ? scheduleJingleTracks.filter((track) => pickSafeUrl(track) !== lastScheduleJingleAudioUrl)
         : scheduleJingleTracks;
 
-    cleanTracks = rotatedScheduleJingles.length ? rotatedScheduleJingles : scheduleJingleTracks;
+    cleanTracks = unseenScheduleJingles.length
+      ? unseenScheduleJingles
+      : notLastScheduleJingles.length
+        ? notLastScheduleJingles
+        : scheduleJingleTracks;
   }
 
   cleanTracks = shouldInsertScheduleJingle
@@ -1642,6 +1683,12 @@ const currentKey = getCurrentKey();
     lastScheduleJingleAudioUrl: selectedIsScheduleJingle
       ? audioUrl
       : String(playerState.lastScheduleJingleAudioUrl || ""),
+    recentScheduleJingleAudioUrls: selectedIsScheduleJingle
+      ? [
+          audioUrl,
+          ...recentScheduleJingleAudioUrls.filter((url: string) => url && url !== audioUrl),
+        ].slice(0, Math.max(1, scheduleJingleTracks.length || 8))
+      : recentScheduleJingleAudioUrls,
     updatedAt: now,
   });
 
