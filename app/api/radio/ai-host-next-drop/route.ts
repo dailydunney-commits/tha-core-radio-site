@@ -95,6 +95,58 @@ function pickTalkType(breakCount: number) {
   return types[Math.abs(breakCount - 1) % types.length] || "song-link";
 }
 
+
+// NIA_NEXT_TITLE_SANITY_GUARD_V1
+// Stop Nia from saying weak/generated titles like "coming up next, free".
+function cleanNiaNextTitleForSpeech(value: unknown) {
+  const raw = cleanText(value, "", 180)
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (!raw) return "";
+
+  const lower = raw.toLowerCase();
+  const weakExact = new Set([
+    "free",
+    "test",
+    "audio",
+    "mp3",
+    "clean",
+    "unknown",
+    "track",
+    "song",
+    "music",
+    "next",
+    "none",
+  ]);
+
+  const weakWords = new Set([
+    "mp3",
+    "clean",
+    "lyrics",
+    "lyric",
+    "official",
+    "audio",
+    "video",
+    "visualizer",
+    "free",
+    "test",
+    "unknown",
+  ]);
+
+  const normalized = lower.replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
+
+  if (weakExact.has(normalized)) return "";
+
+  const meaningfulWords = normalized
+    .split(/\s+/)
+    .filter((word) => word && !weakWords.has(word) && !/^\d+$/.test(word));
+
+  if (meaningfulWords.length < 2) return "";
+
+  return raw.slice(0, 100);
+}
 function buildNiaScript(body: AnyRecord, state: AnyRecord) {
   const nextCount = Math.max(1, Number(state.breakCount || 0) + 1);
   const talkType = pickTalkType(nextCount);
