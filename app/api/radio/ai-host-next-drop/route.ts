@@ -147,14 +147,45 @@ function cleanNiaNextTitleForSpeech(value: unknown) {
 
   return raw.slice(0, 100);
 }
+
+// NIA_FEATURE_COMMENT_60_90_V1
+// Longer Nia feature comments: 60-90 seconds, separate from short links and full news blocks.
+function buildNiaFeatureComment(body: AnyRecord, lane: string) {
+  const topic = cleanText(body.featureTopic || body.topic || "station energy", "").slice(0, 120);
+  const suppliedText = cleanText(body.featureText || body.commentText || "", "").slice(0, 1600);
+
+  if (suppliedText) {
+    return suppliedText
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 1600);
+  }
+
+  const lowerTopic = topic.toLowerCase();
+
+  if (lowerTopic.includes("jamaica") || lowerTopic.includes("morning")) {
+    return "You are inside Tha Core — clean vibes, clean energy. Quick thought for Jamaica today. Some days move fast, some days test your patience, but we still have to keep the mind steady and the mission clear. Whether you are at work, on the road, in the shop, at school, or handling business from home, keep moving with sense. Tha Core is here to keep the sound clean, the energy focused, and the day feeling a little lighter. No long lecture, just a reminder: protect your peace, make smart moves, and stay locked in.";
+  }
+
+  if (lowerTopic.includes("sports")) {
+    return "You are inside Tha Core — clean vibes, clean energy. Sports teaches one thing over and over: talent matters, but discipline decides who lasts. You can have skill, hype, and a big moment, but the people who keep showing up are the ones who build real wins. Same thing in life, same thing in business, same thing on this station. We are not just playing music; we are building consistency. Big up every sports fan locked in. Win or lose, keep the energy clean and the mindset strong.";
+  }
+
+  if (lowerTopic.includes("entertainment")) {
+    return "You are inside Tha Core — clean vibes, clean energy. Entertainment moves fast, but not every rumor deserves your attention. Some stories are real, some are noise, and some are just people trying to trend before lunch. Around here, we keep it light, clean, and respectful. If it is verified, we can talk about it. If it is messy, we do not need to carry it like luggage. The music stays in front, the vibe stays easy, and Tha Core keeps moving.";
+  }
+
+  return `You are inside Tha Core — clean vibes, clean energy. Quick thought while the ${lane || "music"} keeps moving. A real station is not just songs back to back. It is timing, feeling, voice, safety, and connection. SmartZJ keeps the clean music flowing, and Nia is here to add the human touch without taking over the whole room. Short when it needs to be short, deeper when the moment calls for it, and always clean enough for everybody listening. Stay close. The music continues right here.`;
+}
 function buildNiaScript(body: AnyRecord, state: AnyRecord) {
   const nextCount = Math.max(1, Number(state.breakCount || 0) + 1);
-  const talkType = pickTalkType(nextCount);
+  const featureMode = body.featureMode === true || body.longComment === true || cleanText(body.commentMode || "", "") === "feature";
+  const talkType = featureMode ? "feature-comment" : pickTalkType(nextCount);
 
   const previousTitle = cleanSongTitle(body.previousTitle || body.currentTitle || "");
   const previousArtist = cleanText(body.previousArtist || body.currentArtist || "");
   const lane = cleanText(body.lane || body.genreLane || "the clean rotation", "the clean rotation");
-  const nextTitle = cleanSongTitle(body.nextTitle || "");
+  const nextTitle = cleanNiaNextTitleForSpeech(body.nextTitle);
   const timeText = jamaicaTimeText();
   const dayPart = jamaicaDayPart();
 
@@ -272,8 +303,8 @@ export async function POST(req: NextRequest) {
       aiGeneratedVoice: true,
       talkType: built.talkType,
       script: built.script,
-      durationSeconds: 8,
-      estimatedSeconds: 8,
+      durationSeconds: built.talkType === "feature-comment" ? 75 : 8,
+      estimatedSeconds: built.talkType === "feature-comment" ? 75 : 8,
       aiHostAutoReturn: true,
       quickDrop: true,
     };
