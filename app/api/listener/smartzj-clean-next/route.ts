@@ -1183,7 +1183,10 @@ function loadScheduleJingleTracksFromDrops(): AnyTrack[] {
       const lowerFileName = fileName.toLowerCase();
       if (!lowerFileName.endsWith(".mp3")) return false;
       const duration = SCHEDULE_JINGLE_DURATION_SECONDS[lowerFileName] || 15;
-      return duration >= 14 && duration <= 46;
+      // SMARTZJ_SCHEDULE_MORE_SHORT_JINGLES_V1
+      // Short stingers/drops 7-46s are allowed between songs.
+      // Long jingles stay blocked here until overlay/mix mode is wired.
+      return duration >= 7 && duration <= 46;
     })
     .sort((a, b) => a.localeCompare(b))
     .map((fileName) => {
