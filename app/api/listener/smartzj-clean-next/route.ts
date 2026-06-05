@@ -830,12 +830,14 @@ function chooseSmartZjPlaybackOrderNext(
     ? freshState.recentArtistKeys.map(String)
     : [];
 
+  // SMARTZJ_SCHEDULE_NO_REPEAT_RECENT_WINDOW_FIX_V1
+  // Recent title/artist keys are stored newest-first, so block from the front of the list.
   const recentTitleSet = new Set(
-    noRepeatTitleLimit > 0 ? recentTitleKeys.slice(-noRepeatTitleLimit) : []
+    noRepeatTitleLimit > 0 ? recentTitleKeys.slice(0, noRepeatTitleLimit) : []
   );
 
   const recentArtistSet = new Set(
-    noRepeatArtistLimit > 0 ? recentArtistKeys.slice(-noRepeatArtistLimit) : []
+    noRepeatArtistLimit > 0 ? recentArtistKeys.slice(0, noRepeatArtistLimit) : []
   );
 
   const candidates = cleanTracks.filter((track) => {
@@ -843,7 +845,8 @@ function chooseSmartZjPlaybackOrderNext(
     return key && key !== currentKey;
   });
 
-  if (order === "random") {
+  // SMARTZJ_SCHEDULE_SHUFFLED_TRUE_RANDOM_V1
+  if (order === "random" || order === "shuffled" || order === "shuffle") {
     const randomized = [...candidates];
 
     for (let i = randomized.length - 1; i > 0; i -= 1) {
@@ -867,7 +870,7 @@ function chooseSmartZjPlaybackOrderNext(
     return {
       track: picked,
       index: index >= 0 ? index : 0,
-      reason: "SCHEDULE_RANDOM_ANTI_REPEAT",
+      reason: order === "random" ? "SCHEDULE_RANDOM_ANTI_REPEAT" : "SCHEDULE_SHUFFLED_ANTI_REPEAT",
     };
   }
 
