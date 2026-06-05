@@ -193,7 +193,8 @@ export async function POST(req: NextRequest) {
 
     await writeFile(filePath, audioBytes);
 
-    const audioUrl = `/audio/ai-host/${fileName}`;
+    const storageUrl = `/audio/ai-host/${fileName}`;
+    const audioUrl = `/api/radio/ai-host-audio?file=${encodeURIComponent(fileName)}`;
 
     return NextResponse.json({
       ok: true,
@@ -210,6 +211,7 @@ export async function POST(req: NextRequest) {
       segmentType,
       title,
       audioUrl,
+      storageUrl,
       fileName,
       bytes: audioBytes.length,
       reviewRequired: false,
