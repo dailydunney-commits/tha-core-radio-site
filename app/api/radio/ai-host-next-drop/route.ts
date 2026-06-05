@@ -257,6 +257,10 @@ function buildNiaScript(body: AnyRecord, state: AnyRecord) {
     script = `${intro}Jamaica, move safe on the road and keep your head clear. Good music stays close.`;
   } else if (talkType === "jamaica-entertainment-lite") {
     script = `${intro}Entertainment scene always moving, but right now the clean music is the headline. Stay close.`;
+  } else if (talkType === "block-segment-callout") {
+    script = `${intro}You are inside Tha Core. This is ${blockSegmentName}. Clean vibes, clean energy. Stay close.`;
+  } else if (talkType === "feature-comment") {
+    script = buildNiaFeatureComment(body, lane);
   } else if (talkType === "song-link" && previousTitle) {
     script = `${intro}That was ${previousTitle}. Smooth one. More clean ${lane} next.`;
   } else if (talkType === "lane-vibe") {
