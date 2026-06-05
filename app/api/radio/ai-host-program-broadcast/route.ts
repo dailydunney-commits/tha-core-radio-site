@@ -452,6 +452,7 @@ export async function POST(req: NextRequest) {
         active: false,
         completedAt: nowIso(),
         lastAction: "complete-return-to-music",
+        sequenceGuard: "NIA_PROGRAM_SEQUENCE_GUARD_V1",
         smartZjReturn: smartZj,
       });
 
