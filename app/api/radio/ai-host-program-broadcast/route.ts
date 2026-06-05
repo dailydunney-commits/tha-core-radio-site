@@ -102,7 +102,7 @@ async function triggerSmartZjReturn(reason: string) {
     const res = await fetch(
       `http://127.0.0.1:${process.env.PORT || "3101"}/api/listener/smartzj-clean-next?ownerMonitorEnded=${encodeURIComponent(
         reason
-      )}`,
+      )}&allowDuringNiaProgram=true&allowDuringNiaProgram=true`,
       { method: "POST" }
     );
 

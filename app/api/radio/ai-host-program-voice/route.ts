@@ -123,7 +123,7 @@ function getMp3DurationSeconds(filePath: string) {
 // NIA_TTS_BRAND_PRONUNCIATION_V1
 // Keep the written brand as "Tha Core", but guide TTS to pronounce it naturally.
 function normalizeSpeechForTts(text: string, brandSpeechName: string) {
-  const spokenBrand = cleanText(brandSpeechName, "Tah Core", 80);
+  const spokenBrand = cleanText(brandSpeechName, "Tha Core", 80);
   return String(text || "")
     .replace(/\bTha Core\b/g, spokenBrand)
     .replace(/\bTHA CORE\b/g, spokenBrand.toUpperCase())
@@ -192,7 +192,7 @@ export async function POST(req: NextRequest) {
     const voice = ALLOWED_VOICES.has(voiceCandidate) ? voiceCandidate : DEFAULT_VOICE;
     const brandSpeechName = cleanText(
       body.brandSpeechName,
-      process.env.AI_HOST_BRAND_SPEECH_NAME || "Tah Core",
+      process.env.AI_HOST_BRAND_SPEECH_NAME || "Tha Core",
       80
     );
     const script = cleanText(body.script, "", 30000);

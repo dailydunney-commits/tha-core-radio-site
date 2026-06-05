@@ -1436,6 +1436,47 @@ async function getNiaBetweenSongDrop(input: {
     return null;
   }
 }
+
+// NIA_PROGRAM_LOCK_V1
+// Full Nia program blocks must not be interrupted by SmartZJ AutoNext/watchdog.
+// Only the Nia program broadcast route or a manual force override may return to music.
+const NIA_PROGRAM_STATE_FILE = join(process.cwd(), ".data", "ai-host-program-broadcast-state.json");
+
+function getNiaProgramLock(req?: NextRequest) {
+  try {
+    const requestUrl = req ? new URL(req.url) : null;
+    const allowDuringNiaProgram =
+      requestUrl?.searchParams.get("allowDuringNiaProgram") === "true" ||
+      requestUrl?.searchParams.get("forceSmartZjDuringNiaProgram") === "true";
+
+    if (allowDuringNiaProgram) return null;
+
+    const raw = readFileSync(NIA_PROGRAM_STATE_FILE, "utf8");
+    const state = JSON.parse(raw);
+
+    if (!state?.active) return null;
+
+    const expectedEndAtMs = Date.parse(String(state.expectedEndAt || ""));
+    const stillInsideProgram =
+      Number.isFinite(expectedEndAtMs) && expectedEndAtMs > Date.now() - 15000;
+
+    if (!stillInsideProgram) return null;
+
+    return {
+      ok: true,
+      status: "NIA_PROGRAM_ACTIVE",
+      programId: state.programId,
+      programName: state.programName,
+      programSlot: state.programSlot,
+      currentPartNumber: state.currentPartNumber,
+      totalParts: state.totalParts,
+      expectedEndAt: state.expectedEndAt,
+      audioUrl: state.audioUrl,
+    };
+  } catch {
+    return null;
+  }
+}
 async function runMiniAutoNext(req?: NextRequest) {
   const allCleanTracks = mergeScheduleJinglesWithCleanTracks(readSmartTracks());
   const requestedLane = await getRequestedLane(req);
