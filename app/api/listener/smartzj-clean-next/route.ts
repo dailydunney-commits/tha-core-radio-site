@@ -1478,6 +1478,21 @@ function getNiaProgramLock(req?: NextRequest) {
   }
 }
 async function runMiniAutoNext(req?: NextRequest) {
+  const niaProgramLock = getNiaProgramLock(req);
+  if (niaProgramLock) {
+    return NextResponse.json(
+      {
+        ok: false,
+        action: "SMARTZJ_BLOCKED_BY_NIA_PROGRAM_LOCK",
+        safety: "NIA_PROGRAM_LOCK_ACTIVE",
+        message:
+          "Nia full program is active. SmartZJ AutoNext is blocked until Nia finishes or owner returns to music.",
+        niaProgramLock,
+      },
+      { status: 423 }
+    );
+  }
+
   const allCleanTracks = mergeScheduleJinglesWithCleanTracks(readSmartTracks());
   const requestedLane = await getRequestedLane(req);
   const schedulePolicy = await getSchedulePolicy();
