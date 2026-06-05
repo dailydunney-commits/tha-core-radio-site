@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { existsSync } from "fs";
 import { mkdir, readdir, readFile, writeFile } from "fs/promises";
 import { join } from "path";
@@ -145,8 +145,11 @@ async function broadcastPart(input: {
   }
 
   const startedAt = nowIso();
-  const estimatedSeconds = Math.max(8, Number(part.estimatedSeconds || 60));
-  const returnAfterSeconds = Math.max(estimatedSeconds + 5, 12);
+  const estimatedSeconds = Math.max(
+    8,
+    Number(part.durationSeconds || part.actualSeconds || part.estimatedSeconds || 60)
+  );
+  const returnAfterSeconds = Math.max(estimatedSeconds + 7, 12);
   const expectedEndAt = new Date(
     Date.now() + returnAfterSeconds * 1000
   ).toISOString();

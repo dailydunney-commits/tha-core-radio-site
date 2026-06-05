@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { mkdir, writeFile } from "fs/promises";
 import { join } from "path";
 import crypto from "crypto";
+import { execFileSync } from "child_process";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -93,10 +94,36 @@ function estimateSeconds(text: string) {
   return Math.max(8, Math.round((words / 145) * 60));
 }
 
+// NIA_REAL_AUDIO_DURATION_V1
+function getMp3DurationSeconds(filePath: string) {
+  try {
+    const out = execFileSync(
+      "ffprobe",
+      [
+        "-v",
+        "error",
+        "-show_entries",
+        "format=duration",
+        "-of",
+        "default=nw=1:nk=1",
+        filePath,
+      ],
+      { encoding: "utf8" }
+    ).trim();
+
+    const seconds = Number(out);
+    if (Number.isFinite(seconds) && seconds > 0) {
+      return Math.ceil(seconds);
+    }
+  } catch {}
+
+  return 0;
+}
+
 // NIA_TTS_BRAND_PRONUNCIATION_V1
 // Keep the written brand as "Tha Core", but guide TTS to pronounce it naturally.
 function normalizeSpeechForTts(text: string, brandSpeechName: string) {
-  const spokenBrand = cleanText(brandSpeechName, "The Core", 80);
+  const spokenBrand = cleanText(brandSpeechName, "Tah Core", 80);
   return String(text || "")
     .replace(/\bTha Core\b/g, spokenBrand)
     .replace(/\bTHA CORE\b/g, spokenBrand.toUpperCase())
@@ -165,7 +192,7 @@ export async function POST(req: NextRequest) {
     const voice = ALLOWED_VOICES.has(voiceCandidate) ? voiceCandidate : DEFAULT_VOICE;
     const brandSpeechName = cleanText(
       body.brandSpeechName,
-      process.env.AI_HOST_BRAND_SPEECH_NAME || "The Core",
+      process.env.AI_HOST_BRAND_SPEECH_NAME || "Tah Core",
       80
     );
     const script = cleanText(body.script, "", 30000);
@@ -271,7 +298,8 @@ export async function POST(req: NextRequest) {
       await writeFile(filePath, mp3);
 
       const audioUrl = `/api/listener/ai-host-audio?file=${encodeURIComponent(fileName)}`;
-      const seconds = estimateSeconds(chunkText);
+      const actualSeconds = getMp3DurationSeconds(filePath);
+      const seconds = actualSeconds || estimateSeconds(chunkText);
 
       audioParts.push({
         partNumber,
@@ -281,6 +309,8 @@ export async function POST(req: NextRequest) {
         storageUrl: `/audio/ai-host/${fileName}`,
         bytes: mp3.length,
         estimatedSeconds: seconds,
+        actualSeconds,
+        durationSeconds: seconds,
         script: chunkText,
         track: {
           id: `AI-Host-Program/${programId}/part-${partNumber}`,
@@ -317,6 +347,23 @@ export async function POST(req: NextRequest) {
       (sum, part) => sum + Number(part.estimatedSeconds || 0),
       0
     );
+
+    // NIA_POST_TTS_DURATION_GUARD_V1
+    if (minDurationSeconds && totalEstimatedSeconds < Math.round(minDurationSeconds * 0.9)) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "GENERATED_AUDIO_TOO_SHORT_FOR_TARGET_DURATION",
+          message: "Generated Nia audio is too short for the requested program length. Do not broadcast as a timed block.",
+          totalEstimatedSeconds,
+          requestedMinimumSeconds: minDurationSeconds,
+          estimatedMinutes: Math.round((totalEstimatedSeconds / 60) * 10) / 10,
+          requestedMinutes: Math.round((minDurationSeconds / 60) * 10) / 10,
+          audioParts,
+        },
+        { status: 422 }
+      );
+    }
 
     const manifest = {
       ok: true,
