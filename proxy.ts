@@ -66,6 +66,8 @@ export function proxy(request: NextRequest) {
     smartZjPathname.startsWith("/api/radio/ai-host-news-rundown/") ||
     smartZjPathname === "/api/radio/ai-host-program-voice" ||
     smartZjPathname.startsWith("/api/radio/ai-host-program-voice/") ||
+    smartZjPathname === "/api/radio/ai-host-program-broadcast" ||
+    smartZjPathname.startsWith("/api/radio/ai-host-program-broadcast/") ||
     smartZjPathname === "/api/radio/current-broadcast" ||
     smartZjPathname.startsWith("/api/radio/current-broadcast/");
 
@@ -105,7 +107,9 @@ export function proxy(request: NextRequest) {
       safeBackendPathname === "/api/radio/ai-host-news-rundown" ||
       safeBackendPathname.startsWith("/api/radio/ai-host-news-rundown/") ||
       safeBackendPathname === "/api/radio/ai-host-program-voice" ||
-      safeBackendPathname.startsWith("/api/radio/ai-host-program-voice/")
+      safeBackendPathname.startsWith("/api/radio/ai-host-program-voice/") ||
+      safeBackendPathname === "/api/radio/ai-host-program-broadcast" ||
+      safeBackendPathname.startsWith("/api/radio/ai-host-program-broadcast/")
     )
   ) {
     return NextResponse.next();
