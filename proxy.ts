@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 
 const PROTECTED_PREFIXES = [
   "/owner",
@@ -79,7 +79,9 @@ export function proxy(request: NextRequest) {
       safeBackendPathname === "/api/radio/global-audio-gate" ||
       safeBackendPathname.startsWith("/api/radio/global-audio-gate/") ||
       safeBackendPathname === "/api/radio/current-broadcast" ||
-      safeBackendPathname.startsWith("/api/radio/current-broadcast/")
+      safeBackendPathname.startsWith("/api/radio/current-broadcast/") ||
+      safeBackendPathname === "/api/radio/ai-host-script" ||
+      safeBackendPathname.startsWith("/api/radio/ai-host-script/")
     )
   ) {
     return NextResponse.next();
@@ -160,3 +162,4 @@ export const config = {
     "/api/azuracast/control/:path*",
   ],
 };
+

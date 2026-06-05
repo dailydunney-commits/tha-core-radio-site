@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 
 
@@ -1273,6 +1273,243 @@ function cleanSmartDjTopStatusText(text: string) {
 
 // SMARTDJ_RENDER_STRIP_HELD_TEXT_V1
 
+
+function AiHostScriptPanel() {
+  async function handleGenerateAiHostScript(event: any) {
+    event.preventDefault();
+
+    const form = event.currentTarget as HTMLFormElement;
+    const fields = form.elements as any;
+    const status = document.getElementById("ai-host-script-status");
+    const output = document.getElementById("ai-host-script-output") as HTMLTextAreaElement | null;
+    const button = form.querySelector("button[type='submit']") as HTMLButtonElement | null;
+
+    if (status) status.textContent = "GENERATING_SCRIPT...";
+    if (button) button.disabled = true;
+    if (output) output.value = "";
+
+    try {
+      const payload = {
+        hostName: fields.hostName?.value || "Tha Core AI Host",
+        segmentType: fields.segmentType?.value || "general-talk",
+        topic: fields.topic?.value || "Tha Core Radio clean music link",
+        vibe: fields.vibe?.value || "warm Jamaican radio energy, professional, clean, confident",
+        lane: fields.lane?.value || "current clean rotation",
+        durationSeconds: Number(fields.durationSeconds?.value || 25),
+        sponsorName: fields.sponsorName?.value || "",
+        callToAction: fields.callToAction?.value || "Keep it locked to Tha Core Online Radio.",
+        extraNotes: fields.extraNotes?.value || "",
+      };
+
+      const res = await fetch("/api/radio/ai-host-script", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.ok) {
+        if (status) status.textContent = data?.error || "SCRIPT_GENERATION_FAILED";
+        if (output) output.value = data?.message || data?.detail || "Script generation failed.";
+        return;
+      }
+
+      if (status) {
+        status.textContent = data.safety + " | " + data.estimatedSeconds + " sec | voice next phase";
+      }
+
+      if (output) {
+        output.value = data.script || "";
+      }
+    } catch (err: any) {
+      if (status) status.textContent = "SCRIPT_GENERATION_ERROR";
+      if (output) output.value = err?.message || "Unknown script generation error.";
+    } finally {
+      if (button) button.disabled = false;
+    }
+  }
+
+  function handleCopyAiHostScript() {
+    const output = document.getElementById("ai-host-script-output") as HTMLTextAreaElement | null;
+    const status = document.getElementById("ai-host-script-status");
+
+    if (!output?.value) {
+      if (status) status.textContent = "NO_SCRIPT_TO_COPY";
+      return;
+    }
+
+    navigator.clipboard?.writeText(output.value);
+    if (status) status.textContent = "SCRIPT_COPIED_FOR_APPROVAL";
+  }
+
+  return (
+    <section
+      data-ai-host-script-panel="AI_HOST_SCRIPT_PANEL_V1"
+      style={{
+        border: "1px solid rgba(255, 215, 0, 0.35)",
+        borderRadius: 16,
+        padding: 16,
+        margin: "16px 0",
+        background: "linear-gradient(135deg, rgba(20,0,0,0.94), rgba(0,0,0,0.94))",
+        color: "#fff",
+        boxShadow: "0 0 24px rgba(255,0,0,0.18)",
+      }}
+    >
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+        <div>
+          <h2 style={{ margin: 0, color: "#ffd700", fontSize: 22 }}>OpenAI AI Host — Script Generator</h2>
+          <p style={{ margin: "6px 0 0", opacity: 0.82 }}>
+            Phase 1: generate clean radio-ready scripts first. Voice/audio comes next after approval.
+          </p>
+        </div>
+        <div
+          id="ai-host-script-status"
+          style={{
+            border: "1px solid rgba(255,255,255,0.18)",
+            borderRadius: 999,
+            padding: "8px 12px",
+            fontSize: 12,
+            color: "#9cff9c",
+            background: "rgba(0,0,0,0.55)",
+          }}
+        >
+          SCRIPT_READY_IDLE
+        </div>
+      </div>
+
+      <form onSubmit={handleGenerateAiHostScript} style={{ marginTop: 14, display: "grid", gap: 10 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 10 }}>
+          <label>
+            Host
+            <input name="hostName" defaultValue="Tha Core AI Host" style={{ width: "100%", padding: 10, borderRadius: 10 }} />
+          </label>
+
+          <label>
+            Segment
+            <select name="segmentType" defaultValue="song-intro" style={{ width: "100%", padding: 10, borderRadius: 10 }}>
+              <option value="station-id">Station ID</option>
+              <option value="song-intro">Song Intro</option>
+              <option value="song-outro">Song Outro</option>
+              <option value="jingle-link">Jingle Link</option>
+              <option value="promo">Promo</option>
+              <option value="sponsor-read">Sponsor Read</option>
+              <option value="schedule-tease">Schedule Tease</option>
+              <option value="community-message">Community Message</option>
+              <option value="general-talk">General Talk</option>
+            </select>
+          </label>
+
+          <label>
+            Lane / Folder
+            <input name="lane" defaultValue="current clean rotation" style={{ width: "100%", padding: 10, borderRadius: 10 }} />
+          </label>
+
+          <label>
+            Seconds
+            <input name="durationSeconds" type="number" min="8" max="90" defaultValue="25" style={{ width: "100%", padding: 10, borderRadius: 10 }} />
+          </label>
+        </div>
+
+        <label>
+          Topic
+          <input
+            name="topic"
+            defaultValue="Big up the listeners and introduce the next clean music run"
+            style={{ width: "100%", padding: 10, borderRadius: 10 }}
+          />
+        </label>
+
+        <label>
+          Vibe
+          <input
+            name="vibe"
+            defaultValue="warm Jamaican radio energy, professional, clean, confident"
+            style={{ width: "100%", padding: 10, borderRadius: 10 }}
+          />
+        </label>
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 10 }}>
+          <label>
+            Sponsor name
+            <input name="sponsorName" placeholder="optional" style={{ width: "100%", padding: 10, borderRadius: 10 }} />
+          </label>
+
+          <label>
+            Call to action
+            <input
+              name="callToAction"
+              defaultValue="Keep it locked to Tha Core Online Radio."
+              style={{ width: "100%", padding: 10, borderRadius: 10 }}
+            />
+          </label>
+        </div>
+
+        <label>
+          Extra notes
+          <textarea
+            name="extraNotes"
+            placeholder="Optional details: event, show name, sponsor wording, song title, clean warning, etc."
+            style={{ width: "100%", minHeight: 70, padding: 10, borderRadius: 10 }}
+          />
+        </label>
+
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <button
+            type="submit"
+            style={{
+              padding: "10px 16px",
+              borderRadius: 12,
+              border: "1px solid rgba(255,215,0,0.5)",
+              background: "#ffd700",
+              color: "#111",
+              fontWeight: 800,
+              cursor: "pointer",
+            }}
+          >
+            Generate Clean Script
+          </button>
+
+          <button
+            type="button"
+            onClick={handleCopyAiHostScript}
+            style={{
+              padding: "10px 16px",
+              borderRadius: 12,
+              border: "1px solid rgba(255,255,255,0.25)",
+              background: "rgba(255,255,255,0.08)",
+              color: "#fff",
+              fontWeight: 700,
+              cursor: "pointer",
+            }}
+          >
+            Copy Approved Script
+          </button>
+        </div>
+
+        <label>
+          Generated script
+          <textarea
+            id="ai-host-script-output"
+            readOnly
+            placeholder="Generated AI host script will appear here..."
+            style={{
+              width: "100%",
+              minHeight: 170,
+              padding: 12,
+              borderRadius: 12,
+              background: "rgba(255,255,255,0.96)",
+              color: "#111",
+              fontSize: 15,
+              lineHeight: 1.45,
+            }}
+          />
+        </label>
+      </form>
+    </section>
+  );
+}
+
 export default function OwnerControlPanelPage() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const overlayAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -2508,6 +2745,7 @@ const SELECTED_DISPLAY_MEMORY_KEY = "tha-core-owner-selected-display-v1";
 
   return (
     <main className="control-page">
+      <AiHostScriptPanel />
       <SmartDJAutoBrain />
       <audio ref={audioRef} src={STREAM_URL} preload="none" />
       <audio ref={overlayAudioRef} preload="auto" />
@@ -4429,3 +4667,4 @@ function ControlSlider({
 
 
 // SMARTDJ_DISPATCH_LOADED_MESSAGE_COUNT_ONLY_V1
+
