@@ -74,6 +74,12 @@ function normalizeBlock(block: AnyRecord, index: number) {
     prioritizeOverRequests: Boolean(block.prioritizeOverRequests),
     playJinglesBetweenTracks: Boolean(block.playJinglesBetweenTracks),
     allowJingleOverlay: Boolean(block.allowJingleOverlay),
+    songsBetweenJingles: Number(
+      block.songsBetweenJingles ??
+        block.songsBetweenScheduleJingles ??
+        block.jingleEverySongs ??
+        3
+    ),
   };
 }
 
@@ -98,6 +104,7 @@ function makeNewBlock(index: number) {
       prioritizeOverRequests: false,
       playJinglesBetweenTracks: false,
       allowJingleOverlay: false,
+      songsBetweenJingles: 3,
     },
     index
   );
@@ -654,6 +661,37 @@ export default function SmartZjSchedulePage() {
                 />
                 <span>Allow Jingle Overlay</span>
               </label>
+
+              {/* SCHEDULE_BLOCK_JINGLE_FREQUENCY_OPTIONS_V1 */}
+              <div style={{ border: "1px solid rgba(255,223,46,0.35)", borderRadius: "14px", padding: "12px", background: "rgba(255,223,46,0.06)" }}>
+                <p style={{ margin: "0 0 8px", fontWeight: 900, color: "#ffdf2e" }}>Jingle Frequency</p>
+                <div style={smallButtonRowStyle}>
+                  <button
+                    type="button"
+                    style={smallButtonStyle}
+                    onClick={() => updateBlock(index, { playJinglesBetweenTracks: false, songsBetweenJingles: 0 })}
+                  >
+                    OFF
+                  </button>
+                  <button
+                    type="button"
+                    style={smallButtonStyle}
+                    onClick={() => updateBlock(index, { playJinglesBetweenTracks: true, songsBetweenJingles: 3 })}
+                  >
+                    Every 3 Songs
+                  </button>
+                  <button
+                    type="button"
+                    style={smallButtonStyle}
+                    onClick={() => updateBlock(index, { playJinglesBetweenTracks: true, songsBetweenJingles: 5 })}
+                  >
+                    Every 5 Songs
+                  </button>
+                </div>
+                <p style={{ margin: "8px 0 0", color: "#ccc", fontSize: "13px" }}>
+                  Current: {Boolean(block.playJinglesBetweenTracks) ? `Every ${Number(block.songsBetweenJingles || 3)} song(s)` : "OFF"}
+                </p>
+              </div>
             </div>
 
             <label style={labelStyle}>

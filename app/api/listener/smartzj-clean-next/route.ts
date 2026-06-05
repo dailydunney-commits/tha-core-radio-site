@@ -101,6 +101,15 @@ async function getSchedulePolicy() {
       playJinglesBetweenTracks: Boolean(data?.playJinglesBetweenTracks || data?.activeBlock?.playJinglesBetweenTracks),
       allowJingleOverlay: Boolean(data?.allowJingleOverlay || data?.activeBlock?.allowJingleOverlay),
       playbackOrder: cleanText(data?.playbackOrder || data?.activeBlock?.playbackOrder || "shuffled").toLowerCase(),
+      // SMARTZJ_READ_SCHEDULE_JINGLE_FREQUENCY_V1
+      songsBetweenJingles: Number(
+        data?.songsBetweenJingles ??
+          data?.songsBetweenScheduleJingles ??
+          data?.activeBlock?.songsBetweenJingles ??
+          data?.activeBlock?.songsBetweenScheduleJingles ??
+          data?.activeBlock?.jingleEverySongs ??
+          3
+      ),
       noRepeatTitleCount: Number(data?.noRepeatTitleCount ?? data?.activeBlock?.noRepeatTitleCount ?? 10),
       noRepeatArtistCount: Number(data?.noRepeatArtistCount ?? data?.activeBlock?.noRepeatArtistCount ?? 5),
       activeBlockId: cleanText(data?.activeBlock?.id || ""),
@@ -117,6 +126,7 @@ async function getSchedulePolicy() {
       playJinglesBetweenTracks: false,
       allowJingleOverlay: false,
       playbackOrder: "shuffled",
+      songsBetweenJingles: 3,
       noRepeatTitleCount: 10,
       noRepeatArtistCount: 5,
       activeBlockId: "",

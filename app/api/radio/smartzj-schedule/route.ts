@@ -592,6 +592,18 @@ function buildScheduleResponse() {
   const laneCounts = countPlayableByLane();
   const laneChoice = choosePlayableLane(schedule, activeBlock, laneCounts);
 
+  // SCHEDULE_ACTIVE_BLOCK_JINGLE_FREQUENCY_V1
+  const scheduleAny = schedule as AnyRecord;
+  const activeBlockAny = (activeBlock || {}) as AnyRecord;
+  const activeSongsBetweenJingles = Number(
+    activeBlockAny.songsBetweenJingles ??
+      activeBlockAny.songsBetweenScheduleJingles ??
+      activeBlockAny.jingleEverySongs ??
+      scheduleAny.songsBetweenScheduleJingles ??
+      scheduleAny.songsBetweenJingles ??
+      3
+  );
+
   return {
     ok: true,
     route: "/api/radio/smartzj-schedule",
@@ -607,6 +619,9 @@ function buildScheduleResponse() {
     prioritizeOverRequests: Boolean(activeBlock?.prioritizeOverRequests),
     playJinglesBetweenTracks: Boolean(activeBlock?.playJinglesBetweenTracks),
     allowJingleOverlay: Boolean(activeBlock?.allowJingleOverlay),
+    songsBetweenJingles: activeSongsBetweenJingles,
+    songsBetweenScheduleJingles: activeSongsBetweenJingles,
+    jingleMode: activeSongsBetweenJingles > 0 ? "insert" : "off",
     fallbackMinPlayable: schedule.fallbackMinPlayable || 25,
     rawAzuraBlocked: true,
     schedule,
