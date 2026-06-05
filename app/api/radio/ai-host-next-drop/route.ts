@@ -170,6 +170,26 @@ function cleanNiaPresetName(value: unknown) {
     .toUpperCase()
     .trim();
 }
+
+// NIA_FEATURE_COMMENT_ROTATION_V1
+function pickNiaFeatureTopic(breakCount: number, lane: string) {
+  const topics = [
+    "music world and clean radio culture",
+    "Dancehall Reggae Hip-Hop and R&B energy",
+    "Hollywood Bollywood and entertainment without gossip",
+    "relationships and communication",
+    "work money pressure and daily discipline",
+    "sports mindset and staying consistent",
+    "Jamaica road sense and community life",
+    "fun clean joke and light station moment",
+    "serious topic with calm respectful tone",
+    "general life reminder for listeners"
+  ];
+
+  const index = Math.abs(Number(breakCount || 0)) % topics.length;
+  const picked = topics[index] || topics[0];
+  return `${picked} while the ${lane || "music"} keeps moving`;
+}
 // NIA_FEATURE_COMMENT_60_90_V1
 // Longer Nia feature comments: 60-90 seconds, separate from short links and full news blocks.
 function buildNiaFeatureComment(body: AnyRecord, lane: string) {
@@ -226,7 +246,18 @@ function buildNiaScript(body: AnyRecord, state: AnyRecord) {
       minutesSinceIso(state.lastBlockSegmentCalloutAt) >= blockCalloutMinutes
     );
 
-  let talkType = featureMode ? "feature-comment" : pickTalkType(nextCount);
+  const autoFeatureEveryBreaks = Math.max(
+    0,
+    Number(body.featureCommentEveryBreaks || process.env.AI_HOST_FEATURE_COMMENT_EVERY_BREAKS || 8)
+  );
+  const shouldAutoFeature =
+    !featureMode &&
+    !shouldCallBlockSegment &&
+    autoFeatureEveryBreaks > 0 &&
+    nextCount > 0 &&
+    nextCount % autoFeatureEveryBreaks === 0;
+
+  let talkType = featureMode || shouldAutoFeature ? "feature-comment" : pickTalkType(nextCount);
   if (!featureMode && shouldCallBlockSegment) {
     talkType = "block-segment-callout";
   }
@@ -260,7 +291,15 @@ function buildNiaScript(body: AnyRecord, state: AnyRecord) {
   } else if (talkType === "block-segment-callout") {
     script = `${intro}You are inside Tha Core. This is ${blockSegmentName}. Clean vibes, clean energy. Stay close.`;
   } else if (talkType === "feature-comment") {
-    script = buildNiaFeatureComment(body, lane);
+    const featureBody = shouldAutoFeature
+      ? {
+          ...body,
+          featureTopic:
+            cleanText(body.featureTopic || body.topic || "", "") ||
+            pickNiaFeatureTopic(nextCount, lane),
+        }
+      : body;
+    script = buildNiaFeatureComment(featureBody, lane);
   } else if (talkType === "song-link" && previousTitle) {
     script = `${intro}That was ${previousTitle}. Smooth one. More clean ${lane} next.`;
   } else if (talkType === "lane-vibe") {
