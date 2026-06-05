@@ -276,7 +276,10 @@ function buildNiaScript(body: AnyRecord, state: AnyRecord) {
   }
 
   return {
-    script: script.replace(/\s+/g, " ").trim().slice(0, 260),
+    script: script
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, talkType === "feature-comment" ? 1600 : 260),
     talkType,
     breakCount: nextCount,
     blockSegmentName: talkType === "block-segment-callout" ? blockSegmentName : "",
@@ -364,6 +367,9 @@ export async function POST(req: NextRequest) {
       ok: true,
       breakCount: built.breakCount,
       lastTalkType: built.talkType,
+      lastBlockSegmentName: built.blockSegmentName || state.lastBlockSegmentName || "",
+      lastBlockSegmentCalloutAt:
+        built.blockSegmentCalloutAt || state.lastBlockSegmentCalloutAt || "",
       lastScript: built.script,
       lastAudioUrl: voiceData.audioUrl,
       lastFileName: voiceData.fileName,
