@@ -164,18 +164,18 @@ function buildNiaFeatureComment(body: AnyRecord, lane: string) {
   const lowerTopic = topic.toLowerCase();
 
   if (lowerTopic.includes("jamaica") || lowerTopic.includes("morning")) {
-    return "You are inside Tha Core — clean vibes, clean energy. Quick thought for Jamaica today. Some days move fast, some days test your patience, but we still have to keep the mind steady and the mission clear. Whether you are at work, on the road, in the shop, at school, or handling business from home, keep moving with sense. Tha Core is here to keep the sound clean, the energy focused, and the day feeling a little lighter. No long lecture, just a reminder: protect your peace, make smart moves, and stay locked in.";
+    return "You are inside Tha Core â€” clean vibes, clean energy. Quick thought for Jamaica today. Some days move fast, some days test your patience, but we still have to keep the mind steady and the mission clear. Whether you are at work, on the road, in the shop, at school, or handling business from home, keep moving with sense. Tha Core is here to keep the sound clean, the energy focused, and the day feeling a little lighter. No long lecture, just a reminder: protect your peace, make smart moves, and stay locked in.";
   }
 
   if (lowerTopic.includes("sports")) {
-    return "You are inside Tha Core — clean vibes, clean energy. Sports teaches one thing over and over: talent matters, but discipline decides who lasts. You can have skill, hype, and a big moment, but the people who keep showing up are the ones who build real wins. Same thing in life, same thing in business, same thing on this station. We are not just playing music; we are building consistency. Big up every sports fan locked in. Win or lose, keep the energy clean and the mindset strong.";
+    return "You are inside Tha Core â€” clean vibes, clean energy. Sports teaches one thing over and over: talent matters, but discipline decides who lasts. You can have skill, hype, and a big moment, but the people who keep showing up are the ones who build real wins. Same thing in life, same thing in business, same thing on this station. We are not just playing music; we are building consistency. Big up every sports fan locked in. Win or lose, keep the energy clean and the mindset strong.";
   }
 
   if (lowerTopic.includes("entertainment")) {
-    return "You are inside Tha Core — clean vibes, clean energy. Entertainment moves fast, but not every rumor deserves your attention. Some stories are real, some are noise, and some are just people trying to trend before lunch. Around here, we keep it light, clean, and respectful. If it is verified, we can talk about it. If it is messy, we do not need to carry it like luggage. The music stays in front, the vibe stays easy, and Tha Core keeps moving.";
+    return "You are inside Tha Core â€” clean vibes, clean energy. Entertainment moves fast, but not every rumor deserves your attention. Some stories are real, some are noise, and some are just people trying to trend before lunch. Around here, we keep it light, clean, and respectful. If it is verified, we can talk about it. If it is messy, we do not need to carry it like luggage. The music stays in front, the vibe stays easy, and Tha Core keeps moving.";
   }
 
-  return `You are inside Tha Core — clean vibes, clean energy. Quick thought while the ${lane || "music"} keeps moving. A real station is not just songs back to back. It is timing, feeling, voice, safety, and connection. SmartZJ keeps the clean music flowing, and Nia is here to add the human touch without taking over the whole room. Short when it needs to be short, deeper when the moment calls for it, and always clean enough for everybody listening. Stay close. The music continues right here.`;
+  return `You are inside Tha Core â€” clean vibes, clean energy. Quick thought while the ${lane || "music"} keeps moving. A real station is not just songs back to back. It is timing, feeling, voice, safety, and connection. SmartZJ keeps the clean music flowing, and Nia is here to add the human touch without taking over the whole room. Short when it needs to be short, deeper when the moment calls for it, and always clean enough for everybody listening. Stay close. The music continues right here.`;
 }
 function buildNiaScript(body: AnyRecord, state: AnyRecord) {
   const nextCount = Math.max(1, Number(state.breakCount || 0) + 1);
