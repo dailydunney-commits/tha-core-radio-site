@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { mkdir, readFile, writeFile } from "fs/promises";
 import { join } from "path";
 
@@ -91,25 +91,25 @@ function buildNiaScript(body: AnyRecord, state: AnyRecord) {
   let script = "";
 
   if (talkType === "song-link" && previousTitle) {
-    script = `${intro}That was ${previousArtist ? `${previousArtist} with ` : ""}${previousTitle}. Smooth one right there. More clean ${lane} coming up.`;
+    script = `${intro}That was ${previousTitle}. Smooth one. More clean ${lane} next.`;
   } else if (talkType === "lane-vibe") {
-    script = `${intro}${lane} vibes still rolling. Short talk, clean music, good frequency. Stay right there.`;
+    script = `${intro}${lane} vibes rolling. Clean music, good frequency. Stay close.`;
   } else if (talkType === "time-check" && timeText) {
-    script = `${intro}Quick time check, it is ${timeText} in Jamaica. We keep the clean music moving on Tha Core.`;
+    script = `${intro}Quick time check, ${timeText} in Jamaica. Clean music continues.`;
   } else if (talkType === "weather-safe") {
-    script = `${intro}Quick weather reminder. If you are on the road, keep an eye on the skies and move safe. Music continues right now.`;
+    script = `${intro}Quick weather reminder. Move safe out there. Music continues now.`;
   } else if (talkType === "entertainment-lite") {
-    script = `${intro}Entertainment always moving, but right now the music is the main story. Let us keep the vibe clean and steady.`;
+    script = `${intro}Entertainment always moving, but the music is the story right now.`;
   } else if (talkType === "sports-lite") {
-    script = `${intro}Sports fans, big up yourself. Win or lose, we keep the energy up and the music clean.`;
+    script = `${intro}Sports fans, big up yourself. Clean energy, clean music.`;
   } else if (talkType === "next-music-tease" && nextTitle) {
-    script = `${intro}Coming up next, ${nextTitle}. Keep it locked, the sound continues.`;
+    script = `${intro}Coming up next, ${nextTitle}. Keep it locked.`;
   } else {
-    script = `${intro}You are locked into Tha Core Online Radio. Clean vibes, good frequency, no long talking. Back to the music.`;
+    script = `${intro}Clean vibes, good frequency, no long talking. Back to the music.`;
   }
 
   return {
-    script: script.replace(/\s+/g, " ").trim().slice(0, 700),
+    script: script.replace(/\s+/g, " ").trim().slice(0, 260),
     talkType,
     breakCount: nextCount,
   };
@@ -185,7 +185,10 @@ export async function POST(req: NextRequest) {
       aiGeneratedVoice: true,
       talkType: built.talkType,
       script: built.script,
-      estimatedSeconds: 12,
+      durationSeconds: 8,
+      estimatedSeconds: 8,
+      aiHostAutoReturn: true,
+      quickDrop: true,
     };
 
     const nextState = {
