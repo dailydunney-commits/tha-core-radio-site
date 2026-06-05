@@ -54,7 +54,7 @@ function defaultTimeLabel() {
 
 function durationForSlot(programSlot: string) {
   const slot = programSlot.toLowerCase();
-  if (slot.includes("5:30") || slot.includes("drive")) return 900;
+  if (slot.includes("5:30") || slot.includes("drive")) return 1800;
   if (slot.includes("8") || slot.includes("wrap")) return 420;
   if (slot.includes("6") || slot.includes("morning")) return 420;
   if (slot.includes("10")) return 300;
@@ -217,7 +217,7 @@ export async function POST(req: NextRequest) {
       weatherText,
       includeWeather: Boolean(weatherText),
       instruction:
-        "Nia is the scheduled news host for Tha Core until more AI hosts are added. Use only verified items. Cover the available categories: Jamaica/local, Caribbean, world, entertainment/culture, finance/business, sports, weather, and station/community notes. Recap without repeating the same words every block. Do not invent news.",
+        "Nia is the scheduled news host for Tha Core until more AI hosts are added. Use only verified items. Cover the available categories: Jamaica/local, Caribbean, world, entertainment/culture, Dancehall, Reggae, Hip-Hop, R&B, Hollywood, Bollywood, finance/business, sports, weather, and station/community notes. Recap without repeating the same words every block. Do not invent news.",
       items,
     };
 
