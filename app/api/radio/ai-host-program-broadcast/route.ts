@@ -120,6 +120,27 @@ async function triggerSmartZjReturn(reason: string) {
   }
 }
 
+
+// NIA_PROGRAM_SEQUENCE_GUARD_V1
+function msUntilIso(value: unknown) {
+  const ms = Date.parse(String(value || ""));
+  if (!Number.isFinite(ms)) return 0;
+  return ms - Date.now();
+}
+
+function secondsUntilIso(value: unknown) {
+  return Math.max(0, Math.ceil(msUntilIso(value) / 1000));
+}
+
+function sameProgramId(a: unknown, b: unknown) {
+  return cleanText(a || "", "", 220) === cleanText(b || "", "", 220);
+}
+
+function recentAdvanceBlocked(state: AnyRecord, cooldownSeconds = 12) {
+  const lastMs = Date.parse(String(state.lastAdvanceAt || state.updatedAt || ""));
+  if (!Number.isFinite(lastMs)) return false;
+  return Date.now() - lastMs < cooldownSeconds * 1000;
+}
 async function broadcastPart(input: {
   manifest: AnyRecord;
   partIndex: number;
@@ -245,6 +266,7 @@ async function broadcastPart(input: {
     estimatedSeconds,
     returnAfterSeconds,
     lastAction: input.reason,
+    lastAdvanceAt: startedAt,
     updatedAt: startedAt,
   };
 
@@ -288,6 +310,17 @@ export async function POST(req: NextRequest) {
 
     if (action === "return-to-music" || action === "stop") {
       const state = await readJson<AnyRecord>(STATE_FILE, {});
+
+      if (!state?.active && state?.lastAction === "complete-return-to-music") {
+        return NextResponse.json({
+          ok: true,
+          phase: "NIA_PROGRAM_BROADCAST_QUEUE_V1",
+          action: "already-returned-to-music",
+          message: "Nia program already completed and returned to SmartZJ. Duplicate return ignored.",
+          state,
+        });
+      }
+
       const smartZj = await triggerSmartZjReturn("niaProgramReturnToMusic");
 
       await writeJson(STATE_FILE, {
@@ -335,6 +368,61 @@ export async function POST(req: NextRequest) {
 
     if (action === "next") {
       const state = await readJson<AnyRecord>(STATE_FILE, {});
+      const forceNext = body.forceNext === true || body.force === true;
+
+      if (!state?.active) {
+        return NextResponse.json({
+          ok: true,
+          phase: "NIA_PROGRAM_BROADCAST_QUEUE_V1",
+          action: "next-ignored-program-not-active",
+          message: "No active Nia program is running. Duplicate or late next ignored.",
+          state,
+        });
+      }
+
+      if (state?.programId && !sameProgramId(state.programId, manifest.programId)) {
+        return NextResponse.json(
+          {
+            ok: false,
+            phase: "NIA_PROGRAM_BROADCAST_QUEUE_V1",
+            action: "next-blocked-wrong-program",
+            message: "Active Nia program does not match requested programId.",
+            activeProgramId: state.programId,
+            requestedProgramId: manifest.programId,
+          },
+          { status: 409 }
+        );
+      }
+
+      const waitSeconds = secondsUntilIso(state.expectedEndAt);
+      if (!forceNext && waitSeconds > 1) {
+        return NextResponse.json({
+          ok: true,
+          phase: "NIA_PROGRAM_BROADCAST_QUEUE_V1",
+          action: "next-ignored-current-part-still-playing",
+          message: "Current Nia part is still inside its expected play window. Next ignored to prevent skipping.",
+          currentPartIndex: Number(state.currentPartIndex || 0),
+          currentPartNumber: Number(state.currentPartNumber || 1),
+          totalParts: Number(state.totalParts || totalParts),
+          expectedEndAt: state.expectedEndAt,
+          waitSeconds,
+          state,
+        });
+      }
+
+      if (!forceNext && recentAdvanceBlocked(state, 12)) {
+        return NextResponse.json({
+          ok: true,
+          phase: "NIA_PROGRAM_BROADCAST_QUEUE_V1",
+          action: "next-ignored-duplicate-advance",
+          message: "A Nia part advanced recently. Duplicate next ignored to prevent part skipping.",
+          currentPartIndex: Number(state.currentPartIndex || 0),
+          currentPartNumber: Number(state.currentPartNumber || 1),
+          totalParts: Number(state.totalParts || totalParts),
+          state,
+        });
+      }
+
       partIndex = Number(state.currentPartIndex || 0) + 1;
     } else if (action === "part") {
       partIndex = Math.max(0, Number(body.partIndex || 0));
@@ -343,8 +431,21 @@ export async function POST(req: NextRequest) {
     }
 
     if (partIndex >= totalParts) {
-      const smartZj = await triggerSmartZjReturn("niaProgramComplete");
       const state = await readJson<AnyRecord>(STATE_FILE, {});
+
+      if (!state?.active && state?.lastAction === "complete-return-to-music") {
+        return NextResponse.json({
+          ok: true,
+          phase: "NIA_PROGRAM_BROADCAST_QUEUE_V1",
+          action: "already-complete-return-to-music",
+          message: "Nia program already completed. Duplicate complete ignored.",
+          programId: manifest.programId,
+          totalParts,
+          state,
+        });
+      }
+
+      const smartZj = await triggerSmartZjReturn("niaProgramComplete");
 
       await writeJson(STATE_FILE, {
         ...state,
