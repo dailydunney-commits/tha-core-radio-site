@@ -901,8 +901,9 @@ function chooseSmartZjPlaybackOrderNext(
     return key && key !== currentKey;
   });
 
-  // SMARTZJ_SCHEDULE_SHUFFLED_TRUE_RANDOM_V1
-  if (order === "random" || order === "shuffled" || order === "shuffle") {
+  // SMARTZJ_RANDOM_ONLY_TRUE_RANDOM_V2
+  // Random is true random. Shuffled falls through to full-lane bag before repeat.
+  if (order === "random") {
     const randomized = [...candidates];
 
     for (let i = randomized.length - 1; i > 0; i -= 1) {
@@ -926,7 +927,7 @@ function chooseSmartZjPlaybackOrderNext(
     return {
       track: picked,
       index: index >= 0 ? index : 0,
-      reason: order === "random" ? "SCHEDULE_RANDOM_ANTI_REPEAT" : "SCHEDULE_SHUFFLED_ANTI_REPEAT",
+      reason: "SCHEDULE_RANDOM_ANTI_REPEAT",
     };
   }
 
