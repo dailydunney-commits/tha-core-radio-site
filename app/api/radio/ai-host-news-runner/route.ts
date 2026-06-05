@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { mkdir, readFile, writeFile } from "fs/promises";
 import { existsSync } from "fs";
 import { join } from "path";
@@ -54,7 +54,7 @@ function defaultTimeLabel() {
 
 function durationForSlot(programSlot: string) {
   const slot = programSlot.toLowerCase();
-  if (slot.includes("5:30") || slot.includes("drive")) return 420;
+  if (slot.includes("5:30") || slot.includes("drive")) return 900;
   if (slot.includes("8") || slot.includes("wrap")) return 420;
   if (slot.includes("6") || slot.includes("morning")) return 420;
   if (slot.includes("10")) return 300;
@@ -163,7 +163,7 @@ export async function POST(req: NextRequest) {
     const blockType = cleanText(body.blockType || blockTypeForSlot(programSlot), blockTypeForSlot(programSlot), 120);
     const targetDurationSeconds = Math.max(
       180,
-      Math.min(900, Number(body.targetDurationSeconds || durationForSlot(programSlot)))
+      Math.min(1800, Number(body.targetDurationSeconds || durationForSlot(programSlot)))
     );
 
     await mkdir(NEWS_RUNNER_DIR, { recursive: true });
@@ -217,7 +217,7 @@ export async function POST(req: NextRequest) {
       weatherText,
       includeWeather: Boolean(weatherText),
       instruction:
-        "Nia is the scheduled news host for Tha Core until more AI hosts are added. Use only verified items. Recap without repeating the same words every block. Do not invent news.",
+        "Nia is the scheduled news host for Tha Core until more AI hosts are added. Use only verified items. Cover the available categories: Jamaica/local, Caribbean, world, entertainment/culture, finance/business, sports, weather, and station/community notes. Recap without repeating the same words every block. Do not invent news.",
       items,
     };
 
@@ -325,7 +325,6 @@ export async function POST(req: NextRequest) {
     await writeFile(LAST_RUN_FILE, JSON.stringify(lastRun, null, 2), "utf8");
 
     return NextResponse.json({
-      ok: true,
       ...lastRun,
       safety: "NIA_NEWS_READY",
       rundown: {
