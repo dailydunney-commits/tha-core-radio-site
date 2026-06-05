@@ -59,7 +59,9 @@ export function proxy(request: NextRequest) {
     smartZjPathname === "/api/radio/ai-host-voice" ||
     smartZjPathname.startsWith("/api/radio/ai-host-voice/") ||
     smartZjPathname === "/api/radio/ai-host-audio" ||
-    smartZjPathname.startsWith("/api/radio/ai-host-audio/");
+    smartZjPathname.startsWith("/api/radio/ai-host-audio/") ||
+    smartZjPathname === "/api/radio/current-broadcast" ||
+    smartZjPathname.startsWith("/api/radio/current-broadcast/");
 
   if (smartZjInternalHost && smartZjInternalPath) {
     return NextResponse.next();
