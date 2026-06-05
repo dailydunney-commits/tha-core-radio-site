@@ -47,6 +47,25 @@ function cleanSongTitle(value: unknown) {
     .trim();
 }
 
+// NIA_JAMAICA_DAYPART_V1
+function jamaicaDayPart() {
+  try {
+    const hourText = new Intl.DateTimeFormat("en-JM", {
+      timeZone: "America/Jamaica",
+      hour: "numeric",
+      hour12: false,
+    }).format(new Date());
+
+    const hour = Number(hourText);
+    if (hour >= 5 && hour < 11) return "morning";
+    if (hour >= 11 && hour < 15) return "midday";
+    if (hour >= 15 && hour < 19) return "evening";
+    return "late-night";
+  } catch {
+    return "day";
+  }
+}
+
 function jamaicaTimeText() {
   try {
     return new Intl.DateTimeFormat("en-JM", {
@@ -62,11 +81,12 @@ function jamaicaTimeText() {
 
 function pickTalkType(breakCount: number) {
   const types = [
+    "jamaica-morning-update",
     "song-link",
-    "lane-vibe",
     "time-check",
-    "weather-safe",
-    "entertainment-lite",
+    "jamaica-road-safe",
+    "lane-vibe",
+    "jamaica-entertainment-lite",
     "sports-lite",
     "station-vibe",
     "next-music-tease",
@@ -84,13 +104,28 @@ function buildNiaScript(body: AnyRecord, state: AnyRecord) {
   const lane = cleanText(body.lane || body.genreLane || "the clean rotation", "the clean rotation");
   const nextTitle = cleanSongTitle(body.nextTitle || "");
   const timeText = jamaicaTimeText();
+  const dayPart = jamaicaDayPart();
 
   const sayName = nextCount === 1 || nextCount % 6 === 0;
   const intro = sayName ? "This is Nia from Tha Core. " : "";
 
   let script = "";
 
-  if (talkType === "song-link" && previousTitle) {
+  if (talkType === "jamaica-morning-update") {
+    if (dayPart === "morning") {
+      script = `${intro}Good morning Jamaica. Quick check, clean vibes are up on Tha Core. Move safe today, music continues.`;
+    } else if (dayPart === "midday") {
+      script = `${intro}Midday check Jamaica. Keep your pace steady and your energy clean. Music continues.`;
+    } else if (dayPart === "evening") {
+      script = `${intro}Evening energy Jamaica. Big up everybody heading home or holding the work. Clean music continues.`;
+    } else {
+      script = `${intro}Late-night check Jamaica. Keep it smooth, keep it safe. Tha Core stays with you.`;
+    }
+  } else if (talkType === "jamaica-road-safe") {
+    script = `${intro}Jamaica, move safe on the road and keep your head clear. Good music stays close.`;
+  } else if (talkType === "jamaica-entertainment-lite") {
+    script = `${intro}Entertainment scene always moving, but right now the clean music is the headline. Stay close.`;
+  } else if (talkType === "song-link" && previousTitle) {
     script = `${intro}That was ${previousTitle}. Smooth one. More clean ${lane} next.`;
   } else if (talkType === "lane-vibe") {
     script = `${intro}${lane} vibes rolling. Clean music, good frequency. Stay close.`;
@@ -105,7 +140,7 @@ function buildNiaScript(body: AnyRecord, state: AnyRecord) {
   } else if (talkType === "next-music-tease" && nextTitle) {
     script = `${intro}Coming up next, ${nextTitle}. Keep it locked.`;
   } else {
-    script = `${intro}Clean vibes, good frequency, no long talking. Back to the music.`;
+    script = `${intro}You are inside Tha Core. Clean vibes, good frequency, and more music right now.`;
   }
 
   return {
