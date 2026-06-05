@@ -64,6 +64,16 @@ function publicAudioFileExists(url: string) {
   return existsSync(filePath);
 }
 
+// AI_HOST_APPROVED_CURRENT_BROADCAST_AUDIO_V1
+function isApprovedCurrentBroadcastAudioUrl(url: string) {
+  const cleanUrl = String(url || "").trim();
+  return (
+    isAiHostListenerAudioUrl(cleanUrl) ||
+    cleanUrl.startsWith("/drops/") ||
+    publicAudioFileExists(cleanUrl)
+  );
+}
+
 function pickHealLane(current: any, track: any) {
   return String(
     current?.sequence?.requestedLane ||
@@ -144,7 +154,7 @@ async function trySmartZjRecovery(reason: string) {
     const data = await res.json();
     const audioUrl = String(data?.audioUrl || data?.streamUrl || data?.listen_url || "").trim();
 
-    if (!audioUrl || !isSafeUrl(audioUrl) || !publicAudioFileExists(audioUrl)) return null;
+    if (!audioUrl || !isSafeUrl(audioUrl) || !isApprovedCurrentBroadcastAudioUrl(audioUrl)) return null;
 
     const title = String(data?.title || data?.currentBroadcast?.title || "Approved SmartZJ Track").trim();
     const artist = String(data?.artist || data?.currentBroadcast?.artist || "Tha Core Online Radio").trim();
@@ -214,9 +224,8 @@ export async function GET(request: NextRequest) {
 
       if (
         currentStatus === "SMARTDJ_BROADCASTING" &&
-      !currentAudioUrl.startsWith("/drops/") &&
       isSafeUrl(currentAudioUrl) &&
-      !publicAudioFileExists(currentAudioUrl)
+   !isApprovedCurrentBroadcastAudioUrl(currentAudioUrl)
    ) {
         try {
           const healLane = pickHealLane(current, track);
@@ -247,7 +256,7 @@ export async function GET(request: NextRequest) {
       if (
         currentStatus === "SMARTDJ_BROADCASTING" &&
       isSafeUrl(currentAudioUrl) &&
-      (currentAudioUrl.startsWith("/drops/") || publicAudioFileExists(currentAudioUrl))
+      isApprovedCurrentBroadcastAudioUrl(currentAudioUrl)
    ) {
         const title = String(
           track?.title ||
