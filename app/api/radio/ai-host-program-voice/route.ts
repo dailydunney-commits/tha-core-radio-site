@@ -20,6 +20,7 @@ type ProgramVoiceBody = {
   brandSpeechName?: string;
   targetDurationSeconds?: number;
   minDurationSeconds?: number;
+  programPreset?: string;
 };
 
 const DEFAULT_TTS_MODEL = process.env.OPENAI_AI_HOST_TTS_MODEL || "gpt-4o-mini-tts";
@@ -89,6 +90,19 @@ function splitScriptIntoChunks(script: string, maxChunkChars: number, maxChunks:
     .slice(0, maxChunks);
 }
 
+
+// NIA_NEWS_DURATION_PRESETS_V1
+function niaProgramPresetSeconds(value: unknown) {
+  const preset = cleanText(value || "", "")
+    .replace(/[\s-]+/g, "_")
+    .toUpperCase()
+    .trim();
+
+  if (preset === "NIA_NEWS_5_MIN" || preset === "NEWS_5_MIN") return 300;
+  if (preset === "NIA_NEWS_7_MIN" || preset === "NEWS_7_MIN") return 420;
+  if (preset === "NIA_NEWS_10_MIN" || preset === "NEWS_10_MIN") return 600;
+  return 0;
+}
 function estimateSeconds(text: string) {
   const words = text.split(/\s+/).filter(Boolean).length;
   return Math.max(8, Math.round((words / 145) * 60));
@@ -241,13 +255,11 @@ export async function POST(req: NextRequest) {
     }
 
     // NIA_PROGRAM_DURATION_GUARD_V1
-    const minDurationSeconds = Math.max(
-      0,
-      Math.min(
-        3600,
-        Number(body.minDurationSeconds || body.targetDurationSeconds || 0)
-      )
+        const presetSeconds = niaProgramPresetSeconds(body.programPreset || (body as any).preset);
+    const requestedDurationSeconds = Number(
+      body.minDurationSeconds || body.targetDurationSeconds || presetSeconds || 0
     );
+    const minDurationSeconds = Math.max(0, Math.min(3600, requestedDurationSeconds));
     const estimatedScriptSeconds = chunks.reduce(
       (sum, chunk) => sum + estimateSeconds(chunk),
       0

@@ -148,6 +148,28 @@ function cleanNiaNextTitleForSpeech(value: unknown) {
   return raw.slice(0, 100);
 }
 
+
+// NIA_BLOCK_SEGMENT_CALLOUT_30_MIN_V1
+function cleanNiaBlockSegmentName(value: unknown) {
+  return cleanText(value || "", "")
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 80);
+}
+
+function minutesSinceIso(value: unknown) {
+  const ms = Date.parse(String(value || ""));
+  if (!Number.isFinite(ms)) return 999999;
+  return Math.floor((Date.now() - ms) / 60000);
+}
+
+function cleanNiaPresetName(value: unknown) {
+  return cleanText(value || "", "")
+    .replace(/[\s-]+/g, "_")
+    .toUpperCase()
+    .trim();
+}
 // NIA_FEATURE_COMMENT_60_90_V1
 // Longer Nia feature comments: 60-90 seconds, separate from short links and full news blocks.
 function buildNiaFeatureComment(body: AnyRecord, lane: string) {
@@ -176,8 +198,38 @@ function buildNiaFeatureComment(body: AnyRecord, lane: string) {
 }
 function buildNiaScript(body: AnyRecord, state: AnyRecord) {
   const nextCount = Math.max(1, Number(state.breakCount || 0) + 1);
-  const featureMode = body.featureMode === true || body.longComment === true || cleanText(body.commentMode || "", "") === "feature";
-  const talkType = featureMode ? "feature-comment" : pickTalkType(nextCount);
+    const niaPreset = cleanNiaPresetName(body.niaPreset || body.preset || body.mode || "");
+  const featureMode =
+    body.featureMode === true ||
+    body.longComment === true ||
+    cleanText(body.commentMode || "", "") === "feature" ||
+    niaPreset === "NIA_FEATURE_COMMENT";
+
+  const blockSegmentName = cleanNiaBlockSegmentName(
+    body.blockSegmentName ||
+      body.activeBlockName ||
+      body.scheduleBlockName ||
+      body.programBlockName ||
+      ""
+  );
+  const blockCalloutMinutes = Math.max(
+    5,
+    Math.min(
+      180,
+      Number(body.blockSegmentEveryMinutes || process.env.AI_HOST_BLOCK_SEGMENT_CALLOUT_MINUTES || 30)
+    )
+  );
+  const shouldCallBlockSegment =
+    Boolean(blockSegmentName) &&
+    (
+      cleanNiaBlockSegmentName(state.lastBlockSegmentName) !== blockSegmentName ||
+      minutesSinceIso(state.lastBlockSegmentCalloutAt) >= blockCalloutMinutes
+    );
+
+  let talkType = featureMode ? "feature-comment" : pickTalkType(nextCount);
+  if (!featureMode && shouldCallBlockSegment) {
+    talkType = "block-segment-callout";
+  }
 
   const previousTitle = cleanSongTitle(body.previousTitle || body.currentTitle || "");
   const previousArtist = cleanText(body.previousArtist || body.currentArtist || "");
@@ -227,6 +279,8 @@ function buildNiaScript(body: AnyRecord, state: AnyRecord) {
     script: script.replace(/\s+/g, " ").trim().slice(0, 260),
     talkType,
     breakCount: nextCount,
+    blockSegmentName: talkType === "block-segment-callout" ? blockSegmentName : "",
+    blockSegmentCalloutAt: talkType === "block-segment-callout" ? new Date().toISOString() : "",
   };
 }
 

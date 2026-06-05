@@ -1419,6 +1419,11 @@ async function getNiaBetweenSongDrop(input: {
         "",
       nextTitle: titleFromTrack(nextTrack),
       nextArtist: artistFromTrack(nextTrack),
+      blockSegmentName:
+        input.schedulePolicy?.activeBlockName ||
+        input.schedulePolicy?.activeBlockId ||
+        "",
+      blockSegmentEveryMinutes: 30,
     };
 
     const response = await fetch(`${internalBaseUrl()}/api/radio/ai-host-next-drop`, {
