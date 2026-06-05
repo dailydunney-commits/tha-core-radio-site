@@ -1510,6 +1510,251 @@ function AiHostScriptPanel() {
   );
 }
 
+
+function AiHostVoicePanel() {
+  function handleUseGeneratedScriptForVoice() {
+    const scriptOutput = document.getElementById("ai-host-script-output") as HTMLTextAreaElement | null;
+    const voiceScript = document.getElementById("ai-host-voice-script") as HTMLTextAreaElement | null;
+    const status = document.getElementById("ai-host-voice-status");
+
+    if (!scriptOutput?.value) {
+      if (status) status.textContent = "NO_APPROVED_SCRIPT_FOUND";
+      return;
+    }
+
+    if (voiceScript) {
+      voiceScript.value = scriptOutput.value;
+    }
+
+    if (status) status.textContent = "SCRIPT_LOADED_FOR_VOICE_PREVIEW";
+  }
+
+  async function handleGenerateAiHostVoice(event: any) {
+    event.preventDefault();
+
+    const form = event.currentTarget as HTMLFormElement;
+    const fields = form.elements as any;
+    const status = document.getElementById("ai-host-voice-status");
+    const audio = document.getElementById("ai-host-voice-audio") as HTMLAudioElement | null;
+    const link = document.getElementById("ai-host-voice-link") as HTMLAnchorElement | null;
+    const output = document.getElementById("ai-host-voice-output") as HTMLTextAreaElement | null;
+    const button = form.querySelector("button[type='submit']") as HTMLButtonElement | null;
+
+    if (status) status.textContent = "GENERATING_AI_VOICE...";
+    if (button) button.disabled = true;
+    if (audio) audio.removeAttribute("src");
+    if (link) {
+      link.removeAttribute("href");
+      link.textContent = "";
+    }
+    if (output) output.value = "";
+
+    try {
+      const payload = {
+        hostName: fields.hostName?.value || "Tha Core AI Host",
+        segmentType: fields.segmentType?.value || "song-intro",
+        title: fields.title?.value || "Tha Core AI Host Voice",
+        voice: fields.voice?.value || "alloy",
+        script: fields.script?.value || "",
+      };
+
+      const res = await fetch("/api/radio/ai-host-voice", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.ok) {
+        if (status) status.textContent = data?.error || "VOICE_GENERATION_FAILED";
+        if (output) output.value = data?.message || data?.detail || "Voice generation failed.";
+        return;
+      }
+
+      if (status) {
+        status.textContent = data.safety + " | preview only | not broadcast";
+      }
+
+      if (audio && data.audioUrl) {
+        audio.src = data.audioUrl;
+        audio.load();
+      }
+
+      if (link && data.audioUrl) {
+        link.href = data.audioUrl;
+        link.textContent = "Open saved AI host MP3";
+      }
+
+      if (output) {
+        output.value = JSON.stringify(
+          {
+            audioUrl: data.audioUrl,
+            fileName: data.fileName,
+            voice: data.voice,
+            bytes: data.bytes,
+            disclosure: data.disclosure,
+            broadcastEnabled: data.broadcastEnabled,
+          },
+          null,
+          2
+        );
+      }
+    } catch (err: any) {
+      if (status) status.textContent = "VOICE_GENERATION_ERROR";
+      if (output) output.value = err?.message || "Unknown voice generation error.";
+    } finally {
+      if (button) button.disabled = false;
+    }
+  }
+
+  return (
+    <section
+      data-ai-host-voice-panel="AI_HOST_VOICE_PANEL_V1"
+      style={{
+        border: "1px solid rgba(255, 215, 0, 0.35)",
+        borderRadius: 16,
+        padding: 16,
+        margin: "16px 0",
+        background: "linear-gradient(135deg, rgba(0,0,0,0.96), rgba(25,0,0,0.94))",
+        color: "#fff",
+        boxShadow: "0 0 24px rgba(255,215,0,0.14)",
+      }}
+    >
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+        <div>
+          <h2 style={{ margin: 0, color: "#ffd700", fontSize: 22 }}>OpenAI AI Host — Voice Generator</h2>
+          <p style={{ margin: "6px 0 0", opacity: 0.82 }}>
+            Phase 2: turn an approved clean script into a saved MP3. Preview only. Not wired to broadcast yet.
+          </p>
+        </div>
+        <div
+          id="ai-host-voice-status"
+          style={{
+            border: "1px solid rgba(255,255,255,0.18)",
+            borderRadius: 999,
+            padding: "8px 12px",
+            fontSize: 12,
+            color: "#9cff9c",
+            background: "rgba(0,0,0,0.55)",
+          }}
+        >
+          VOICE_READY_IDLE
+        </div>
+      </div>
+
+      <form onSubmit={handleGenerateAiHostVoice} style={{ marginTop: 14, display: "grid", gap: 10 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 10 }}>
+          <label>
+            Host
+            <input name="hostName" defaultValue="Tha Core AI Host" style={{ width: "100%", padding: 10, borderRadius: 10 }} />
+          </label>
+
+          <label>
+            Segment
+            <select name="segmentType" defaultValue="song-intro" style={{ width: "100%", padding: 10, borderRadius: 10 }}>
+              <option value="station-id">Station ID</option>
+              <option value="song-intro">Song Intro</option>
+              <option value="song-outro">Song Outro</option>
+              <option value="jingle-link">Jingle Link</option>
+              <option value="promo">Promo</option>
+              <option value="sponsor-read">Sponsor Read</option>
+              <option value="schedule-tease">Schedule Tease</option>
+              <option value="community-message">Community Message</option>
+              <option value="general-talk">General Talk</option>
+            </select>
+          </label>
+
+          <label>
+            Voice
+            <select name="voice" defaultValue="nova" style={{ width: "100%", padding: 10, borderRadius: 10 }}>
+              <option value="alloy">alloy</option>
+              <option value="verse">verse</option>
+              <option value="coral">coral</option>
+              <option value="nova">nova</option>
+              <option value="onyx">onyx</option>
+              <option value="ash">ash</option>
+              <option value="sage">sage</option>
+              <option value="shimmer">shimmer</option>
+            </select>
+          </label>
+
+          <label>
+            File title
+            <input name="title" defaultValue="Tha Core AI Host Voice" style={{ width: "100%", padding: 10, borderRadius: 10 }} />
+          </label>
+        </div>
+
+        <label>
+          Approved script for voice
+          <textarea
+            id="ai-host-voice-script"
+            name="script"
+            placeholder="Paste approved clean script here, or click Use Generated Script."
+            style={{ width: "100%", minHeight: 140, padding: 10, borderRadius: 10 }}
+          />
+        </label>
+
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <button
+            type="button"
+            onClick={handleUseGeneratedScriptForVoice}
+            style={{
+              padding: "10px 16px",
+              borderRadius: 12,
+              border: "1px solid rgba(255,255,255,0.25)",
+              background: "rgba(255,255,255,0.08)",
+              color: "#fff",
+              fontWeight: 700,
+              cursor: "pointer",
+            }}
+          >
+            Use Generated Script
+          </button>
+
+          <button
+            type="submit"
+            style={{
+              padding: "10px 16px",
+              borderRadius: 12,
+              border: "1px solid rgba(255,215,0,0.5)",
+              background: "#ffd700",
+              color: "#111",
+              fontWeight: 800,
+              cursor: "pointer",
+            }}
+          >
+            Generate Preview MP3
+          </button>
+        </div>
+
+        <audio id="ai-host-voice-audio" controls style={{ width: "100%" }} />
+
+        <a id="ai-host-voice-link" target="_blank" rel="noreferrer" style={{ color: "#ffd700", fontWeight: 800 }} />
+
+        <label>
+          Voice output
+          <textarea
+            id="ai-host-voice-output"
+            readOnly
+            placeholder="Saved MP3 details will appear here..."
+            style={{
+              width: "100%",
+              minHeight: 120,
+              padding: 12,
+              borderRadius: 12,
+              background: "rgba(255,255,255,0.96)",
+              color: "#111",
+              fontSize: 14,
+              lineHeight: 1.45,
+            }}
+          />
+        </label>
+      </form>
+    </section>
+  );
+}
+
 export default function OwnerControlPanelPage() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const overlayAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -2746,6 +2991,7 @@ const SELECTED_DISPLAY_MEMORY_KEY = "tha-core-owner-selected-display-v1";
   return (
     <main className="control-page">
       <AiHostScriptPanel />
+      <AiHostVoicePanel />
       <SmartDJAutoBrain />
       <audio ref={audioRef} src={STREAM_URL} preload="none" />
       <audio ref={overlayAudioRef} preload="auto" />
@@ -4667,4 +4913,5 @@ function ControlSlider({
 
 
 // SMARTDJ_DISPATCH_LOADED_MESSAGE_COUNT_ONLY_V1
+
 
