@@ -99,7 +99,7 @@ function pickTalkType(breakCount: number) {
 // NIA_NEXT_TITLE_SANITY_GUARD_V1
 // Stop Nia from saying weak/generated titles like "coming up next, free".
 function cleanNiaNextTitleForSpeech(value: unknown) {
-  const raw = cleanText(value, "", 180)
+  const raw = cleanText(value, "").slice(0, 180)
     .replace(/[_-]+/g, " ")
     .replace(/\s+/g, " ")
     .trim();
