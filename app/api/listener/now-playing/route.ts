@@ -22,9 +22,21 @@ function saveQueue(queue: any) {
   } catch {}
 }
 
+// AI_HOST_LISTENER_AUDIO_SAFE_URL_V1
+function isAiHostListenerAudioUrl(url: string) {
+  const cleanUrl = String(url || "").toLowerCase().trim();
+  return (
+    cleanUrl.startsWith("/api/listener/ai-host-audio?file=") &&
+    cleanUrl.includes(".mp3") &&
+    !cleanUrl.includes("..") &&
+    !cleanUrl.includes("\\")
+  );
+}
+
 function isSafeUrl(url: string) {
   const u = String(url || "").toLowerCase();
   if (!u) return false;
+  if (isAiHostListenerAudioUrl(u)) return true;
   if (u.includes("/listen/")) return false;
   if (u.includes("radio.mp3")) return false;
   if (u.includes("/api/smartdj/audio?src=")) return false;
