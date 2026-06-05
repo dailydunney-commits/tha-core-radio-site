@@ -1,4 +1,4 @@
-﻿import { existsSync, mkdirSync, readFileSync, writeFileSync , readdirSync } from "fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync , readdirSync } from "fs";
 import { join } from "path";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -1609,6 +1609,19 @@ const currentKey = getCurrentKey();
     songsSinceScheduleJingle >= songsBetweenScheduleJingles;
 
   if (shouldInsertScheduleJingle) {
+    // AI_HOST_REPLACE_JINGLE_POOL_WITH_NIA_V1
+    const niaDropTrack = await getNiaBetweenSongDrop({
+      currentBroadcastState,
+      requestedLane,
+      schedulePolicy,
+      songsSinceScheduleJingle,
+      songsBetweenScheduleJingles,
+      nextMusicTrack: cleanTracks.find((candidate) => !isSmartZjJingleTrack(candidate)) || cleanTracks[0],
+    });
+
+    if (niaDropTrack) {
+      scheduleJingleTracks.splice(0, scheduleJingleTracks.length, niaDropTrack);
+    }
     const lastScheduleJingleAudioUrl = String(playerState.lastScheduleJingleAudioUrl || "");
     const recentScheduleJingleSet = new Set(recentScheduleJingleAudioUrls);
 
@@ -1805,4 +1818,3 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   return runMiniAutoNext(req);
 }
-
