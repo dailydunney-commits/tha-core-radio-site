@@ -1,4 +1,4 @@
-﻿import { existsSync, mkdirSync, readFileSync, writeFileSync , readdirSync } from "fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync , readdirSync } from "fs";
 import { join } from "path";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -1381,57 +1381,6 @@ function dedupeSmartZjTracksBySongKey(tracks: AnyTrack[]) {
   return deduped.length ? deduped : tracks;
 }
 
-
-// AI_HOST_BETWEEN_SONG_BRAIN_V1
-// Lets Nia talk naturally between songs through the existing SmartZJ jingle/drop slot.
-// Keeps SmartZJ as the broadcast brain. Falls back to normal jingles if AI voice fails.
-async function getAiHostBetweenSongDrop(input: {
-  currentBroadcastState: Record<string, any>;
-  requestedLane: string;
-  schedulePolicy: Record<string, any> | null | undefined;
-  songsSinceScheduleJingle: number;
-  songsBetweenScheduleJingles: number;
-  nextMusicTrack?: AnyTrack;
-}): Promise<AnyTrack | null> {
-  try {
-    if (process.env.AI_HOST_BETWEEN_SONG_ENABLED === "false") return null;
-
-    const every = Math.max(1, Number(process.env.AI_HOST_EVERY_SONGS || input.songsBetweenScheduleJingles || 3));
-    if (input.songsSinceScheduleJingle < every) return null;
-
-    const current = input.currentBroadcastState || {};
-    const currentTrack = current.track || {};
-    const nextTrack = input.nextMusicTrack || {};
-
-    const body = {
-      previousTitle: current.title || currentTrack.title || "",
-      previousArtist: current.artist || currentTrack.artist || "",
-      lane:
-        input.requestedLane ||
-        input.schedulePolicy?.selectedLane ||
-        input.schedulePolicy?.activeBlockName ||
-        current.genreLane ||
-        currentTrack.genreLane ||
-        "",
-      nextTitle: titleFromTrack(nextTrack),
-      nextArtist: artistFromTrack(nextTrack),
-    };
-
-    const response = await fetch(`${internalBaseUrl()}/api/radio/ai-host-next-drop`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-
-    const data = await response.json().catch(() => null);
-
-    if (!response.ok || !data?.ok || !data?.track) return null;
-
-    return data.track as AnyTrack;
-  } catch {
-    return null;
-  }
-}
 async function runMiniAutoNext(req?: NextRequest) {
   const allCleanTracks = mergeScheduleJinglesWithCleanTracks(readSmartTracks());
   const requestedLane = await getRequestedLane(req);
@@ -1605,19 +1554,6 @@ const currentKey = getCurrentKey();
     songsSinceScheduleJingle >= songsBetweenScheduleJingles;
 
   if (shouldInsertScheduleJingle) {
-    // AI_HOST_INSERT_BEFORE_SCHEDULE_JINGLE_V1
-    const aiHostDropTrack = await getAiHostBetweenSongDrop({
-      currentBroadcastState,
-      requestedLane,
-      schedulePolicy,
-      songsSinceScheduleJingle,
-      songsBetweenScheduleJingles,
-      nextMusicTrack: cleanTracks[0],
-    });
-
-    if (aiHostDropTrack) {
-      cleanTracks = [aiHostDropTrack];
-    } else {
     const lastScheduleJingleAudioUrl = String(playerState.lastScheduleJingleAudioUrl || "");
     const recentScheduleJingleSet = new Set(recentScheduleJingleAudioUrls);
 
@@ -1814,4 +1750,3 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   return runMiniAutoNext(req);
 }
-
