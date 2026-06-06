@@ -284,7 +284,54 @@ export async function POST(req: NextRequest) {
       items,
     };
 
-    const rundown = await postJson("/api/radio/ai-host-news-rundown", rundownBody);
+    // NIA_NEWS_AUTO_EXPAND_TO_7_MIN_V1
+    // Shared fix for all Nia news/program slots using this runner.
+    // Do not lower the 7-minute minimum. If the script is short, regenerate/expand it first.
+    function extractRundownScript(data: AnyRecord) {
+      return cleanText(
+        data.script || data.rundownScript || data.text || data.programScript || "",
+        "",
+        40000
+      );
+    }
+
+    function isShortDurationVoiceFailure(result: {
+      ok: boolean;
+      status: number;
+      data: AnyRecord;
+    }) {
+      return (
+        !result.ok &&
+        cleanText(result.data?.error, "", 120) ===
+          "SCRIPT_TOO_SHORT_FOR_TARGET_DURATION"
+      );
+    }
+
+    async function generateRundown(extraInstruction = "", previousScript = "") {
+      const minimumMinutes = Math.round((minDurationSeconds / 60) * 10) / 10;
+      const targetMinutes = Math.round((targetDurationSeconds / 60) * 10) / 10;
+
+      const durationInstruction = [
+        `Locked duration rule: this Nia news/program script must produce at least ${minimumMinutes} minutes of spoken audio.`,
+        `Aim for about ${targetMinutes} minutes while staying inside the 7 to 15 minute Nia news/program window.`,
+        "Do not write a short bulletin.",
+        "Develop each verified item with headline, context, why it matters, what listeners should watch next, and smooth transitions.",
+        "Use only verified supplied items. Do not invent facts.",
+        "If the available items are many, cover more items. If the items are few, develop each item more deeply while staying factual.",
+        "The output must be a full radio script, not notes, not bullets, and not a summary."
+      ].join(" ");
+
+      return postJson("/api/radio/ai-host-news-rundown", {
+        ...rundownBody,
+        targetDurationSeconds,
+        minDurationSeconds,
+        durationRule: "NIA_NEWS_7_TO_15_MIN_RULE_V1",
+        instruction: `${rundownBody.instruction} ${durationInstruction} ${extraInstruction}`.trim(),
+        previousScript: previousScript ? previousScript.slice(0, 12000) : undefined,
+      });
+    }
+
+    let rundown = await generateRundown();
     if (!rundown.ok) {
       return NextResponse.json(
         {
@@ -298,11 +345,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const script = cleanText(
-      rundown.data.script || rundown.data.rundownScript || rundown.data.text || rundown.data.programScript || "",
-      "",
-      40000
-    );
+    let script = extractRundownScript(rundown.data);
 
     if (!script || script.length < 500) {
       return NextResponse.json(
@@ -317,7 +360,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const voiceBody = {
+    let voiceBody = {
       programName,
       programSlot,
       blockType,
@@ -331,7 +374,51 @@ export async function POST(req: NextRequest) {
       script,
     };
 
-    const voice = await postJson("/api/radio/ai-host-program-voice", voiceBody);
+    let voice = await postJson("/api/radio/ai-host-program-voice", voiceBody);
+    let autoExpandedScript = false;
+    let firstVoiceFailure: AnyRecord | null = null;
+
+    if (isShortDurationVoiceFailure(voice)) {
+      firstVoiceFailure = voice.data;
+
+      const estimatedScriptSeconds = Number(
+        voice.data?.estimatedScriptSeconds || 0
+      );
+      const requestedMinimumSeconds = Number(
+        voice.data?.requestedMinimumSeconds || minDurationSeconds
+      );
+
+      const estimatedMinutes =
+        Math.round((estimatedScriptSeconds / 60) * 10) / 10;
+      const requestedMinutes =
+        Math.round((requestedMinimumSeconds / 60) * 10) / 10;
+
+      const expansionInstruction = [
+        `The previous script was estimated at only ${estimatedMinutes} minutes.`,
+        `That is below the locked ${requestedMinutes}-minute minimum.`,
+        "Regenerate a longer version now.",
+        "Keep the same verified facts, but expand the explanation, transitions, context, station framing, recap, and listener takeaways.",
+        "Do not add fake facts. Do not add filler. Make it a real full-length Nia program script."
+      ].join(" ");
+
+      const retryRundown = await generateRundown(expansionInstruction, script);
+
+      if (retryRundown.ok) {
+        const retryScript = extractRundownScript(retryRundown.data);
+
+        if (retryScript && retryScript.length > script.length) {
+          rundown = retryRundown;
+          script = retryScript;
+          autoExpandedScript = true;
+          voiceBody = {
+            ...voiceBody,
+            script,
+          };
+          voice = await postJson("/api/radio/ai-host-program-voice", voiceBody);
+        }
+      }
+    }
+
     if (!voice.ok) {
       return NextResponse.json(
         {
@@ -341,11 +428,12 @@ export async function POST(req: NextRequest) {
           status: voice.status,
           voice: voice.data,
           scriptLength: script.length,
+          autoExpandedScript,
+          firstVoiceFailure,
         },
         { status: 502 }
       );
     }
-
     const programId = cleanText(voice.data.programId || "", "", 240);
     if (!programId) {
       return NextResponse.json(
