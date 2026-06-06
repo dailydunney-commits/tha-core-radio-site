@@ -307,6 +307,69 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // NIA_NEWS_DETERMINISTIC_EXPAND_FALLBACK_V1
+    // Shared fallback for all Nia news/program slots.
+    // If AI retry still returns a short script, expand from verified items only.
+    // Do not lower the 7-minute rule and do not invent facts.
+    function estimateRunnerScriptSeconds(text: string) {
+      const words = text.trim().split(/\s+/).filter(Boolean).length;
+      return Math.max(8, Math.round((words / 145) * 60));
+    }
+
+    function buildVerifiedExpansionFallback(baseScript: string, minimumSeconds: number) {
+      let expanded = cleanText(baseScript, "", 40000);
+      const targetSeconds = Math.max(minimumSeconds + 30, 450);
+
+      if (estimateRunnerScriptSeconds(expanded) >= targetSeconds) {
+        return expanded;
+      }
+
+      const expansionHeader = [
+        "",
+        "Nia extended context and recap:",
+        `This is ${programName} for ${programSlot}.`,
+        "Before we close, here is the fuller context from the verified stories we are already carrying.",
+        "No unverified claims are being added. This is a careful expansion of the same verified news pool."
+      ].join(" ");
+
+      const expansionSections = items.map((item, index) => {
+        const category = cleanText(item.category, "news", 80);
+        const headline = cleanText(item.headline, "", 500);
+        const summary = cleanText(item.summary, "", 2000);
+        const sourceName = cleanText(item.sourceName, "verified source", 200);
+
+        return [
+          `Extended item ${index + 1}, ${category}.`,
+          headline ? `Headline: ${headline}.` : "",
+          sourceName ? `Verified source: ${sourceName}.` : "",
+          summary ? `Context: ${summary}` : "",
+          "Why it matters: listeners should understand the practical impact, the community angle, and what may need follow-up from official or verified sources.",
+          "Nia keeps this factual, calm, and clear, without adding rumors or unconfirmed details."
+        ]
+          .filter(Boolean)
+          .join(" ");
+      });
+
+      const recapSections = [
+        "Nia recap:",
+        "The main stories in this update connect back to community safety, public trust, business pressure, weather awareness, culture, sports, and the daily lives of listeners.",
+        "The key reminder is simple: stay informed, check verified sources, and do not spread claims that have not been confirmed.",
+        "Tha Core will keep the music clean, the information useful, and the station focused on service.",
+        "Mission over mood. Peace over pride. Progress over pressure."
+      ];
+
+      const candidateBlocks = [expansionHeader, ...expansionSections, ...recapSections];
+
+      for (const block of candidateBlocks) {
+        if (estimateRunnerScriptSeconds(expanded) >= targetSeconds) break;
+        expanded = cleanText(`${expanded}
+
+${block}`, "", 40000);
+      }
+
+      return expanded;
+    }
+
     async function generateRundown(extraInstruction = "", previousScript = "") {
       const minimumMinutes = Math.round((minDurationSeconds / 60) * 10) / 10;
       const targetMinutes = Math.round((targetDurationSeconds / 60) * 10) / 10;
@@ -410,12 +473,27 @@ export async function POST(req: NextRequest) {
           rundown = retryRundown;
           script = retryScript;
           autoExpandedScript = true;
-          voiceBody = {
-            ...voiceBody,
-            script,
-          };
-          voice = await postJson("/api/radio/ai-host-program-voice", voiceBody);
         }
+      }
+
+      if (estimateRunnerScriptSeconds(script) < requestedMinimumSeconds) {
+        const fallbackScript = buildVerifiedExpansionFallback(
+          script,
+          requestedMinimumSeconds
+        );
+
+        if (fallbackScript.length > script.length) {
+          script = fallbackScript;
+          autoExpandedScript = true;
+        }
+      }
+
+      if (autoExpandedScript) {
+        voiceBody = {
+          ...voiceBody,
+          script,
+        };
+        voice = await postJson("/api/radio/ai-host-program-voice", voiceBody);
       }
     }
 
