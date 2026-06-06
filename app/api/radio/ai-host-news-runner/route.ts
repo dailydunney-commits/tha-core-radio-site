@@ -52,12 +52,26 @@ function defaultTimeLabel() {
   return `${t.weekday}, ${t.month} ${t.day}, ${t.year}, ${t.hour}:${t.minute} ${t.dayPeriod} Jamaica time`;
 }
 
+// NIA_NEWS_7_TO_15_MIN_RULE_V1
+// Target length and minimum allowed length are separate.
+// A slot may aim for 9, 10, or 15 minutes, but normal Nia news must not be rejected
+// once it reaches the locked 7-minute minimum.
 function durationForSlot(programSlot: string) {
   const slot = programSlot.toLowerCase();
-  if (slot.includes("5:30") || slot.includes("drive")) return 1800;
+  if (slot.includes("5:30") || slot.includes("drive")) return 900;
+  if (slot.includes("8") || slot.includes("wrap")) return 540;
+  if (slot.includes("6") || slot.includes("morning")) return 540;
+  if (slot.includes("10")) return 540;
+  if (slot.includes("1") || slot.includes("3")) return 540;
+  return 540;
+}
+
+function minDurationForSlot(programSlot: string) {
+  const slot = programSlot.toLowerCase();
+  if (slot.includes("5:30") || slot.includes("drive")) return 420;
   if (slot.includes("8") || slot.includes("wrap")) return 420;
   if (slot.includes("6") || slot.includes("morning")) return 420;
-  if (slot.includes("10")) return 300;
+  if (slot.includes("10")) return 420;
   if (slot.includes("1") || slot.includes("3")) return 420;
   return 420;
 }
@@ -161,10 +175,15 @@ export async function POST(req: NextRequest) {
       180
     );
     const blockType = cleanText(body.blockType || blockTypeForSlot(programSlot), blockTypeForSlot(programSlot), 120);
-    const targetDurationSeconds = Math.max(
+    const requestedTargetDurationSeconds = Math.max(
       180,
       Math.min(1800, Number(body.targetDurationSeconds || durationForSlot(programSlot)))
     );
+    const minDurationSeconds = Math.max(
+      420,
+      Math.min(1800, Number(body.minDurationSeconds || minDurationForSlot(programSlot)))
+    );
+    const targetDurationSeconds = Math.max(minDurationSeconds, requestedTargetDurationSeconds);
 
     await mkdir(NEWS_RUNNER_DIR, { recursive: true });
 
@@ -262,7 +281,7 @@ export async function POST(req: NextRequest) {
       brandSpeechName: "Tha Core",
       approved: true,
       targetDurationSeconds,
-      minDurationSeconds: targetDurationSeconds,
+      minDurationSeconds,
       maxChunkChars: Number(body.maxChunkChars || 850),
       maxChunks: Number(body.maxChunks || 24),
       script,
@@ -351,3 +370,4 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
