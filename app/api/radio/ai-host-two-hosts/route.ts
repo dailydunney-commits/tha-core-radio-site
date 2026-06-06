@@ -1,9 +1,11 @@
-﻿import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import path from "path";
 import { mkdir, readFile, writeFile } from "fs/promises";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+type AnyRecord = Record<string, any>;
 
 type HostProfile = {
   id: string;
@@ -12,6 +14,7 @@ type HostProfile = {
   mission: string;
   tone: string;
   energy: string;
+  defaultVoice?: string;
   styleRules: string[];
   allowedTopics: string[];
 };
@@ -34,13 +37,15 @@ type ChatCompletionResponse = {
   }>;
 };
 
-const ROUTE_VERSION = "AI_HOST_TWO_HOSTS_PHASE_1B_DRY_SCRIPT_GENERATOR";
+const ROUTE_VERSION = "AI_HOST_TWO_HOSTS_PHASE_1D_VOICE_DRY_TEST";
+const INTERNAL_BASE_URL = `http://127.0.0.1:${process.env.PORT || "3101"}`;
 const PROFILE_DIR = path.join(process.cwd(), ".data", "ai-hosts");
 const PROFILE_PATH = path.join(PROFILE_DIR, "host-profiles.json");
 
 const DEFAULT_PROFILES: ProfileFile = {
-  version: "AI_HOST_TWO_HOSTS_PHASE_1A_PROFILES_ONLY",
-  protectedCheckpoint: "ThaCoreRadio_NIA_6AM_NEWS_MASTER_FEEDER_WORKING_20260606-082812-139a301",
+  version: "AI_HOST_TWO_HOSTS_PHASE_1D_VOICE_DRY_TEST",
+  protectedCheckpoint:
+    "ThaCoreRadio_TWO_AI_HOSTS_DRY_SCRIPT_WORKING_20260606-165805-64709a7",
   dryTestOnly: true,
   broadcastEnabled: false,
   voiceEnabled: false,
@@ -54,13 +59,15 @@ const DEFAULT_PROFILES: ProfileFile = {
         "Handle interviews, business topics, social issues, community topics, sponsor reads, and calm intelligent talk segments.",
       tone: "calm, professional, thoughtful, respectful, intelligent",
       energy: "medium-low",
+      defaultVoice: "onyx",
       styleRules: [
         "Speak like a calm professional radio host.",
         "Use clear Jamaican-friendly language without forcing slang.",
         "Keep sponsor reads polished and trustworthy.",
         "Ask strong interview-style questions when requested.",
         "Do not sound like Nia the news anchor.",
-        "Do not sound like SmartZJ the music automation DJ."
+        "Do not sound like SmartZJ the music automation DJ.",
+        "Do not claim the segment is live unless a later broadcast route explicitly says so."
       ],
       allowedTopics: [
         "business",
@@ -81,13 +88,15 @@ const DEFAULT_PROFILES: ProfileFile = {
         "Handle music talk, clean jokes, celebrity and entertainment talk, sports, fashion, audience banter, and high-energy station personality segments.",
       tone: "fun, witty, clean, energetic, charismatic",
       energy: "medium-high",
+      defaultVoice: "nova",
       styleRules: [
         "Bring vibes without profanity or explicit content.",
         "Keep jokes clean, playful, and not cruel.",
         "Do not make unverified claims about celebrities or current events.",
         "Keep audience banter friendly and radio-safe.",
         "Do not sound like Nia the news anchor.",
-        "Do not control SmartZJ or claim to choose the next song."
+        "Do not control SmartZJ or claim to choose the next song.",
+        "Do not claim the segment is live unless a later broadcast route explicitly says so."
       ],
       allowedTopics: [
         "music talk",
@@ -127,11 +136,39 @@ async function ensureProfiles(): Promise<ProfileFile> {
       throw new Error("Host profile file is missing required hosts.");
     }
 
-    return parsed;
+    return {
+      ...parsed,
+      version: parsed.version || DEFAULT_PROFILES.version,
+      protectedCheckpoint:
+        parsed.protectedCheckpoint || DEFAULT_PROFILES.protectedCheckpoint,
+      dryTestOnly: true,
+      broadcastEnabled: false,
+      voiceEnabled: false,
+      scheduleTakeoverEnabled: false
+    };
   } catch {
     await writeFile(PROFILE_PATH, JSON.stringify(DEFAULT_PROFILES, null, 2) + "\n", "utf8");
     return DEFAULT_PROFILES;
   }
+}
+
+async function postJson(routePath: string, body: AnyRecord) {
+  const res = await fetch(`${INTERNAL_BASE_URL}${routePath}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  });
+
+  const text = await res.text();
+  let data: AnyRecord;
+
+  try {
+    data = JSON.parse(text);
+  } catch {
+    data = { raw: text };
+  }
+
+  return { ok: res.ok, status: res.status, data };
 }
 
 function fallbackScript(profile: HostProfile, topic: string, durationSeconds: number): string {
@@ -140,8 +177,9 @@ function fallbackScript(profile: HostProfile, topic: string, durationSeconds: nu
       `${profile.temporaryName} dry test only.`,
       `Today’s topic is ${topic}.`,
       "The focus is clear thinking, discipline, and useful conversation for the Tha Core audience.",
-      "This segment is not going live yet. It is only checking the host brain, tone, structure, and safety.",
-      "When this host is activated in a future phase, the goal will be calm, professional talk that can support interviews, business, sponsor reads, and community issues.",
+      "This segment is not going live yet. It is only checking the host brain, tone, structure, safety, and future voice readiness.",
+      "When this host is activated in a later phase, the goal will be calm, professional talk that can support interviews, business, sponsor reads, and community issues.",
+      "Mission over mood. Peace over pride. Progress over pressure.",
       `Target length: about ${durationSeconds} seconds.`
     ].join(" ");
   }
@@ -150,15 +188,20 @@ function fallbackScript(profile: HostProfile, topic: string, durationSeconds: nu
     `${profile.temporaryName} dry test only.`,
     `Today’s vibe topic is ${topic}.`,
     "We are testing clean energy, audience banter, entertainment style, and radio-safe personality.",
-    "This segment is not going live yet. It is only checking the host brain, tone, structure, and safety.",
-    "When this host is activated in a future phase, the goal will be fun, clean, stylish, and full of vibes without taking over SmartZJ.",
+    "This segment is not going live yet. It is only checking the host brain, tone, structure, safety, and future voice readiness.",
+    "When this host is activated in a later phase, the goal will be fun, clean, stylish, and full of vibes without taking over SmartZJ.",
+    "Mission over mood. Peace over pride. Progress over pressure.",
     `Target length: about ${durationSeconds} seconds.`
   ].join(" ");
 }
 
-function buildPrompt(profile: HostProfile, body: Record<string, unknown>) {
+function buildPrompt(profile: HostProfile, body: AnyRecord) {
   const topic = safeString(body.topic, "Tha Core audience engagement", 180);
-  const audience = safeString(body.audience, "Tha Core online radio listeners in Jamaica and worldwide", 160);
+  const audience = safeString(
+    body.audience,
+    "Tha Core online radio listeners in Jamaica and worldwide",
+    160
+  );
   const segmentType = safeString(body.segmentType, "general talk segment", 100);
   const sponsorName = safeString(body.sponsorName, "", 100);
   const extraNotes = safeString(body.extraNotes, "", 500);
@@ -174,6 +217,7 @@ function buildPrompt(profile: HostProfile, body: Record<string, unknown>) {
     "Do not act as SmartZJ. SmartZJ is the separate music and broadcast automation DJ.",
     "Avoid profanity, explicit sexual content, slurs, hate, dangerous instructions, and defamatory claims.",
     "For current events, celebrities, sports, or news, do not invent facts. Only speak generally unless the user supplied details.",
+    "Use natural radio language and keep it suitable for Jamaican and worldwide listeners.",
     "Return the script only. No JSON. No markdown headings."
   ].join("\n");
 
@@ -204,7 +248,7 @@ function buildPrompt(profile: HostProfile, body: Record<string, unknown>) {
   };
 }
 
-async function generateDryScript(profile: HostProfile, body: Record<string, unknown>) {
+async function generateDryScript(profile: HostProfile, body: AnyRecord) {
   const prompt = buildPrompt(profile, body);
   const apiKey = process.env.OPENAI_API_KEY;
   const model = process.env.OPENAI_AI_HOST_MODEL || "gpt-4.1";
@@ -274,6 +318,54 @@ async function generateDryScript(profile: HostProfile, body: Record<string, unkn
   };
 }
 
+function dryVoiceNameFor(profile: HostProfile, body: AnyRecord) {
+  return safeString(body.voice, profile.defaultVoice || "nova", 40);
+}
+
+async function generateDryVoice(profile: HostProfile, body: AnyRecord, scriptResult: AnyRecord) {
+  const script = safeString(scriptResult.script, "", 40000);
+
+  if (!script || script.length < 80) {
+    return {
+      ok: false,
+      error: "SCRIPT_TOO_SHORT_FOR_DRY_VOICE",
+      hostId: profile.id,
+      hostName: profile.temporaryName
+    };
+  }
+
+  const voiceName = dryVoiceNameFor(profile, body);
+  const programName = `${profile.temporaryName} Dry Voice Test`;
+  const programSlot = "Two AI Hosts Phase 1D Dry Voice Test";
+
+  const voice = await postJson("/api/radio/ai-host-program-voice", {
+    programName,
+    programSlot,
+    blockType: "two-ai-host-dry-voice-test",
+    voice: voiceName,
+    brandSpeechName: "Tha Core",
+    approved: true,
+    maxChunkChars: safeNumber(body.maxChunkChars, 850, 300, 1600),
+    maxChunks: safeNumber(body.maxChunks, 4, 1, 12),
+    script
+  });
+
+  return {
+    ok: voice.ok,
+    status: voice.status,
+    hostId: profile.id,
+    hostName: profile.temporaryName,
+    voiceDryRun: true,
+    voiceName,
+    broadcastStarted: false,
+    broadcastEnabled: false,
+    scheduleTakeoverEnabled: false,
+    programName,
+    programSlot,
+    voice: voice.data
+  };
+}
+
 export async function GET() {
   const profiles = await ensureProfiles();
 
@@ -286,10 +378,12 @@ export async function GET() {
     broadcastStarted: false,
     broadcastEnabled: false,
     voiceEnabled: false,
+    voiceDryRunAvailable: true,
     scheduleTakeoverEnabled: false,
     profilePath: ".data/ai-hosts/host-profiles.json",
     protectedSystemsUntouched: [
       "Nia 6 AM feeder",
+      "Nia news runner",
       "SmartZJ clean music",
       "now-playing route",
       "clean-next route"
@@ -301,6 +395,7 @@ export async function GET() {
       mission: host.mission,
       tone: host.tone,
       energy: host.energy,
+      defaultVoice: host.defaultVoice,
       allowedTopics: host.allowedTopics
     }))
   });
@@ -309,8 +404,16 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     const profiles = await ensureProfiles();
-    const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
+    const body = (await req.json().catch(() => ({}))) as AnyRecord;
     const requestedHostId = safeString(body.hostId, "both", 40).toLowerCase();
+    const action = safeString(body.action, "script", 80).toLowerCase();
+
+    const wantsDryVoice =
+      action === "dry-voice" ||
+      action === "voice-dry" ||
+      action === "test-voice" ||
+      body.voiceDryRun === true ||
+      body.generateVoice === true;
 
     const selectedHosts =
       requestedHostId === "both"
@@ -323,6 +426,7 @@ export async function POST(req: NextRequest) {
           ok: false,
           error: "UNKNOWN_HOST_ID",
           allowedHostIds: ["coretalk", "corevibe", "both"],
+          dryTestOnly: true,
           broadcastStarted: false,
           voiceEnabled: false
         },
@@ -331,7 +435,21 @@ export async function POST(req: NextRequest) {
     }
 
     const scripts = await Promise.all(
-      selectedHosts.map((profile) => generateDryScript(profile, body))
+      selectedHosts.map(async (profile) => {
+        const scriptResult = await generateDryScript(profile, body);
+
+        if (!wantsDryVoice) {
+          return scriptResult;
+        }
+
+        const dryVoice = await generateDryVoice(profile, body, scriptResult);
+
+        return {
+          ...scriptResult,
+          voiceDryRun: true,
+          dryVoice
+        };
+      })
     );
 
     return NextResponse.json({
@@ -339,24 +457,27 @@ export async function POST(req: NextRequest) {
       route: "/api/radio/ai-host-two-hosts",
       version: ROUTE_VERSION,
       dryTestOnly: true,
+      action: wantsDryVoice ? "dry-voice" : "script",
       broadcastStarted: false,
       broadcastEnabled: false,
       voiceEnabled: false,
+      voiceDryRun: wantsDryVoice,
       scheduleTakeoverEnabled: false,
       protectedCheckpoint: profiles.protectedCheckpoint,
       scripts
     });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+  } catch (error: any) {
+    const message = error?.message || String(error);
 
     return NextResponse.json(
       {
         ok: false,
-        error: "AI_HOST_TWO_HOSTS_DRY_SCRIPT_FAILED",
+        error: "AI_HOST_TWO_HOSTS_PHASE_1D_FAILED",
         message,
         dryTestOnly: true,
         broadcastStarted: false,
-        voiceEnabled: false
+        voiceEnabled: false,
+        scheduleTakeoverEnabled: false
       },
       { status: 500 }
     );
