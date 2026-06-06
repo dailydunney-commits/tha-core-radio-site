@@ -53,8 +53,8 @@ const DEFAULT_PROFILES: ProfileFile = {
   hosts: [
     {
       id: "coretalk",
-      temporaryName: "CoreTalk Host",
-      role: "Serious/professional talk host",
+      temporaryName: "Prodigy",
+      role: "Male professional talk host",
       mission:
         "Handle interviews, business topics, social issues, community topics, sponsor reads, and calm intelligent talk segments.",
       tone: "calm, professional, thoughtful, respectful, intelligent",
@@ -82,8 +82,8 @@ const DEFAULT_PROFILES: ProfileFile = {
     },
     {
       id: "corevibe",
-      temporaryName: "CoreVibe Host",
-      role: "Entertainment/personality host",
+      temporaryName: "Diamond",
+      role: "Female entertainment/personality host",
       mission:
         "Handle music talk, clean jokes, celebrity and entertainment talk, sports, fashion, audience banter, and high-energy station personality segments.",
       tone: "fun, witty, clean, energetic, charismatic",
@@ -125,6 +125,40 @@ function safeNumber(value: unknown, fallback: number, min: number, max: number):
   return Math.max(min, Math.min(max, Math.round(parsed)));
 }
 
+function normalizeLockedHostProfiles(profileFile: ProfileFile): ProfileFile {
+  const lockedHosts = profileFile.hosts.map((host) => {
+    if (host.id === "coretalk") {
+      return {
+        ...host,
+        temporaryName: "Prodigy",
+        role: "Male professional talk host",
+        defaultVoice: host.defaultVoice || "onyx",
+      };
+    }
+
+    if (host.id === "corevibe") {
+      return {
+        ...host,
+        temporaryName: "Diamond",
+        role: "Female entertainment/personality host",
+        defaultVoice: host.defaultVoice || "nova",
+      };
+    }
+
+    return host;
+  });
+
+  return {
+    ...profileFile,
+    version: ROUTE_VERSION,
+    dryTestOnly: true,
+    broadcastEnabled: false,
+    voiceEnabled: false,
+    scheduleTakeoverEnabled: false,
+    hosts: lockedHosts,
+  };
+}
+
 async function ensureProfiles(): Promise<ProfileFile> {
   await mkdir(PROFILE_DIR, { recursive: true });
 
@@ -136,19 +170,18 @@ async function ensureProfiles(): Promise<ProfileFile> {
       throw new Error("Host profile file is missing required hosts.");
     }
 
-    return {
+    const normalized = normalizeLockedHostProfiles({
       ...parsed,
-      version: parsed.version || DEFAULT_PROFILES.version,
       protectedCheckpoint:
         parsed.protectedCheckpoint || DEFAULT_PROFILES.protectedCheckpoint,
-      dryTestOnly: true,
-      broadcastEnabled: false,
-      voiceEnabled: false,
-      scheduleTakeoverEnabled: false
-    };
+    });
+
+    await writeFile(PROFILE_PATH, JSON.stringify(normalized, null, 2) + "\n", "utf8");
+    return normalized;
   } catch {
-    await writeFile(PROFILE_PATH, JSON.stringify(DEFAULT_PROFILES, null, 2) + "\n", "utf8");
-    return DEFAULT_PROFILES;
+    const normalized = normalizeLockedHostProfiles(DEFAULT_PROFILES);
+    await writeFile(PROFILE_PATH, JSON.stringify(normalized, null, 2) + "\n", "utf8");
+    return normalized;
   }
 }
 
