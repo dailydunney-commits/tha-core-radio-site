@@ -54,6 +54,8 @@ export function proxy(request: NextRequest) {
     smartZjPathname.startsWith("/api/radio/smartzj-request-block/") ||
     smartZjPathname === "/api/radio/smartzj-watchdog" ||
     smartZjPathname.startsWith("/api/radio/smartzj-watchdog/") ||
+    smartZjPathname === "/api/radio/ai-host-two-hosts" ||
+    smartZjPathname.startsWith("/api/radio/ai-host-two-hosts/") ||
     smartZjPathname === "/api/radio/ai-host-script" ||
     smartZjPathname.startsWith("/api/radio/ai-host-script/") ||
     smartZjPathname === "/api/radio/ai-host-voice" ||
@@ -98,6 +100,8 @@ export function proxy(request: NextRequest) {
       safeBackendPathname.startsWith("/api/radio/global-audio-gate/") ||
       safeBackendPathname === "/api/radio/current-broadcast" ||
       safeBackendPathname.startsWith("/api/radio/current-broadcast/") ||
+      safeBackendPathname === "/api/radio/ai-host-two-hosts" ||
+      safeBackendPathname.startsWith("/api/radio/ai-host-two-hosts/") ||
       safeBackendPathname === "/api/radio/ai-host-script" ||
       safeBackendPathname.startsWith("/api/radio/ai-host-script/") ||
       safeBackendPathname === "/api/radio/ai-host-voice" ||
