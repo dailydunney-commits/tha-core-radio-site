@@ -64,3 +64,6 @@ public/audio/smartdj/clean/
 *.backup-*
 *.ts.backup*
 *.tsx.backup*
+
+# Generated AI host audio - do not commit
+public/audio/ai-host/
