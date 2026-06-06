@@ -738,6 +738,7 @@ const bigStyle = { fontSize: "24px", fontWeight: 900, margin: "8px 0" };
 const preStyle = { whiteSpace: "pre-wrap" as const, color: "#d8ffd8", fontSize: "13px" };
 const buttonRowStyle = { display: "flex", gap: "10px", flexWrap: "wrap" as const, marginTop: "18px" };
 const buttonStyle = { border: 0, borderRadius: "12px", padding: "12px 16px", background: "#2b2b2b", color: "#fff", fontWeight: 900, cursor: "pointer" };
+const navButtonStyle = { ...buttonStyle, display: "inline-flex", alignItems: "center", textDecoration: "none", background: "#171717" };
 const primaryButtonStyle = { ...buttonStyle, background: "#b80000" };
 const dangerButtonStyle = { ...buttonStyle, background: "#5c1111" };
 const editorHeaderStyle = { display: "flex", justifyContent: "space-between", alignItems: "center", margin: "30px 0 14px", gap: "14px" };
