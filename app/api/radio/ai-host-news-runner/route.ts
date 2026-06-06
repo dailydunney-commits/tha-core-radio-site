@@ -134,15 +134,58 @@ async function postJson(path: string, body: AnyRecord) {
   return { ok: res.ok, status: res.status, data };
 }
 
-function pickRunnableItems(items: AnyRecord[]) {
-  return items
+// NIA_NEWS_ITEM_SHAPE_NORMALIZER_V1
+// One shared normalizer for every Nia news/program slot.
+// Accepts arrays and common wrapped shapes so 6 AM, 10 AM, 1 PM, 3 PM,
+// 5:30 PM, 8 PM, weekend programs, and future AI-host news flows do not crash on .map().
+function isRecord(value: unknown): value is AnyRecord {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value));
+}
+
+function unwrapNewsItems(value: unknown): AnyRecord[] {
+  if (Array.isArray(value)) {
+    return value.filter(isRecord);
+  }
+
+  if (!isRecord(value)) {
+    return [];
+  }
+
+  const directCandidates = [
+    value.items,
+    value.newsItems,
+    value.verifiedItems,
+    value.stories,
+    value.articles,
+    value.results,
+    value.records,
+    value.payload,
+    value.data,
+  ];
+
+  for (const candidate of directCandidates) {
+    const unwrapped = unwrapNewsItems(candidate);
+    if (unwrapped.length) return unwrapped;
+  }
+
+  if (value.headline || value.title || value.summary || value.description || value.body) {
+    return [value];
+  }
+
+  const flattened = Object.values(value).flatMap((entry) => unwrapNewsItems(entry));
+  return flattened.filter(isRecord);
+}
+
+function pickRunnableItems(input: unknown) {
+  return unwrapNewsItems(input)
     .map(normalizeItem)
     .filter((item) => item.headline && item.summary && item.sourceName)
     .slice(0, 12);
 }
 
 export async function GET() {
-  const items = await readJson<AnyRecord[]>(VERIFIED_ITEMS_FILE, []);
+  const rawItems = await readJson<unknown>(VERIFIED_ITEMS_FILE, []);
+  const items = unwrapNewsItems(rawItems);
   const lastRun = await readJson<AnyRecord>(LAST_RUN_FILE, {});
 
   return NextResponse.json({
@@ -151,8 +194,8 @@ export async function GET() {
     phase: "NIA_NEWS_SOURCE_RUNNER_V1",
     purpose:
       "Loads verified news items, asks Nia to generate a rundown, creates program voice chunks, and can start broadcast.",
-    verifiedItemCount: Array.isArray(items) ? items.length : 0,
-    runnableItemCount: pickRunnableItems(Array.isArray(items) ? items : []).length,
+    verifiedItemCount: items.length,
+    runnableItemCount: pickRunnableItems(items).length,
     lastRun,
     requiredFlow: [
       "verified items",
@@ -188,7 +231,7 @@ export async function POST(req: NextRequest) {
     await mkdir(NEWS_RUNNER_DIR, { recursive: true });
 
     if (action === "save-items") {
-      const rawItems = Array.isArray(body.items) ? body.items : [];
+      const rawItems = unwrapNewsItems(body.items || body.newsItems || body.verifiedItems || body.stories || body.articles || body.results || body.records || body.payload || body.data);
       const normalized = rawItems.map(normalizeItem).filter((item) => item.headline && item.summary);
       await writeFile(VERIFIED_ITEMS_FILE, JSON.stringify(normalized, null, 2), "utf8");
 
@@ -201,8 +244,9 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const storedItems = await readJson<AnyRecord[]>(VERIFIED_ITEMS_FILE, []);
-    const suppliedItems = Array.isArray(body.items) ? body.items : [];
+    const storedRawItems = await readJson<unknown>(VERIFIED_ITEMS_FILE, []);
+    const suppliedItems = unwrapNewsItems(body.items || body.newsItems || body.verifiedItems || body.stories || body.articles || body.results || body.records || body.payload || body.data);
+    const storedItems = unwrapNewsItems(storedRawItems);
     const items = pickRunnableItems(suppliedItems.length ? suppliedItems : storedItems);
 
     if (!items.length) {
