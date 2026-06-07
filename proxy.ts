@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 
 const PROTECTED_PREFIXES = [
   "/owner",
@@ -46,6 +46,8 @@ export function proxy(request: NextRequest) {
     smartZjPathname.startsWith("/api/radio/smartdj-azura-scan-load/") ||
     smartZjPathname === "/api/radio/smartdj-background-clean" ||
     smartZjPathname.startsWith("/api/radio/smartdj-background-clean/") ||
+    smartZjPathname === "/api/radio/smartdj-local-clean-one" ||
+    smartZjPathname.startsWith("/api/radio/smartdj-local-clean-one/") ||
     smartZjPathname === "/api/radio/smartzj-folder-rotation" ||
     smartZjPathname.startsWith("/api/radio/smartzj-folder-rotation/") ||
     smartZjPathname === "/api/radio/smartzj-schedule" ||
@@ -198,3 +200,4 @@ export const config = {
     "/api/azuracast/control/:path*",
   ],
 };
+
