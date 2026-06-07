@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { mkdir, readFile, writeFile } from "fs/promises";
 import { join } from "path";
 
@@ -9,6 +9,101 @@ type AnyRecord = Record<string, any>;
 
 const DATA_DIR = join(process.cwd(), ".data");
 const AI_HOST_DROP_STATE_FILE = join(DATA_DIR, "ai-host-between-song-state.json");
+// NIA_24_7_HOST_PERSONALITY_LAYER_NOTE_V1: normal Nia drops remain between every 2-3 songs; separate personality moments can run every 15-20 minutes without replacing song handoffs.
+// AI_HOST_MULTI_HOST_READY_V1
+// Nia is the active host now, but this route is shaped for Prodigy, Diamond,
+// and future AI hosts without mixing their state, voices, or personality rules.
+type AiHostId = "nia" | "prodigy" | "diamond";
+
+type AiHostProfile = {
+  hostId: AiHostId;
+  hostName: string;
+  voiceEnv: string;
+  defaultVoice: string;
+  role: string;
+};
+
+const AI_HOST_PROFILES: Record<AiHostId, AiHostProfile> = {
+  nia: {
+    hostId: "nia",
+    hostName: "Nia from Tha Core",
+    voiceEnv: "OPENAI_AI_HOST_NIA_VOICE",
+    defaultVoice: "nova",
+    role: "main-24-7-host-news-and-personality",
+  },
+  prodigy: {
+    hostId: "prodigy",
+    hostName: "Prodigy from Tha Core",
+    voiceEnv: "OPENAI_AI_HOST_PRODIGY_VOICE",
+    defaultVoice: "onyx",
+    role: "professional-talk-host",
+  },
+  diamond: {
+    hostId: "diamond",
+    hostName: "Diamond from Tha Core",
+    voiceEnv: "OPENAI_AI_HOST_DIAMOND_VOICE",
+    defaultVoice: "shimmer",
+    role: "entertainment-and-lifestyle-host",
+  },
+};
+
+function normalizeAiHostId(value: unknown): AiHostId {
+  const raw = String(value || "nia").toLowerCase().trim();
+  if (raw === "prodigy") return "prodigy";
+  if (raw === "diamond") return "diamond";
+  return "nia";
+}
+
+function getAiHostProfile(value: unknown): AiHostProfile {
+  return AI_HOST_PROFILES[normalizeAiHostId(value)];
+}
+
+function getAiHostDropState(rootState: AnyRecord, host: AiHostProfile): AnyRecord {
+  const hosts = rootState && typeof rootState === "object" ? rootState.hosts : null;
+  if (hosts && typeof hosts === "object" && hosts[host.hostId]) {
+    return hosts[host.hostId] as AnyRecord;
+  }
+
+  // Backward compatibility: old Nia state lived at the root.
+  if (host.hostId === "nia" && rootState && typeof rootState === "object") {
+    return rootState;
+  }
+
+  return { breakCount: 0 };
+}
+
+function setAiHostDropState(rootState: AnyRecord, host: AiHostProfile, hostState: AnyRecord): AnyRecord {
+  const nextRoot: AnyRecord = rootState && typeof rootState === "object" ? { ...rootState } : {};
+  const currentHosts = nextRoot.hosts && typeof nextRoot.hosts === "object" ? nextRoot.hosts : {};
+
+  nextRoot.hosts = {
+    ...currentHosts,
+    [host.hostId]: {
+      ...hostState,
+      hostId: host.hostId,
+      hostName: host.hostName,
+      role: host.role,
+    },
+  };
+
+  nextRoot.activeHostId = host.hostId;
+  nextRoot.activeHostName = host.hostName;
+  nextRoot.updatedAt = new Date().toISOString();
+
+  // Keep legacy Nia root fields so old readers do not break.
+  if (host.hostId === "nia") {
+    nextRoot.ok = hostState.ok;
+    nextRoot.breakCount = hostState.breakCount;
+    nextRoot.lastTalkType = hostState.lastTalkType;
+    nextRoot.lastBlockSegmentName = hostState.lastBlockSegmentName;
+    nextRoot.lastBlockSegmentCalloutAt = hostState.lastBlockSegmentCalloutAt;
+    nextRoot.lastScript = hostState.lastScript;
+    nextRoot.lastAudioUrl = hostState.lastAudioUrl;
+    nextRoot.lastFileName = hostState.lastFileName;
+  }
+
+  return nextRoot;
+}
 
 function internalBaseUrl() {
   return String(process.env.SMARTZJ_INTERNAL_BASE_URL || "http://127.0.0.1:3101").replace(/\/+$/, "");
@@ -203,18 +298,18 @@ function buildNiaFeatureComment(body: AnyRecord, lane: string) {
   const lowerTopic = topic.toLowerCase();
 
   if (lowerTopic.includes("jamaica") || lowerTopic.includes("morning")) {
-    return "You are inside Tha Core. Clean vibes, clean energy. Quick thought for Jamaica today. Some days move fast, some days test your patience, but we still have to keep the mind steady and the mission clear. Whether you are at work, on the road, in the shop, at school, or handling business from home, keep moving with sense. Tha Core is here to keep the sound clean, the energy focused, and the day feeling a little lighter. No long lecture, just a reminder: protect your peace, make smart moves, and stay locked in.";
+    return "You are inside Tha Core. Good vibes, steady energy. Quick thought for Jamaica today. Some days move fast, some days test your patience, but we still have to keep the mind steady and the mission clear. Whether you are at work, on the road, in the shop, at school, or handling business from home, keep moving with sense. Tha Core is here to keep the sound clean, the energy focused, and the day feeling a little lighter. No long lecture, just a reminder: protect your peace, make smart moves, and stay locked in.";
   }
 
   if (lowerTopic.includes("sports")) {
-    return "You are inside Tha Core. Clean vibes, clean energy. Sports teaches one thing over and over. Talent matters, but discipline decides who lasts. You can have skill, hype, and a big moment, but the people who keep showing up are the ones who build real wins. Same thing in life, same thing in business, same thing on this station. Big up every sports fan locked in. Win or lose, keep the energy clean and the mindset strong.";
+    return "You are inside Tha Core. Good vibes, steady energy. Sports teaches one thing over and over. Talent matters, but discipline decides who lasts. You can have skill, hype, and a big moment, but the people who keep showing up are the ones who build real wins. Same thing in life, same thing in business, same thing on this station. Big up every sports fan locked in. Win or lose, keep the energy clean and the mindset strong.";
   }
 
   if (lowerTopic.includes("entertainment")) {
-    return "You are inside Tha Core. Clean vibes, clean energy. Entertainment moves fast, but not every rumor deserves your attention. Some stories are real, some are noise, and some are just people trying to trend before lunch. Around here, we keep it light, clean, and respectful. If it is verified, we can talk about it. If it is messy, we do not need to carry it like luggage. The music stays in front, the vibe stays easy, and Tha Core keeps moving.";
+    return "You are inside Tha Core. Good vibes, steady energy. Entertainment moves fast, but not every rumor deserves your attention. Some stories are real, some are noise, and some are just people trying to trend before lunch. Around here, we keep it light, clean, and respectful. If it is verified, we can talk about it. If it is messy, we do not need to carry it like luggage. The music stays in front, the vibe stays easy, and Tha Core keeps moving.";
   }
 
-  return `You are inside Tha Core. Clean vibes, clean energy. Quick thought while the ${lane || "music"} keeps moving. A real station is not just songs back to back. It is timing, feeling, voice, safety, and connection. SmartZJ keeps the clean music flowing, and Nia is here to add the human touch without taking over the whole room. Short when it needs to be short, deeper when the moment calls for it, and always clean enough for everybody listening. Stay close. The music continues right here.`;
+  return `You are inside Tha Core. Good vibes, steady energy. Quick thought while the ${lane || "music"} keeps moving. A real station is not just songs back to back. It is timing, feeling, voice, safety, and connection. SmartZJ keeps the music flowing, and Nia is here to add the human touch without taking over the whole room. Short when it needs to be short, deeper when the moment calls for it, and always safe enough for everybody listening. Stay close. The music continues right here.`;
 }
 function buildNiaScript(body: AnyRecord, state: AnyRecord) {
   const nextCount = Math.max(1, Number(state.breakCount || 0) + 1);
@@ -276,20 +371,20 @@ function buildNiaScript(body: AnyRecord, state: AnyRecord) {
 
   if (talkType === "jamaica-morning-update") {
     if (dayPart === "morning") {
-      script = `${intro}Good morning Jamaica. Quick check, clean vibes are up on Tha Core. Move safe today, music continues.`;
+      script = `${intro}Good morning Jamaica. Quick check, the vibes are up on Tha Core. Move safe today, music continues.`;
     } else if (dayPart === "midday") {
-      script = `${intro}Midday check Jamaica. Keep your pace steady and your energy clean. Music continues.`;
+      script = `${intro}Midday check Jamaica. Keep your pace steady and your energy steady. Music continues.`;
     } else if (dayPart === "evening") {
-      script = `${intro}Evening energy Jamaica. Big up everybody heading home or holding the work. Clean music continues.`;
+      script = `${intro}Evening energy Jamaica. Big up everybody heading home or holding the work. The music continues.`;
     } else {
       script = `${intro}Late-night check Jamaica. Keep it smooth, keep it safe. Tha Core stays with you.`;
     }
   } else if (talkType === "jamaica-road-safe") {
     script = `${intro}Jamaica, move safe on the road and keep your head clear. Good music stays close.`;
   } else if (talkType === "jamaica-entertainment-lite") {
-    script = `${intro}Entertainment scene always moving, but right now the clean music is the headline. Stay close.`;
+    script = `${intro}Entertainment scene always moving, but right now the music is the headline. Stay close.`;
   } else if (talkType === "block-segment-callout") {
-    script = `${intro}You are inside Tha Core. This is ${blockSegmentName}. Clean vibes, clean energy. Stay close.`;
+    script = `${intro}You are inside Tha Core. This is ${blockSegmentName}. Good vibes, steady energy. Stay close.`;
   } else if (talkType === "feature-comment") {
     const featureBody = shouldAutoFeature
       ? {
@@ -305,17 +400,17 @@ function buildNiaScript(body: AnyRecord, state: AnyRecord) {
   } else if (talkType === "lane-vibe") {
     script = `${intro}${lane} vibes rolling. Clean music, good frequency. Stay close.`;
   } else if (talkType === "time-check" && timeText) {
-    script = `${intro}Quick time check, ${timeText} in Jamaica. Clean music continues.`;
+    script = `${intro}Quick time check, ${timeText} in Jamaica. The music continues.`;
   } else if (talkType === "weather-safe") {
     script = `${intro}Quick weather reminder. Move safe out there. Music continues now.`;
   } else if (talkType === "entertainment-lite") {
     script = `${intro}Entertainment always moving, but the music is the story right now.`;
   } else if (talkType === "sports-lite") {
-    script = `${intro}Sports fans, big up yourself. Clean energy, clean music.`;
+    script = `${intro}Sports fans, big up yourself. Good energy, good music.`;
   } else if (talkType === "next-music-tease" && nextTitle) {
     script = `${intro}Coming up next, ${nextTitle}. Keep it locked.`;
   } else {
-    script = `${intro}You are inside Tha Core. Clean vibes, good frequency, and more music right now.`;
+    script = `${intro}You are inside Tha Core. Good frequency, steady vibes, and more music right now.`;
   }
 
   return {
@@ -332,12 +427,16 @@ function buildNiaScript(body: AnyRecord, state: AnyRecord) {
 
 export async function GET() {
   const state = await readJson<AnyRecord>(AI_HOST_DROP_STATE_FILE, {});
+  const activeHost = getAiHostProfile(process.env.AI_HOST_ACTIVE_HOST_ID || "nia");
+
   return NextResponse.json({
     ok: true,
     route: "/api/radio/ai-host-next-drop",
-    phase: "AI_HOST_BETWEEN_SONG_BRAIN_V1",
+    phase: "AI_HOST_BETWEEN_SONG_BRAIN_V2_MULTI_HOST_READY",
     enabled: process.env.AI_HOST_BETWEEN_SONG_ENABLED !== "false",
-    hostName: "Nia from Tha Core",
+    activeHostId: activeHost.hostId,
+    hostName: activeHost.hostName,
+    availableHosts: Object.keys(AI_HOST_PROFILES),
     state,
   });
 }
@@ -349,7 +448,14 @@ export async function POST(req: NextRequest) {
     }
 
     const body = (await req.json().catch(() => ({}))) as AnyRecord;
-    const state = await readJson<AnyRecord>(AI_HOST_DROP_STATE_FILE, { breakCount: 0 });
+    const hostProfile = getAiHostProfile(
+      body.hostId || body.host || process.env.AI_HOST_ACTIVE_HOST_ID || "nia"
+    );
+    const rootState = await readJson<AnyRecord>(AI_HOST_DROP_STATE_FILE, {
+      breakCount: 0,
+      hosts: {},
+    });
+    const state = getAiHostDropState(rootState, hostProfile);
 
     const built = buildNiaScript(body, state);
 
@@ -357,10 +463,13 @@ export async function POST(req: NextRequest) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        hostName: "Nia from Tha Core",
+        hostName: hostProfile.hostName,
         segmentType: "jingle-link",
-        title: `Nia ${built.talkType} ${built.breakCount}`,
-        voice: process.env.OPENAI_AI_HOST_VOICE || "nova",
+        title: `${hostProfile.hostName} ${built.talkType} ${built.breakCount}`,
+        voice:
+          process.env[hostProfile.voiceEnv] ||
+          process.env.OPENAI_AI_HOST_VOICE ||
+          hostProfile.defaultVoice,
         script: built.script,
       }),
     });
@@ -397,6 +506,8 @@ export async function POST(req: NextRequest) {
       cleanStatus: "PROCESSED_AUDIO_READY",
       bleepJobStatus: "PROCESSED_AUDIO_READY",
       aiHost: true,
+      aiHostId: hostProfile.hostId,
+      aiHostName: hostProfile.hostName,
       aiGeneratedVoice: true,
       talkType: built.talkType,
       script: built.script,
@@ -408,6 +519,8 @@ export async function POST(req: NextRequest) {
 
     const nextState = {
       ok: true,
+      hostId: hostProfile.hostId,
+      hostName: hostProfile.hostName,
       breakCount: built.breakCount,
       lastTalkType: built.talkType,
       lastBlockSegmentName: built.blockSegmentName || state.lastBlockSegmentName || "",
@@ -419,7 +532,7 @@ export async function POST(req: NextRequest) {
       updatedAt: new Date().toISOString(),
     };
 
-    await writeJson(AI_HOST_DROP_STATE_FILE, nextState);
+    await writeJson(AI_HOST_DROP_STATE_FILE, setAiHostDropState(rootState, hostProfile, nextState));
 
     return NextResponse.json({
       ok: true,
@@ -444,3 +557,4 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
