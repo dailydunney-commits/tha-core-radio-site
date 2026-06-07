@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -44,6 +44,28 @@ function uniqueSorted(values: string[]): string[] {
   return Array.from(new Set(values.filter(Boolean))).sort((a, b) => a.localeCompare(b));
 }
 
+function duplicateSafeKey(track: TrackItem): string {
+  const cleanTitle = track.titleGuess
+    .toLowerCase()
+    .replace(/\b(clean|clean version|radio edit|official audio|official video|lyrics|lyric video|music video|mp3)\b/g, " ")
+    .replace(/\b\d{3,}\b/g, " ")
+    .replace(/[_()[\]-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  return `${track.folder || "Unsorted"}::${track.subfolder || ""}::${cleanTitle || track.fileName.toLowerCase()}`;
+}
+
+function dedupeTracks(input: TrackItem[]): TrackItem[] {
+  const seen = new Set<string>();
+
+  return input.filter((track) => {
+    const key = duplicateSafeKey(track);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
 export default function OwnerMusicLibraryPage() {
   const [data, setData] = useState<LibraryResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -96,7 +118,7 @@ export default function OwnerMusicLibraryPage() {
   const filteredTracks = useMemo(() => {
     const query = search.trim().toLowerCase();
 
-    return tracks.filter((track) => {
+    return dedupeTracks(tracks).filter((track) => {
       const folderMatch = selectedFolder === "ALL" || (track.folder || "Unsorted") === selectedFolder;
 
       if (!folderMatch) return false;
@@ -122,7 +144,15 @@ export default function OwnerMusicLibraryPage() {
   const needsCleanCount = tracks.filter((track) => track.smartzjStatus === "NEEDS CLEAN").length;
 
   return (
-    <main className="min-h-screen bg-black px-4 py-6 text-white">
+    <main data-owner-music-page="true" className="min-h-screen bg-black px-4 py-6 text-white">
+        <style>{`
+          /* OWNER_MUSIC_HIDE_GLOBAL_PLAYER_V1 */
+          body:has(main[data-owner-music-page="true"]) div[style*="position: fixed"][style*="bottom"],
+          body:has(main[data-owner-music-page="true"]) div[class*="PersistentRadioPlayer"],
+          body:has(main[data-owner-music-page="true"]) div[class*="persistent"] {
+            display: none !important;
+          }
+        `}</style>
       <section className="mx-auto max-w-7xl">
         <div className="mb-6 flex flex-col gap-3 rounded-3xl border border-red-700/60 bg-zinc-950 p-5 shadow-2xl shadow-red-950/40 md:flex-row md:items-center md:justify-between">
           <div>
@@ -133,7 +163,7 @@ export default function OwnerMusicLibraryPage() {
               Music Library
             </h1>
             <p className="mt-2 max-w-3xl text-sm text-zinc-300">
-              Read-only Azura folder map. This is the first step toward turning the owner control panel into Tha Core&apos;s mini Azura / Playout Engine.
+              Read-only Control Panel music map. This is the first step toward turning the owner control panel itself into Tha Core&apos;s mini Azura / Playout Engine.
             </p>
           </div>
 
@@ -335,3 +365,4 @@ export default function OwnerMusicLibraryPage() {
     </main>
   );
 }
+
