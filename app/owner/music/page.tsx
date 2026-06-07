@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -144,14 +144,6 @@ export default function OwnerMusicLibraryPage() {
             >
               Back to Owner
             </Link>
-            <button
-              type="button"
-              disabled
-              title="Phase 2 after read-only tree is verified"
-              className="rounded-xl border border-yellow-500/50 bg-yellow-500/10 px-4 py-2 text-sm font-bold text-yellow-300 opacity-70"
-            >
-              Clean folder 25 at a time: Phase 2
-            </button>
           </div>
         </div>
 
@@ -264,7 +256,7 @@ export default function OwnerMusicLibraryPage() {
                         <th className="px-3 py-3">Folder / Subfolder</th>
                         <th className="px-3 py-3">Track</th>
                         <th className="px-3 py-3">Size</th>
-                        <th className="px-3 py-3">Clean Copy</th>
+                        <th className="px-3 py-3">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -292,18 +284,37 @@ export default function OwnerMusicLibraryPage() {
                           </td>
                           <td className="px-3 py-3 text-zinc-300">{formatBytes(track.sizeBytes)}</td>
                           <td className="px-3 py-3">
-                            {track.cleanUrl ? (
-                              <a
-                                href={track.cleanUrl}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="font-bold text-green-300 underline"
+                            <div className="flex flex-wrap gap-2">
+                              {track.cleanUrl ? (
+                                <a
+                                  href={track.cleanUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="rounded-lg border border-green-500/60 bg-green-500/10 px-3 py-1 text-xs font-black text-green-300 hover:bg-green-500/20"
+                                  title="Play verified clean copy only"
+                                >
+                                  Play
+                                </a>
+                              ) : (
+                                <button
+                                  type="button"
+                                  disabled
+                                  className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-1 text-xs font-black text-zinc-500"
+                                  title="Raw source preview is blocked until safety preview is added"
+                                >
+                                  Play
+                                </button>
+                              )}
+
+                              <button
+                                type="button"
+                                disabled
+                                className="rounded-lg border border-red-700/60 bg-red-950/30 px-3 py-1 text-xs font-black text-red-300 opacity-60"
+                                title="Delete/quarantine comes in Phase 2 after read-only map is verified"
                               >
-                                Open clean
-                              </a>
-                            ) : (
-                              <span className="text-zinc-500">Not linked yet</span>
-                            )}
+                                Delete
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))}

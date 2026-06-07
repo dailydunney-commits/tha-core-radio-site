@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 
 
@@ -100,7 +100,7 @@ const footerTools: FooterTool[] = [
     label: "Music",
     href: "/owner/music",
     note: "Read-only music library manager",
-    color: rgba(255,
+    color: "red",
   },
   { label: "Blog", href: "/blog", note: "Blog page shortcut ready", color: "yellow" },
   { label: "News", href: "/news", note: "News desk shortcut ready", color: "red" },
@@ -4919,6 +4919,3 @@ function ControlSlider({
 
 
 // SMARTDJ_DISPATCH_LOADED_MESSAGE_COUNT_ONLY_V1
-
-
-
