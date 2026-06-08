@@ -222,6 +222,83 @@ export async function GET(request: NextRequest) {
 
       let currentStatus = String(current?.status || "").trim();
 
+   // AI_HOST_LONG_SHOW_CURRENT_BROADCAST_PRIORITY_V1
+   const currentSource = String(current?.source || track?.source || "").trim();
+   const currentType = String(current?.type || track?.type || "").trim();
+   const sequenceMode = String(current?.sequence?.mode || "").trim();
+
+   const isAiHostLongShowCurrent =
+     currentSource === "AI_HOST_LONG_SHOW" ||
+     currentType === "AI_HOST_LONG_SHOW" ||
+     sequenceMode === "AI_HOST_LONG_SHOW_LIVE_RUNNER" ||
+     current?.longShowProgram === true ||
+     track?.longShowProgram === true;
+
+   if (
+     isAiHostLongShowCurrent &&
+     isSafeUrl(currentAudioUrl) &&
+     isApprovedCurrentBroadcastAudioUrl(currentAudioUrl)
+   ) {
+     const title = String(
+       track?.title ||
+         current?.title ||
+         current?.sequence?.segmentTitle ||
+         "Tha Core Long Show"
+     ).trim();
+
+     const artist = String(
+       track?.artist ||
+         current?.artist ||
+         "Prodigy & Diamond from Tha Core"
+     ).trim();
+
+     return NextResponse.json({
+       ok: true,
+       mode: "CURRENT_BROADCAST",
+       safety: "CLEAN_OR_BLEEPED_CURRENT_BROADCAST",
+       source: "AI_HOST_LONG_SHOW",
+       type: "AI_HOST_LONG_SHOW",
+       programId: current?.programId || track?.programId || current?.sequence?.programId || null,
+       programName: current?.programName || track?.programName || null,
+       programSlot: current?.programSlot || track?.programSlot || null,
+       is_online: true,
+       audioUrl: currentAudioUrl,
+       streamUrl: currentAudioUrl,
+       listen_url: currentAudioUrl,
+       cleanAudioUrl: currentAudioUrl,
+       title,
+       artist,
+       station: {
+         name: "Tha Core Online Radio",
+         listen_url: currentAudioUrl,
+         mounts: [{ name: "AI Host Long Show Current Broadcast", url: currentAudioUrl, is_default: true }]
+       },
+       listeners: { total: 0, unique: 0, current: 0 },
+       live: {
+         is_live: true,
+         streamer_name: "Prodigy & Diamond",
+         broadcast_start: current?.startedAt || null,
+         art: null
+       },
+       now_playing: {
+         song: { text: `${artist} - ${title}`, artist, title, album: "", art: null },
+         playlist: current?.programName || "Tha Core Long Show",
+         is_request: false,
+         elapsed: getElapsedSecondsFromStartedAt(current?.startedAt),
+         remaining: getRemainingSeconds(current, track)
+       },
+       playing_next: null,
+       song_history: [],
+       cache: null,
+       message: "Playing AI host long-show current broadcast. Raw Azura remains blocked.",
+       currentBroadcast: current
+     }, {
+       headers: { "Cache-Control": "no-store, no-cache, must-revalidate" }
+     });
+   }
+
+
+
       if (
         currentStatus === "SMARTDJ_BROADCASTING" &&
       isSafeUrl(currentAudioUrl) &&
