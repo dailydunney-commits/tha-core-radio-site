@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 const PROTECTED_PREFIXES = [
   "/owner",
@@ -74,6 +74,8 @@ export function proxy(request: NextRequest) {
     smartZjPathname.startsWith("/api/radio/ai-host-program-voice/") ||
     smartZjPathname === "/api/radio/ai-host-program-broadcast" ||
     smartZjPathname.startsWith("/api/radio/ai-host-program-broadcast/") ||
+    smartZjPathname === "/api/radio/ai-host-long-show-package-feeder" ||
+    smartZjPathname.startsWith("/api/radio/ai-host-long-show-package-feeder/") ||
     smartZjPathname === "/api/radio/current-broadcast" ||
     smartZjPathname.startsWith("/api/radio/current-broadcast/");
 
@@ -119,7 +121,9 @@ export function proxy(request: NextRequest) {
       safeBackendPathname === "/api/radio/ai-host-program-voice" ||
       safeBackendPathname.startsWith("/api/radio/ai-host-program-voice/") ||
       safeBackendPathname === "/api/radio/ai-host-program-broadcast" ||
-      safeBackendPathname.startsWith("/api/radio/ai-host-program-broadcast/")
+      safeBackendPathname.startsWith("/api/radio/ai-host-program-broadcast/") ||
+      safeBackendPathname === "/api/radio/ai-host-long-show-package-feeder" ||
+      safeBackendPathname.startsWith("/api/radio/ai-host-long-show-package-feeder/")
     )
   ) {
     return NextResponse.next();
@@ -151,7 +155,8 @@ export function proxy(request: NextRequest) {
     pathname === "/api/radio/ai-host-profiles" ||
     pathname === "/api/radio/ai-host-cohost-show" ||
     pathname === "/api/radio/ai-host-cohost-show-feeder" ||
-    pathname === "/api/radio/ai-host-cohost-voice-feeder";
+    pathname === "/api/radio/ai-host-cohost-voice-feeder" ||
+    pathname === "/api/radio/ai-host-long-show-package-feeder";
 const hostHeader = request.headers.get("host") || "";
   const isLocalDryTestHost =
     hostHeader.startsWith("127.0.0.1:") ||
