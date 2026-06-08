@@ -1,4 +1,4 @@
-﻿import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import path from "path";
 import { readFile } from "fs/promises";
 
@@ -441,10 +441,15 @@ export async function GET(request: Request) {
   const upcomingNia = upcomingNiaRules(ja.minuteOfDay, upcomingBuffer);
   const pauseSoonNia = upcomingNiaRules(ja.minuteOfDay, pauseBuffer);
 
+  const isSimulation = !!atParam;
   const [niaFiles, nowPlaying] = await Promise.all([probeNiaFiles(), probeNowPlaying()]);
 
   const niaActiveFromFiles = niaFiles.some((file) => file.niaActiveSignal === true);
-  const niaActiveObserved = niaActiveFromFiles || nowPlaying.niaLikeSignal;
+
+  // When ?at= is supplied, this route is testing a simulated clock time.
+  // In simulation mode, do not let live/stale Nia state files override the schedule test.
+  // Real current-time checks with no ?at= still use live Nia/now-playing probes.
+  const niaActiveObserved = isSimulation ? false : niaActiveFromFiles || nowPlaying.niaLikeSignal;
   const niaProtectedNow = activeNiaRules.length > 0 || niaActiveObserved;
 
   const currentLongShowSlot = activeLongRules[0] || null;
@@ -492,6 +497,7 @@ export async function GET(request: Request) {
     createdAt: new Date().toISOString(),
     timezone: JAMAICA_TZ,
     atParam,
+    probeMode: isSimulation ? "SCHEDULE_SIMULATION_ONLY" : "LIVE_CLOCK_WITH_NIA_STATE_PROBES",
     jamaicaNow: {
       isoDate: ja.isoDate,
       weekday: ja.weekday,
