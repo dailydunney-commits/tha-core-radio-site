@@ -146,9 +146,10 @@ export function proxy(request: NextRequest) {
   // AI_HOST_WEEKEND_PROGRAM_LOCAL_DRY_BYPASS_V1
   // Allows local Windows dry tests only. Live/public requests remain owner-protected.
   const isAiHostWeekendProgramDryRoute =
-    (pathname === "/api/radio/ai-host-weekend-program" || pathname === "/api/radio/ai-host-weekend-program-feeder");
-
-  const hostHeader = request.headers.get("host") || "";
+    pathname === "/api/radio/ai-host-weekend-program" ||
+    pathname === "/api/radio/ai-host-weekend-program-feeder" ||
+    pathname === "/api/radio/ai-host-profiles";
+const hostHeader = request.headers.get("host") || "";
   const isLocalDryTestHost =
     hostHeader.startsWith("127.0.0.1:") ||
     hostHeader.startsWith("localhost:");
@@ -213,6 +214,7 @@ export const config = {
     "/api/azuracast/control/:path*",
   ],
 };
+
 
 
 
