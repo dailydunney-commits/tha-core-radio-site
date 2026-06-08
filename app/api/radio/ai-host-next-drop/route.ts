@@ -364,6 +364,101 @@ function lockThaCorePronunciation(script: string) {
   return clean;
 }
 
+
+// AI_HOST_TRACK_ANNOUNCER_LOCK_V1
+// All Tha Core AI hosts may announce exact artist/title/year only from locked SmartZJ metadata.
+// If upcoming track is not locked, use generic radio hype instead of guessing.
+function cleanTrackYear(value: unknown) {
+  const raw = String(value ?? "").trim();
+  const match = raw.match(/\b(19\d{2}|20\d{2})\b/);
+  return match ? match[1] : "";
+}
+
+function pickTrackEraLabel(year: string) {
+  const y = Number(year);
+  const now = new Date().getFullYear();
+
+  if (!Number.isFinite(y)) return "";
+  if (y >= now - 1) return "brand new fresh track";
+  if (y >= now - 5) return "recent favorite";
+  if (y < 2005) return "hit from yesteryear";
+  if (y < 2015) return "throwback favorite";
+  return "modern classic";
+}
+
+function hasLockedTrackIdentity(track: AnyRecord) {
+  const title = cleanNiaNextTitleForSpeech(track?.title || track?.name || track?.songTitle);
+  const artist = cleanText(track?.artist || track?.artistName || "");
+  const audioUrl = cleanText(track?.audioUrl || track?.cleanAudioUrl || track?.streamUrl || track?.listen_url || "");
+  const trackId = cleanText(track?.trackId || track?.id || "");
+
+  return Boolean(title && audioUrl && trackId && !audioUrl.includes("azuracast"));
+}
+
+function buildTrackAnnouncement(track: AnyRecord, direction: "previous" | "next") {
+  const title = cleanSongTitle(track?.title || track?.name || track?.songTitle || "");
+  const artist = cleanText(track?.artist || track?.artistName || "");
+  const year = cleanTrackYear(track?.year || track?.releaseYear || track?.released || track?.date || "");
+  const era = pickTrackEraLabel(year);
+
+  if (!title && !artist) return "";
+
+  const titlePart = title ? `"${title}"` : "that track";
+  const artistPart = artist ? `${artist} with ` : "";
+  const yearPart = year ? `, from ${year}` : "";
+  const eraPart = era ? ` — ${era}` : "";
+
+  if (direction === "previous") {
+    return `That was ${artistPart}${titlePart}${yearPart}${eraPart}.`;
+  }
+
+  return `Coming up next, ${artistPart}${titlePart}${yearPart}${eraPart}.`;
+}
+
+function getLockedNextAnnouncement(body: AnyRecord) {
+  const nextTrack = body.nextTrack && typeof body.nextTrack === "object" ? body.nextTrack : {};
+  const lockedFlag =
+    body.nextTrackLocked === true ||
+    body.lockedNextTrack === true ||
+    nextTrack.locked === true ||
+    nextTrack.nextTrackLocked === true ||
+    nextTrack.lockStatus === "LOCKED_FOR_AI_HOST";
+
+  if (!lockedFlag || !hasLockedTrackIdentity(nextTrack)) return "";
+
+  return buildTrackAnnouncement(nextTrack, "next");
+}
+
+function getPreviousTrackAnnouncement(body: AnyRecord) {
+  const previousTrack =
+    body.previousTrack && typeof body.previousTrack === "object"
+      ? body.previousTrack
+      : {
+          title: body.previousTitle || body.currentTitle,
+          artist: body.previousArtist || body.currentArtist,
+          year: body.previousYear || body.currentYear || body.releaseYear,
+          trackId: body.previousTrackId || body.currentTrackId || "previous-track",
+          audioUrl: body.previousAudioUrl || body.currentAudioUrl || "/already-played",
+        };
+
+  return buildTrackAnnouncement(previousTrack, "previous");
+}
+
+function pickGenericMusicHype(breakCount: number, lane: string) {
+  const lines = [
+    `A fiery ${lane || "track"} coming up next inside Tha Core.`,
+    "A hit from yesteryear could be loading next. Stay close.",
+    "Brand new fresh energy could be coming up — no guessing, just vibes.",
+    "Hot, hot, hot — it is heating up inside Tha Core studio.",
+    "Music burning the place down inside Tha Core. Stay locked.",
+    "Another big tune is loading. Tha Core keeps the energy moving.",
+    "Old school flavor or fresh fire, SmartZJ has the next move ready.",
+  ];
+
+  return lines[Math.abs(Number(breakCount || 0)) % lines.length] || lines[0];
+}
+
+
 function buildNiaScript(body: AnyRecord, state: AnyRecord) {
   const nextCount = Math.max(1, Number(state.breakCount || 0) + 1);
     const niaPreset = cleanNiaPresetName(body.niaPreset || body.preset || body.mode || "");
@@ -413,8 +508,11 @@ function buildNiaScript(body: AnyRecord, state: AnyRecord) {
   const previousTitle = cleanSongTitle(body.previousTitle || body.currentTitle || "");
   const previousArtist = cleanText(body.previousArtist || body.currentArtist || "");
   const lane = cleanText(body.lane || body.genreLane || "the clean rotation", "the clean rotation");
-  const nextTitle = cleanNiaNextTitleForSpeech(body.nextTitle);
-  const timeText = jamaicaTimeText();
+  const nextTitle =
+cleanNiaNextTitleForSpeech(body.nextTitle);
+const lockedNextAnnouncement = getLockedNextAnnouncement(body);
+const previousTrackAnnouncement = getPreviousTrackAnnouncement(body);
+const timeText = jamaicaTimeText();
   const dayPart = jamaicaDayPart();
 
   const sayName = nextCount === 1 || nextCount % 6 === 0;
@@ -466,8 +564,8 @@ function buildNiaScript(body: AnyRecord, state: AnyRecord) {
         }
       : body;
     script = buildNiaFeatureComment(featureBody, lane);
-  } else if (talkType === "song-link" && previousTitle) {
-    script = `${intro}That was ${previousTitle}. Smooth one. More clean ${lane} next.`;
+  } else if (talkType === "song-link" && (previousTrackAnnouncement || previousTitle)) {
+  script = `${intro}${previousTrackAnnouncement || `That was ${previousTitle}.`} ${lockedNextAnnouncement || pickGenericMusicHype(nextCount, lane)}`;
   } else if (talkType === "lane-vibe") {
     script = `${intro}${lane} vibes rolling. Clean music, good frequency. Stay close.`;
   } else if (talkType === "time-check" && timeText) {
@@ -478,8 +576,8 @@ function buildNiaScript(body: AnyRecord, state: AnyRecord) {
     script = `${intro}Entertainment always moving, but the music is the story right now.`;
   } else if (talkType === "sports-lite") {
     script = `${intro}Sports fans, big up yourself. Good energy, good music.`;
-  } else if (talkType === "next-music-tease" && nextTitle) {
-    script = `${intro}Coming up next, ${nextTitle}. Keep it locked.`;
+  } else if (talkType === "next-music-tease") {
+  script = `${intro}${lockedNextAnnouncement || pickGenericMusicHype(nextCount, lane)}`;
   } else {
     script = `${intro}You are inside Tha Core. Good frequency, steady vibes, and more music right now.`;
   }
