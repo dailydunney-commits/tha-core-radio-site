@@ -80,6 +80,8 @@ export function proxy(request: NextRequest) {
     smartZjPathname.startsWith("/api/radio/ai-host-long-show-script-feeder/") ||
     smartZjPathname === "/api/radio/ai-host-long-show-schedule-guard" ||
     smartZjPathname.startsWith("/api/radio/ai-host-long-show-schedule-guard/") ||
+    smartZjPathname === "/api/radio/ai-host-long-show-master-feeder" ||
+    smartZjPathname.startsWith("/api/radio/ai-host-long-show-master-feeder/") ||
     smartZjPathname === "/api/radio/current-broadcast" ||
     smartZjPathname.startsWith("/api/radio/current-broadcast/");
 
@@ -110,6 +112,8 @@ export function proxy(request: NextRequest) {
       safeBackendPathname.startsWith("/api/radio/ai-host-long-show-script-feeder/") ||
       safeBackendPathname === "/api/radio/ai-host-long-show-schedule-guard" ||
       safeBackendPathname.startsWith("/api/radio/ai-host-long-show-schedule-guard/") ||
+      safeBackendPathname === "/api/radio/ai-host-long-show-master-feeder" ||
+      safeBackendPathname.startsWith("/api/radio/ai-host-long-show-master-feeder/") ||
       safeBackendPathname === "/api/radio/current-broadcast" ||
       safeBackendPathname.startsWith("/api/radio/current-broadcast/") ||
       safeBackendPathname === "/api/radio/ai-host-two-hosts" ||
@@ -166,7 +170,8 @@ export function proxy(request: NextRequest) {
     pathname === "/api/radio/ai-host-cohost-voice-feeder" ||
     pathname === "/api/radio/ai-host-long-show-package-feeder" ||
     pathname === "/api/radio/ai-host-long-show-script-feeder" ||
-    pathname === "/api/radio/ai-host-long-show-schedule-guard";
+    pathname === "/api/radio/ai-host-long-show-schedule-guard" ||
+    pathname === "/api/radio/ai-host-long-show-master-feeder";
 const hostHeader = request.headers.get("host") || "";
   const isLocalDryTestHost =
     hostHeader.startsWith("127.0.0.1:") ||
