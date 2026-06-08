@@ -150,7 +150,8 @@ export function proxy(request: NextRequest) {
     pathname === "/api/radio/ai-host-weekend-program-feeder" ||
     pathname === "/api/radio/ai-host-profiles" ||
     pathname === "/api/radio/ai-host-cohost-show" ||
-    pathname === "/api/radio/ai-host-cohost-show-feeder";
+    pathname === "/api/radio/ai-host-cohost-show-feeder" ||
+    pathname === "/api/radio/ai-host-cohost-voice-feeder";
 const hostHeader = request.headers.get("host") || "";
   const isLocalDryTestHost =
     hostHeader.startsWith("127.0.0.1:") ||
@@ -216,6 +217,7 @@ export const config = {
     "/api/azuracast/control/:path*",
   ],
 };
+
 
 
 
