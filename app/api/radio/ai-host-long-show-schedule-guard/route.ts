@@ -286,37 +286,51 @@ function upcomingNiaRules(minute: number, withinMinutes: number): Array<WindowRu
     .sort((a, b) => a.minutesUntilStart - b.minutesUntilStart);
 }
 
-function findBooleanSignal(obj: unknown, depth = 0): boolean | null {
-  if (depth > 5 || obj == null) return null;
+function activeValueIsTrue(value: unknown): boolean {
+  if (value === true) return true;
 
-  if (typeof obj === "boolean") return obj;
-
-  if (Array.isArray(obj)) {
-    for (const item of obj) {
-      const found = findBooleanSignal(item, depth + 1);
-      if (found === true) return true;
-    }
-    return null;
+  if (typeof value === "string") {
+    const clean = value.toLowerCase().trim();
+    return ["true", "yes", "running", "active", "broadcasting"].includes(clean);
   }
 
-  if (typeof obj === "object") {
-    for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
-      const lower = key.toLowerCase();
+  return false;
+}
 
-      if (
-        (lower.includes("nia") || lower.includes("news") || lower.includes("program")) &&
-        (lower.includes("active") || lower.includes("running") || lower.includes("broadcasting"))
-      ) {
-        if (value === true) return true;
-        if (typeof value === "string" && ["true", "yes", "running", "active", "broadcasting"].includes(value.toLowerCase())) {
-          return true;
-        }
-      }
+// STRICT_NIA_ACTIVE_SIGNAL_V2
+// Do not treat random true values inside old state/current-broadcast files as Nia active.
+// Only a clear active/running/broadcasting key inside a Nia/news/program context can block.
+function findBooleanSignal(obj: unknown, depth = 0): boolean | null {
+  if (depth > 5 || obj == null || typeof obj !== "object") return null;
 
-      if (lower.includes("lastaction") && typeof value === "string" && value.toLowerCase().includes("start")) {
-        return true;
-      }
+  const record = obj as Record<string, unknown>;
+  const context = JSON.stringify(record).toLowerCase();
+  const hasNiaOrNewsContext = context.includes("nia") || context.includes("news");
 
+  if (!hasNiaOrNewsContext) return null;
+
+  for (const [key, value] of Object.entries(record)) {
+    const lower = key.toLowerCase();
+
+    const isActiveKey =
+      lower === "active" ||
+      lower === "isactive" ||
+      lower.includes("active") ||
+      lower.includes("running") ||
+      lower.includes("broadcasting");
+
+    if (isActiveKey && activeValueIsTrue(value)) {
+      return true;
+    }
+
+    const shouldSearchNested =
+      lower.includes("nia") ||
+      lower.includes("news") ||
+      lower.includes("program") ||
+      lower.includes("broadcast") ||
+      lower.includes("state");
+
+    if (shouldSearchNested && value && typeof value === "object") {
       const nested = findBooleanSignal(value, depth + 1);
       if (nested === true) return true;
     }
@@ -324,7 +338,6 @@ function findBooleanSignal(obj: unknown, depth = 0): boolean | null {
 
   return null;
 }
-
 async function probeNiaFiles(): Promise<ProbeFileResult[]> {
   const candidates = [
     ".data/nia-news-master-state.json",
