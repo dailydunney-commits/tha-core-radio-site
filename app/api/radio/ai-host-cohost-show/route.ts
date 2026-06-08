@@ -12,13 +12,13 @@ function cleanText(value: unknown, fallback = "", max = 3000) {
 }
 
 function buildCohostScript(body: AnyRecord) {
+  // COHOST_OWNER_NOTES_NOT_SPOKEN_V1
+  // Owner notes guide the test/request, but must never be spoken on air.
   const topic = cleanText(
     body.topic || "life, music, money, relationships, and everyday listener talk",
     "life, music, money, relationships, and everyday listener talk",
     300
   );
-
-  const ownerNotes = cleanText(body.ownerNotes || body.notes || "", "", 1000);
 
   return [
     "PRODIGY: This is Prodigy from Tha Core, and you are locked into the lighter side of the station.",
@@ -38,7 +38,7 @@ function buildCohostScript(body: AnyRecord) {
     "",
     "PRODIGY: Tha Core listeners, send in your questions, your thoughts, your comments, and your real-life situations. We might not have every answer, but we can reason it out together.",
     "DIAMOND: Keep it respectful, keep it honest, and keep it fun. This is Prodigy and Diamond on Tha Core, and we are just getting started.",
-    ownerNotes ? `Owner note direction: ${ownerNotes}` : "",
+
   ]
     .filter(Boolean)
     .join("\n");
@@ -106,3 +106,4 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
