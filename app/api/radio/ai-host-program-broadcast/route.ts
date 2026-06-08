@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { existsSync } from "fs";
 import { mkdir, readdir, readFile, writeFile } from "fs/promises";
 import { join } from "path";
@@ -170,7 +170,18 @@ async function broadcastPart(input: {
     8,
     Number(part.durationSeconds || part.actualSeconds || part.estimatedSeconds || 60)
   );
-  const returnAfterSeconds = Math.max(estimatedSeconds + 7, 12);
+    // COHOST_FAST_HANDOFF_V1
+  // Nia/news chunks need a longer safety pad, but Prodigy & Diamond co-host turns
+  // must feel like real conversation with tighter back-and-forth timing.
+  const cohostBlockType = cleanText(part?.track?.blockType || input.manifest.blockType, "", 120);
+  const isCohostProgram =
+    cohostBlockType === "cohost-show" ||
+    part?.track?.source === "AI_HOST_COHOST_PROGRAM" ||
+    part?.track?.cohostProgramBlock === true;
+
+  const returnAfterSeconds = isCohostProgram
+    ? Math.max(estimatedSeconds + 1, 4)
+    : Math.max(estimatedSeconds + 7, 12);
   const expectedEndAt = new Date(
     Date.now() + returnAfterSeconds * 1000
   ).toISOString();
@@ -529,3 +540,4 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
