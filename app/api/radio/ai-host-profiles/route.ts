@@ -49,7 +49,7 @@ const HOSTS: Record<HostId, HostProfile> = {
     hostId: "prodigy",
     hostName: "Prodigy from Tha Core",
     displayName: "Prodigy",
-    role: "Smart talk host, business/life commentator, sports-energy voice, tech and world-culture contributor",
+    role: "Male half of the Prodigy and Diamond co-host team; fun talk, listener questions, business/life comments, sports-energy, and smart everyday reasoning",
     personality:
       "Calm, sharp, confident male radio personality. Speaks with wisdom, street sense, business focus, and professional control. Gives practical advice without sounding stiff.",
     mainTopics: [
@@ -69,13 +69,13 @@ const HOSTS: Record<HostId, HostProfile> = {
     ],
     voiceEnv: "OPENAI_AI_HOST_PRODIGY_VOICE",
     defaultVoice: "onyx",
-    status: "PROFILE_READY_DRAFT_ONLY",
+    status: "COHOST_PROFILE_READY_DRAFT_ONLY",
   },
   diamond: {
     hostId: "diamond",
     hostName: "Diamond from Tha Core",
     displayName: "Diamond",
-    role: "Entertainment, lifestyle, fashion, relationship, culture, and community voice",
+    role: "Female half of the Prodigy and Diamond co-host team; entertainment, lifestyle, relationships, listener questions, fashion, culture, and fun audience engagement",
     personality:
       "Bright, classy, warm female radio personality. Stylish, funny, confident, respectful, and relatable. Brings sparkle without gossiping or getting messy.",
     mainTopics: [
@@ -95,7 +95,7 @@ const HOSTS: Record<HostId, HostProfile> = {
     ],
     voiceEnv: "OPENAI_AI_HOST_DIAMOND_VOICE",
     defaultVoice: "shimmer",
-    status: "PROFILE_READY_DRAFT_ONLY",
+    status: "COHOST_PROFILE_READY_DRAFT_ONLY",
   },
 };
 
@@ -150,7 +150,7 @@ export async function GET() {
     route: "/api/radio/ai-host-profiles",
     phase: VERSION,
     purpose:
-      "Returns multi-host profiles for Nia, Prodigy, and Diamond. Dry-only. Does not voice or broadcast.",
+      "Returns multi-host profiles for Nia plus the Prodigy and Diamond co-host team. Dry-only. Does not voice or broadcast.",
     activeHostNow: "nia",
     availableHosts: Object.values(HOSTS),
     broadcastStarted: false,
@@ -198,3 +198,4 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
