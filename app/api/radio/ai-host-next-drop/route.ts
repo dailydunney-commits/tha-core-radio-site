@@ -406,7 +406,7 @@ function buildTrackAnnouncement(track: AnyRecord, direction: "previous" | "next"
   const titlePart = title ? `"${title}"` : "that track";
   const artistPart = artist ? `${artist} with ` : "";
   const yearPart = year ? `, from ${year}` : "";
-  const eraPart = era ? ` — ${era}` : "";
+  const eraPart = era ? `, ${era}` : ""; // AI_HOST_TRACK_ANNOUNCER_ASCII_PUNCTUATION_V1
 
   if (direction === "previous") {
     return `That was ${artistPart}${titlePart}${yearPart}${eraPart}.`;
@@ -448,8 +448,8 @@ function pickGenericMusicHype(breakCount: number, lane: string) {
   const lines = [
     `A fiery ${lane || "track"} coming up next inside Tha Core.`,
     "A hit from yesteryear could be loading next. Stay close.",
-    "Brand new fresh energy could be coming up — no guessing, just vibes.",
-    "Hot, hot, hot — it is heating up inside Tha Core studio.",
+    "Brand new fresh energy could be coming up, no guessing, just vibes.",
+    "Hot, hot, hot, it is heating up inside Tha Core studio.",
     "Music burning the place down inside Tha Core. Stay locked.",
     "Another big tune is loading. Tha Core keeps the energy moving.",
     "Old school flavor or fresh fire, SmartZJ has the next move ready.",
