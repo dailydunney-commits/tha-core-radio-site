@@ -349,12 +349,19 @@ function pickNiaShortAdvice(breakCount: number) {
 }
 
 // NIA_SHORT_DROP_THA_CORE_PRONUNCIATION_LOCK_V1
+// NIA_SHORT_DROP_ALWAYS_TAG_THA_CORE_V1
 function lockThaCorePronunciation(script: string) {
-  return String(script || "")
+  const clean = String(script || "")
     .replace(/\bTah Core\b/gi, "Tha Core")
     .replace(/\bTha\s+core\b/g, "Tha Core")
     .replace(/\s+/g, " ")
     .trim();
+
+  if (!/\bTha Core\b/.test(clean)) {
+    return (clean + " Tha Core stays with you.").replace(/\s+/g, " ").trim();
+  }
+
+  return clean;
 }
 
 function buildNiaScript(body: AnyRecord, state: AnyRecord) {
@@ -579,8 +586,8 @@ export async function POST(req: NextRequest) {
       aiGeneratedVoice: true,
       talkType: built.talkType,
       script: built.script,
-      durationSeconds: built.talkType === "feature-comment" ? 75 : 8,
-      estimatedSeconds: built.talkType === "feature-comment" ? 75 : 8,
+      durationSeconds: built.talkType === "feature-comment" ? 75 : 18,
+      estimatedSeconds: built.talkType === "feature-comment" ? 75 : 18,
       aiHostAutoReturn: true,
       quickDrop: true,
     };
