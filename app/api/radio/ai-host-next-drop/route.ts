@@ -174,22 +174,30 @@ function jamaicaTimeText() {
   }
 }
 
+// NIA_SHORT_DROP_PERSONALITY_ROTATION_V1
+// 10-30 second Nia drops should rotate more than news/music links.
 function pickTalkType(breakCount: number) {
   const types = [
     "jamaica-morning-update",
     "song-link",
     "time-check",
+    "global-city-big-up",
+    "money-tip",
+    "relationship-life-advice",
+    "clean-joke",
+    "world-observation",
+    "music-culture-note",
+    "sports-entertainment-lite",
+    "social-comment",
+    "country-town-big-up",
     "jamaica-road-safe",
     "lane-vibe",
-    "jamaica-entertainment-lite",
-    "sports-lite",
-    "station-vibe",
     "next-music-tease",
+    "station-vibe",
   ];
 
   return types[Math.abs(breakCount - 1) % types.length] || "song-link";
 }
-
 
 // NIA_NEXT_TITLE_SANITY_GUARD_V1
 // Stop Nia from saying weak/generated titles like "coming up next, free".
@@ -311,6 +319,44 @@ function buildNiaFeatureComment(body: AnyRecord, lane: string) {
 
   return `You are inside Tha Core. Good vibes, steady energy. Quick thought while the ${lane || "music"} keeps moving. A real station is not just songs back to back. It is timing, feeling, voice, safety, and connection. SmartZJ keeps the music flowing, and Nia is here to add the human touch without taking over the whole room. Short when it needs to be short, deeper when the moment calls for it, and always safe enough for everybody listening. Stay close. The music continues right here.`;
 }
+// NIA_SHORT_DROP_BIG_UPS_V1
+function pickNiaPlaceBigUp(breakCount: number) {
+  const places = [
+    "Montego Bay, St. James, Kingston, Portmore, Hanover, Trelawny, Ocho Rios, Negril, and Mandeville",
+    "Jamaica, Trinidad and Tobago, Barbados, Guyana, Bahamas, St. Lucia, Grenada, Antigua, and the wider Caribbean",
+    "New York, Miami, Atlanta, Toronto, London, Birmingham, Brixton, Brooklyn, and every diaspora listener",
+    "Africa, the United States, Canada, the United Kingdom, Latin America, Europe, Asia, and every listener worldwide",
+    "the taxi stands, shops, offices, studios, kitchens, school runs, night workers, early risers, and late-night thinkers",
+  ];
+
+  return places[Math.abs(Number(breakCount || 0)) % places.length] || places[0];
+}
+
+// NIA_SHORT_DROP_LIGHT_JOKES_ADVICE_V1
+function pickNiaShortAdvice(breakCount: number) {
+  const tips = [
+    "Small money tip: before you buy it, ask if future you will thank you or fuss at you.",
+    "Relationship reminder: good communication saves more drama than any long paragraph after midnight.",
+    "Life advice: protect your peace before your phone battery. Both matter, but peace takes longer to recharge.",
+    "Work reminder: pressure is real, but rushing every decision can make the bill bigger.",
+    "Clean joke: some people say they are on a budget, then order like the calculator resigned.",
+    "World thought: every city has noise, but discipline is still a language everybody understands.",
+    "Music note: a good song can lift a room, but a clean station keeps everybody comfortable in that room.",
+    "Social reminder: not every post needs a reply. Sometimes silence is the premium feature.",
+  ];
+
+  return tips[Math.abs(Number(breakCount || 0)) % tips.length] || tips[0];
+}
+
+// NIA_SHORT_DROP_THA_CORE_PRONUNCIATION_LOCK_V1
+function lockThaCorePronunciation(script: string) {
+  return String(script || "")
+    .replace(/\bTah Core\b/gi, "Tha Core")
+    .replace(/\bTha\s+core\b/g, "Tha Core")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function buildNiaScript(body: AnyRecord, state: AnyRecord) {
   const nextCount = Math.max(1, Number(state.breakCount || 0) + 1);
     const niaPreset = cleanNiaPresetName(body.niaPreset || body.preset || body.mode || "");
@@ -385,7 +431,25 @@ function buildNiaScript(body: AnyRecord, state: AnyRecord) {
     script = `${intro}Entertainment scene always moving, but right now the music is the headline. Stay close.`;
   } else if (talkType === "block-segment-callout") {
     script = `${intro}You are inside Tha Core. This is ${blockSegmentName}. Good vibes, steady energy. Stay close.`;
-  } else if (talkType === "feature-comment") {
+  } else if (talkType === "global-city-big-up") {
+  script = `${intro}Big up ${pickNiaPlaceBigUp(nextCount)}. Wherever you are listening from, Tha Core sees you. Clean music, good energy, worldwide connection.`;
+} else if (talkType === "country-town-big-up") {
+  script = `${intro}Country to country, town to town, big up the listeners locked in. From Jamaica to the world, Tha Core keeps the sound clean and the energy easy.`;
+} else if (talkType === "money-tip") {
+  script = `${intro}${pickNiaShortAdvice(nextCount)} Quick money thought, move smart before you move fast. The music continues.`;
+} else if (talkType === "relationship-life-advice") {
+  script = `${intro}${pickNiaShortAdvice(nextCount)} Keep love respectful, keep your standards clear, and keep the music close.`;
+} else if (talkType === "clean-joke") {
+  script = `${intro}${pickNiaShortAdvice(nextCount)} Light moment only, no stress. Tha Core keeps it clean and keeps it moving.`;
+} else if (talkType === "world-observation") {
+  script = `${intro}Quick world thought. Different places, same pressure: bills, goals, family, traffic, dreams. Big up everybody trying to make progress today.`;
+} else if (talkType === "music-culture-note") {
+  script = `${intro}Music culture is powerful. Dancehall, Reggae, Hip-Hop, R&B, old school and new school all have a story. Tha Core keeps the story clean for everybody.`;
+} else if (talkType === "sports-entertainment-lite") {
+  script = `${intro}Sports and entertainment move fast, but discipline still wins. Big up the fans, the artists, the players, and everybody building something real.`;
+} else if (talkType === "social-comment") {
+  script = `${intro}Quick social reminder: not every trending thing deserves your whole mood. Choose peace, choose progress, and let the music breathe.`;
+} else if (talkType === "feature-comment") {
     const featureBody = shouldAutoFeature
       ? {
           ...body,
@@ -417,7 +481,7 @@ function buildNiaScript(body: AnyRecord, state: AnyRecord) {
     script: script
       .replace(/\s+/g, " ")
       .trim()
-      .slice(0, talkType === "feature-comment" ? 1600 : 260),
+      .slice(0, talkType === "feature-comment" ? 1600 : 420),
     talkType,
     breakCount: nextCount,
     blockSegmentName: talkType === "block-segment-callout" ? blockSegmentName : "",
@@ -457,7 +521,11 @@ export async function POST(req: NextRequest) {
     });
     const state = getAiHostDropState(rootState, hostProfile);
 
-    const built = buildNiaScript(body, state);
+    const builtRaw = buildNiaScript(body, state);
+  const built = {
+    ...builtRaw,
+    script: lockThaCorePronunciation(builtRaw.script),
+  };
 
     const voiceRes = await fetch(`${internalBaseUrl()}/api/radio/ai-host-voice`, {
       method: "POST",
