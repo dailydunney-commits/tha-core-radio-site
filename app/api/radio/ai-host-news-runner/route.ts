@@ -543,11 +543,19 @@ ${block}`, "", 40000);
     }
 
     let broadcast: AnyRecord | null = null;
-    if (body.broadcastNow === true || action === "run-and-broadcast") {
+    // NIA_NEWS_RUNNER_FULL_BROADCAST_CHAIN_V1
+    const shouldStartBroadcast =
+      body.broadcast === true ||
+      body.broadcastNow === true ||
+      action === "run-and-broadcast";
+
+    if (shouldStartBroadcast) {
       broadcast = await postJson("/api/radio/ai-host-program-broadcast", {
         action: "start",
         programId,
-        reason: `NIA_NEWS_RUNNER_${blockType.toUpperCase()}`,
+        reason: `NIA_NEWS_RUNNER_FULL_CHAIN_${blockType.toUpperCase()}`,
+        broadcast: true,
+        force: true,
       });
     }
 
@@ -565,6 +573,8 @@ ${block}`, "", 40000);
       partCount: voice.data.partCount,
       totalEstimatedSeconds: voice.data.totalEstimatedSeconds,
       broadcastStarted: Boolean(broadcast?.ok),
+      broadcastRequired: shouldStartBroadcast,
+      broadcastError: shouldStartBroadcast && !broadcast?.ok ? broadcast?.error || "BROADCAST_START_FAILED" : null,
       createdAt: nowIso(),
     };
 
