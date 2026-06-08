@@ -49,6 +49,14 @@ function cleanText(value: unknown, fallback = "", max = 2000) {
   return value.replace(/\s+/g, " ").trim().slice(0, max);
 }
 
+function applyNiaVoicePronunciationRules(text: string) {
+  // NIA_PRONUNCIATION_THAA_CORE_V1
+  // Display can remain "Tha Core"; spoken TTS should say "Thaa Core", never "Tah Core".
+  return String(text || "")
+    .replace(/\bTah Core\b/gi, "Thaa Core")
+    .replace(/\bTha Core\b/g, "Thaa Core");
+}
+
 function slugify(value: string) {
   return cleanText(value, "nia-program", 160)
     .toLowerCase()
@@ -198,7 +206,7 @@ export async function POST(req: NextRequest) {
 
     const body = (await req.json().catch(() => ({}))) as ProgramVoiceBody;
 
-    const hostName = cleanText(body.hostName, "Nia from Tha Core", 120);
+    const hostName = cleanText(body.hostName, "Nia from Thaa Core", 120);
     const programName = cleanText(body.programName, "Tha Core News", 160);
     const programSlot = cleanText(body.programSlot, "unscheduled", 80);
     const blockType = cleanText(body.blockType, "news-program", 120);
@@ -298,7 +306,7 @@ export async function POST(req: NextRequest) {
         apiKey,
         model: DEFAULT_TTS_MODEL,
         voice,
-        text: normalizeSpeechForTts(chunkText, brandSpeechName),
+        text: normalizeSpeechForTts(applyNiaVoicePronunciationRules(chunkText), "Thaa Core"),
       });
 
       const fileName = `ai-host-program-${slugify(programName)}-part-${String(partNumber).padStart(

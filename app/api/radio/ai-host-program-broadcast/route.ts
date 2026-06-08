@@ -4,6 +4,9 @@ import { mkdir, readdir, readFile, writeFile } from "fs/promises";
 import { join } from "path";
 
 export const runtime = "nodejs";
+
+// NIA_NEWS_ON_AIR_LOCK_V1
+// Nia news must identify as AI host/news, expose durationSeconds, and hold until expectedEndAt.
 export const dynamic = "force-dynamic";
 
 type AnyRecord = Record<string, any>;
@@ -222,12 +225,14 @@ async function broadcastPart(input: {
     totalParts: input.manifest.audioParts.length,
     estimatedSeconds,
     returnAfterSeconds,
+    durationSeconds: returnAfterSeconds, // NIA_NEWS_DURATION_SECONDS_ON_CURRENT_BROADCAST_V1
   };
 
   const currentBroadcast = {
     ok: true,
     status: "SMARTDJ_BROADCASTING",
-    source: "SMARTDJ",
+    source: "AI_HOST",
+    type: "NIA_NEWS_PROGRAM",
     title: track.title,
     artist: track.artist,
     genreLane: "News",
@@ -256,6 +261,7 @@ async function broadcastPart(input: {
       isLast: input.partIndex + 1 >= input.manifest.audioParts.length,
       estimatedSeconds,
       returnAfterSeconds,
+    durationSeconds: returnAfterSeconds, // NIA_NEWS_DURATION_SECONDS_ON_CURRENT_BROADCAST_V1
       expectedEndAt,
     },
   };
@@ -276,6 +282,7 @@ async function broadcastPart(input: {
     expectedEndAt,
     estimatedSeconds,
     returnAfterSeconds,
+    durationSeconds: returnAfterSeconds, // NIA_NEWS_DURATION_SECONDS_ON_CURRENT_BROADCAST_V1
     lastAction: input.reason,
     lastAdvanceAt: startedAt,
     updatedAt: startedAt,
