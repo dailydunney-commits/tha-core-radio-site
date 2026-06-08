@@ -212,6 +212,23 @@ export async function POST(req: NextRequest) {
     const body = (await req.json().catch(() => ({}))) as AnyRecord;
     const action = cleanText(body.action || "run", "run", 80);
     const programSlot = cleanText(body.programSlot || "3:00 PM", "3:00 PM", 80);
+    const realJamaicaTime = new Date().toLocaleTimeString("en-US", {
+      timeZone: "America/Jamaica",
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+    const isLateNewsCatchup = Boolean(
+      body.late === true ||
+      body.catchup === true ||
+      body.catchUp === true ||
+      String(body.source || "").toLowerCase().includes("catchup") ||
+      String(body.source || "").toLowerCase().includes("missed")
+    );
+    // NIA_LATE_NEWS_APOLOGY_REAL_TIME_V1
+    const lateNewsInstruction = isLateNewsCatchup
+      ? `Open by apologizing clearly because this news update is late. Say this is a late/catch-up update for ${programSlot}. Use the real Jamaica time now: ${realJamaicaTime}. For spoken voice say Thaa Core, never Tah Core.`
+      : `Use the real Jamaica time now: ${realJamaicaTime}. For spoken voice say Thaa Core, never Tah Core.`;
     const programName = cleanText(
       body.programName || `Tha Core ${programSlot} Jamaica News`,
       `Tha Core ${programSlot} Jamaica News`,
