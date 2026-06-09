@@ -175,7 +175,8 @@ async function broadcastPart(input: {
   );
     // COHOST_FAST_HANDOFF_V1
   // Nia/news chunks need a longer safety pad, but Prodigy & Diamond co-host turns
-  // must feel like real conversation with tighter back-and-forth timing.
+  // must feel like real conversation, but still leave enough tail so final words are not cut off.
+  // COHOST_SAFE_AUDIO_TAIL_BUFFER_V1
   const cohostBlockType = cleanText(part?.track?.blockType || input.manifest.blockType, "", 120);
   const isCohostProgram =
     cohostBlockType === "cohost-show" ||
@@ -183,7 +184,7 @@ async function broadcastPart(input: {
     part?.track?.cohostProgramBlock === true;
 
   const returnAfterSeconds = isCohostProgram
-    ? Math.max(estimatedSeconds + 1, 4)
+    ? Math.max(estimatedSeconds + 6, 10)
     : Math.max(estimatedSeconds + 7, 12);
   const expectedEndAt = new Date(
     Date.now() + returnAfterSeconds * 1000
