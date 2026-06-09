@@ -97,7 +97,7 @@ const pads: Pad[] = [
 
 const footerTools: FooterTool[] = [
   {
-    label: "Music",
+    label: "Muzik",
     href: "/owner/music",
     note: "Read-only music library manager",
     color: "red",
