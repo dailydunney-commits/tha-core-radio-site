@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { mkdir, readFile, writeFile } from "fs/promises";
 import { join } from "path";
 
@@ -174,6 +174,13 @@ function jamaicaTimeText() {
   }
 }
 
+
+// NIA_LIVE_CLOCK_PERSONALITY_FEED_RULES_V1
+// Nia time checks must use the live America/Jamaica clock at the moment this route is called.
+// Do not use script build time, scheduled slot time, estimated time, or stale saved text.
+// Nia personality drops must include advice, clean jokes, daily life comments, events, money, relationships,
+// sports-lite, entertainment-lite, music talk, and 60-90 second feature comments.
+// These drops are not protected news blocks and must auto-return to SmartZJ/music.
 // NIA_SHORT_DROP_PERSONALITY_ROTATION_V1
 // 10-30 second Nia drops should rotate more than news/music links.
 function pickTalkType(breakCount: number) {
@@ -515,7 +522,7 @@ const previousTrackAnnouncement = getPreviousTrackAnnouncement(body);
 const timeText = jamaicaTimeText();
   const dayPart = jamaicaDayPart();
 
-  const sayName = nextCount === 1 || nextCount % 6 === 0;
+  const sayName = nextCount === 1 || nextCount % 10 === 0;
   const intro = sayName ? "This is Nia from Tha Core. " : "";
 
   let script = "";
@@ -569,7 +576,7 @@ const timeText = jamaicaTimeText();
   } else if (talkType === "lane-vibe") {
     script = `${intro}${lane} vibes rolling. Clean music, good frequency. Stay close.`;
   } else if (talkType === "time-check" && timeText) {
-    script = `${intro}Quick time check, ${timeText} in Jamaica. The music continues.`;
+    script = `${intro}The time is ${timeText} in Jamaica. The music continues.`;
   } else if (talkType === "weather-safe") {
     script = `${intro}Quick weather reminder. Move safe out there. Music continues now.`;
   } else if (talkType === "entertainment-lite") {
@@ -684,8 +691,8 @@ export async function POST(req: NextRequest) {
       aiGeneratedVoice: true,
       talkType: built.talkType,
       script: built.script,
-      durationSeconds: built.talkType === "feature-comment" ? 75 : 18,
-      estimatedSeconds: built.talkType === "feature-comment" ? 75 : 18,
+      durationSeconds: built.talkType === "feature-comment" ? 80 : 18,
+      estimatedSeconds: built.talkType === "feature-comment" ? 80 : 18,
       aiHostAutoReturn: true,
       quickDrop: true,
     };
@@ -730,4 +737,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-
