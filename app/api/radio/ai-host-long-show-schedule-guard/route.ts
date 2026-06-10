@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import path from "path";
 import { readFile } from "fs/promises";
+import * as nodeFs from "fs";
+import * as nodePath from "path";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -128,6 +130,39 @@ function minutesUntil(start: number, now: number): number {
   const raw = start - now;
   return raw >= 0 ? raw : raw + DAY_MINUTES;
 }
+
+
+function isFalseNiaSmartZjJingleCurrentBroadcast(): boolean {
+  try {
+    const filePath = nodePath.join(process.cwd(), ".data", "current-broadcast.json");
+    if (!nodeFs.existsSync(filePath)) return false;
+
+    const current = JSON.parse(nodeFs.readFileSync(filePath, "utf8"));
+    const track = current?.track || {};
+
+    const source = String(current?.source || track?.source || "").toUpperCase();
+    const title = String(current?.title || track?.title || "").toLowerCase();
+    const artist = String(current?.artist || track?.artist || "").toLowerCase();
+    const lane = String(current?.genreLane || track?.genreLane || track?.lane || "").toLowerCase();
+    const id = String(track?.id || track?.trackId || "").toLowerCase();
+    const audioUrl = String(current?.audioUrl || current?.streamUrl || track?.audioUrl || track?.streamUrl || "").toLowerCase();
+
+    const isSmartDj = source === "SMARTDJ";
+    const isNiaNamed = title.includes("nia from tha core") || artist.includes("nia from tha core");
+    const isJingleLane = lane === "jingles" || lane === "jingle";
+    const isScheduleJingle = current?.scheduleJingleInsert === true || current?.sequence?.scheduleJingleInsert === true;
+    const isQuickDrop = track?.quickDrop === true || track?.aiHostAutoReturn === true;
+    const isAiHostJingleAudio =
+      audioUrl.includes("ai-host-jingle") ||
+      audioUrl.includes("jingle-link-nia") ||
+      id.includes("ai-host/ai-host-jingle");
+
+    return Boolean(isSmartDj && isNiaNamed && (isJingleLane || isScheduleJingle || isQuickDrop || isAiHostJingleAudio));
+  } catch {
+    return false;
+  }
+}
+// FALSE_NIA_FILES_SMARTZJ_JINGLE_GUARD_V4
 
 function rules(): WindowRule[] {
   return [
@@ -462,7 +497,9 @@ export async function GET(request: Request) {
   // When ?at= is supplied, this route is testing a simulated clock time.
   // In simulation mode, do not let live/stale Nia state files override the schedule test.
   // Real current-time checks with no ?at= still use live Nia/now-playing probes.
-  const niaActiveObserved = isSimulation ? false : niaActiveFromFiles || nowPlaying.niaLikeSignal;
+  const falseNiaSmartZjJingle = isFalseNiaSmartZjJingleCurrentBroadcast();
+  const niaActiveFromFilesAfterFalseJingleGuard = falseNiaSmartZjJingle ? false : niaActiveFromFiles;
+  const niaActiveObserved = isSimulation ? false : niaActiveFromFilesAfterFalseJingleGuard; // ignore SmartZJ/Nia jingle false positive
   const niaProtectedNow = activeNiaRules.length > 0 || niaActiveObserved;
 
   const currentLongShowSlot = activeLongRules[0] || null;
@@ -552,7 +589,9 @@ export async function GET(request: Request) {
     })),
     niaSignals: {
       activeByTimeWindow: activeNiaRules.length > 0,
-      activeByStateFile: niaActiveFromFiles,
+      activeByStateFile: niaActiveFromFilesAfterFalseJingleGuard,
+      activeByStateFileRaw: niaActiveFromFiles,
+      falseNiaSmartZjJingle,
       activeByNowPlayingProbe: nowPlaying.niaLikeSignal,
       protectedNow: niaProtectedNow,
       stateFiles: niaFiles,
