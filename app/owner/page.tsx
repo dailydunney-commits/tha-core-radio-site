@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 
 
@@ -1364,7 +1364,7 @@ function AiHostScriptPanel() {
     >
       <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
         <div>
-          <h2 style={{ margin: 0, color: "#ffd700", fontSize: 22 }}>OpenAI AI Host — Script Generator</h2>
+          <h2 style={{ margin: 0, color: "#ffd700", fontSize: 22 }}>OpenAI AI Host â€” Script Generator</h2>
           <p style={{ margin: "6px 0 0", opacity: 0.82 }}>
             Phase 1: generate clean radio-ready scripts first. Voice/audio comes next after approval.
           </p>
@@ -1629,7 +1629,7 @@ function AiHostVoicePanel() {
     >
       <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
         <div>
-          <h2 style={{ margin: 0, color: "#ffd700", fontSize: 22 }}>OpenAI AI Host — Voice Generator</h2>
+          <h2 style={{ margin: 0, color: "#ffd700", fontSize: 22 }}>OpenAI AI Host â€” Voice Generator</h2>
           <p style={{ margin: "6px 0 0", opacity: 0.82 }}>
             Phase 2: turn an approved clean script into a saved MP3. Preview only. Not wired to broadcast yet.
           </p>
@@ -2393,34 +2393,73 @@ const SELECTED_DISPLAY_MEMORY_KEY = "tha-core-owner-selected-display-v1";
 
   async function refreshNowPlaying() {
     try {
-      const response = await fetch("/api/listener/now-playing", {
+      const response = await fetch("/api/radio/current-broadcast", {
         cache: "no-store",
       });
 
       const data = await response.json();
 
       if (!response.ok || !data?.ok) {
-        setNowPlayingText("Now-playing failed to load.");
-        setListenerText("Check API route.");
+        setNowPlayingText("Current broadcast failed to load.");
+        setListenerText("Check control-panel truth route.");
         setLastUpdatedText(`Failed ${stamp()}`);
-        addLog("Auto now-playing refresh failed.");
+        addLog("Owner current-broadcast refresh failed.");
         return;
       }
 
-      const text = data?.nowPlaying?.text || "Unknown song";
-      const listeners = data?.listeners?.current ?? 0;
-      const unique = data?.listeners?.unique ?? 0;
-      const station = data?.station?.name || "Tha Core Online Radio";
+      const status = String(data?.status || "IDLE").trim();
+      const source = String(data?.source || "CONTROL_PANEL").trim();
+      const title = String(data?.title || data?.track?.title || "").trim();
+      const artist = String(data?.artist || data?.track?.artist || "Tha Core Online Radio").trim();
+      const audioUrl = String(data?.audioUrl || data?.track?.audioUrl || "").trim();
 
-      setNowPlayingText(text);
-      setListenerText(`${listeners} current \u2022 ${unique} unique`);
-      setStationText(station);
+      const isActiveBroadcast = status !== "IDLE" && Boolean(audioUrl);
+
+      if (isActiveBroadcast) {
+        const text = title ? `${artist} - ${title}` : `${artist} - Current Broadcast`;
+
+        setNowPlayingText(text);
+        setListenerText("Owner current broadcast active");
+        setStationText("Tha Core Online Radio");
+        setLastUpdatedText(`Updated ${stamp()}`);
+
+        setBroadcast("live");
+
+        if (status.includes("AUTODJ")) {
+          setAutoDj(true);
+          setSmartDj(false);
+          setLiveDj(false);
+          setSelectedMode("AUTODJ");
+        } else if (status.includes("LIVEDJ")) {
+          setAutoDj(false);
+          setSmartDj(false);
+          setLiveDj(true);
+          setSelectedMode("LIVEDJ");
+        } else {
+          setAutoDj(false);
+          setSmartDj(true);
+          setLiveDj(false);
+          setSelectedMode("SMARTDJ");
+        }
+
+        setScreenTitle("OWNER CURRENT BROADCAST");
+        setScreenText(`${text} is live from the owner/control-panel current-broadcast truth. Source: ${source}.`);
+        return;
+      }
+
+      setNowPlayingText("No active control-panel broadcast");
+      setListenerText("Waiting for owner command");
+      setStationText("Tha Core Online Radio");
       setLastUpdatedText(`Updated ${stamp()}`);
+
+      setBroadcast("off");
+      setScreenTitle("CONTROL PANEL STANDBY");
+      setScreenText("No owner/control-panel current broadcast is active. Public listener will not choose audio by itself.");
     } catch {
-      setNowPlayingText("Could not reach now-playing API.");
+      setNowPlayingText("Could not reach current-broadcast API.");
       setListenerText("API error.");
       setLastUpdatedText(`Error ${stamp()}`);
-      addLog("Now-playing API error.");
+      addLog("Current-broadcast API error.");
     }
   }
 
@@ -4919,3 +4958,4 @@ function ControlSlider({
 
 
 // SMARTDJ_DISPATCH_LOADED_MESSAGE_COUNT_ONLY_V1
+
