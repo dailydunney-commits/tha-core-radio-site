@@ -358,7 +358,7 @@ export async function GET(request: NextRequest) {
           station: {
             name: "Tha Core Online Radio",
             listen_url: currentAudioUrl,
-            mounts: [{ name: "Current Clean Broadcast", url: currentAudioUrl, is_default: true }]
+            mounts: [{ name: "Owner Control Panel Current Broadcast", url: currentAudioUrl, is_default: true }]
           },
           listeners: { total: 0, unique: 0, current: 0 },
           live: { is_live: true, streamer_name: "", broadcast_start: current?.startedAt || null, art: null },
@@ -370,7 +370,7 @@ export async function GET(request: NextRequest) {
               album: "",
               art: null
             },
-            playlist: "Current Clean SmartDJ Broadcast",
+            playlist: "Owner Control Panel Current Broadcast",
             is_request: false,
             elapsed: getElapsedSecondsFromStartedAt(current?.startedAt),
          remaining: getRemainingSeconds(current, track)
@@ -378,7 +378,7 @@ export async function GET(request: NextRequest) {
           playing_next: null,
           song_history: [],
           cache: null,
-          message: "Playing approved current broadcast clean/bleeped SmartDJ audio. Raw Azura remains blocked.",
+          message: "Playing owner/control-panel current broadcast. Raw Azura remains blocked.",
           currentBroadcast: current
         }, {
           headers: { "Cache-Control": "no-store, no-cache, must-revalidate" }
@@ -390,3 +390,4 @@ export async function GET(request: NextRequest) {
   }
   return standby("Waiting for owner/control panel current broadcast. Public listener will not choose Safe Rotation, drops, SmartZJ, Nia, AI, or fallback audio by itself.");
 }
+
