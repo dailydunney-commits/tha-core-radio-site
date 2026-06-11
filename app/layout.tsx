@@ -3,6 +3,7 @@ import PersistentRadioPlayer from "./components/PersistentRadioPlayer";
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import RootShell from "@/components/root-shell";
+import OwnerEditorHomeButton from './components/OwnerEditorHomeButton';
 
 export const metadata: Metadata = {
   title: "Tha Core Online Radio",
@@ -38,6 +39,7 @@ export default async function RootLayout({
           minHeight: "100vh",
         }}
       >
+        <OwnerEditorHomeButton />
         <RootShell>{children}</RootShell>
         {!hidePublicPlayerOnAdminHost && <PersistentRadioPlayer />}
       </body>
