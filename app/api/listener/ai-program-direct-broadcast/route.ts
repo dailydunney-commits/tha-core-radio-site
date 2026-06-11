@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
 
@@ -139,7 +139,7 @@ export async function POST(req: NextRequest) {
     const state = {
       ok: false,
       status: "NO_PLAYABLE_AI_AUDIO",
-      source: "AI_PROGRAM_DIRECT",
+      source: "AI_HOST_LONG_SHOW",
       programId,
       programName,
       title,
@@ -164,23 +164,23 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(state, { status: 404 });
   }
 
-  const directDir = path.join(ROOT, "public", "audio", "ai-direct");
+  const directDir = path.join(ROOT, ".data", "ai-host-audio");
   fs.mkdirSync(directDir, { recursive: true });
 
   const safeBase = playable.base.replace(/[^a-zA-Z0-9._-]/g, "_");
   const directPath = path.join(directDir, safeBase);
   fs.copyFileSync(playable.file, directPath);
 
-  const audioUrl = `/audio/ai-direct/${encodeURIComponent(safeBase)}`;
+  const audioUrl = `/api/listener/ai-host-audio?file=${encodeURIComponent(safeBase)}`;
   const now = new Date().toISOString();
 
   const currentBroadcast = {
     ok: true,
-    status: "AI_PROGRAM_DIRECT_BROADCASTING",
+    status: "AI_HOST_LONG_SHOW_BROADCASTING",
     mode: "CURRENT_BROADCAST",
     safety: "DIRECT_AI_PLAYABLE_AUDIO_CONFIRMED",
-    source: "AI_PROGRAM_DIRECT",
-    type: "AI_PROGRAM_DIRECT",
+    source: "AI_HOST_LONG_SHOW",
+    type: "AI_HOST_LONG_SHOW",
     programId,
     programName,
     title,
