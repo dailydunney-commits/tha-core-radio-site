@@ -3,9 +3,9 @@
 const NIA_RUNDOWN_CONTENT_FEEDS_V1 = [
   "Nia must sound like a real radio news host, not a system checker.",
   "Use local Jamaica news, international news, weather, sports, entertainment/culture, and community notes when supplied.",
-  "Use finished radio news copy only. Never read production notes, system notes, backend notes, feed notes, owner notes, or editor notes on air.",
+  "Use finished radio news copy only. Never read production notes, system notes, production notes, data notes, owner notes, or editor notes on air.",
   "Do not repeat the name Nia every story. Say it once in the opening only.",
-  "Use exact live Jamaica time only when supplied by the runner at broadcast time.",
+  "Use exact live Jamaica time only when supplied by the production at broadcast time.",
   "If weather or sports is missing, say: We will have the full weather and sports update in the next bulletin.",
 ].join(" ");
 import { NextRequest, NextResponse } from "next/server";
@@ -188,7 +188,7 @@ function buildPrompt(body: NewsRundownBody, items: NewsItem[], repeats: string[]
         `Source: ${item.sourceName}`,
         item.sourceUrl ? `Source URL/reference: ${item.sourceUrl}` : "Source URL/reference: not provided",
         item.publishedAt ? `Published: ${item.publishedAt}` : "Published: not provided",
-        item.confirmedAt ? `Verified: ${item.confirmedAt}` : "Verified: not provided",
+        item.confirmedAt ? `Confirmed: ${item.confirmedAt}` : "Confirmed: not provided",
         `Commentary allowed: ${item.allowCommentary === false ? "no" : "yes"}`,
       ].join("\n");
     })
@@ -426,7 +426,7 @@ export async function POST(req: NextRequest) {
 FRESH_NEWS_ONLY_V2:
 Nia must not recycle the same stories by changing the wording.
 If no fresh confirmed update exists, the item should be left out.
-Nia must not say process words like verify, context, source check, backend, feed, runner, rumor, unverified, transition, sound down, or sound up.
+Nia must not say process words like confirm, background, source check, backend, feed, production, unconfirmed talk, unconfirmed, transition, sound down, or sound up.
 */
 
 /*
@@ -439,7 +439,7 @@ A full Nia news broadcast must include:
 
 Nia must not recycle the same stories by changing wording.
 If a category has no fresh confirmed item, omit it or use a short clean line.
-Nia must not say process words like verify, context, source check, backend, feed, runner, rumor, unverified, transition, sound down, or sound up.
+Nia must not say process words like confirm, background, source check, backend, feed, production, unconfirmed talk, unconfirmed, transition, sound down, or sound up.
 */
 
 /*
@@ -454,3 +454,4 @@ Do not recycle the same stories by changing wording.
 Do not pad a bulletin with repeated stories.
 A shorter fresh bulletin is better than a long repeated one.
 */
+
