@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import type { CSSProperties } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -40,7 +40,7 @@ async function getPublicListenerStreamUrl() {
 
     const data = await response.json().catch(() => null);
 
-    return String(data?.streamUrl || data?.audioUrl || "").trim();
+    return String(data?.streamUrl || data?.audioUrl || data?.listen_url || data?.station?.listen_url || "").trim();
   } catch { return ""; }
 }
 
@@ -493,26 +493,51 @@ export default function HomePage() {
         return;
       }
 
-      // The persistent player primes this audio source in the background.
-      // If it is already loaded, play immediately from this user click.
-      if (audio.src) {
-        audio.volume = Math.max(0.75, Number(volume || 0.85));
-        await audio.play();
-        setIsPlaying(true);
-        setStatusText("Playing Tha Core live broadcast.");
+      setStatusText("Loading Tha Core live broadcast...");
+
+      const response = await fetch(`/api/listener/now-playing?manualHomePlay=${Date.now()}`, {
+        cache: "no-store",
+      });
+
+      const data = await response.json().catch(() => null);
+      const currentBroadcast = data?.currentBroadcast || {};
+
+      const nextUrl = String(
+        data?.streamUrl ||
+          data?.audioUrl ||
+          data?.listen_url ||
+          data?.station?.listen_url ||
+          currentBroadcast?.audioUrl ||
+          ""
+      ).trim();
+
+      if (!nextUrl) {
+        setIsPlaying(false);
+        setStatusText("No playable broadcast audio is ready yet.");
         return;
       }
 
-      // Fallback: ask the persistent player to prepare/play.
-      window.dispatchEvent(new CustomEvent("tha-core-radio-toggle"));
-      setStatusText("Starting Tha Core global radio player...");
+      const absoluteNextUrl = new URL(nextUrl, window.location.origin).href;
+
+      if (!audio.src || audio.src !== absoluteNextUrl) {
+        audio.src = nextUrl;
+        audio.load();
+      }
+
+      audio.volume = Math.max(0.75, Number(volume || 0.85));
+
+      await waitForHomeAudioMetadata(audio);
+      await audio.play();
+
+      setIsPlaying(true);
+      setStatusText("Playing Tha Core live broadcast.");
     } catch (error) {
-      console.error("Homepage direct play failed:", error);
+      const detail = error instanceof Error ? error.message : String(error);
+      console.error("HOME_PLAY_LIVE_FAILED", error);
       setIsPlaying(false);
-      setStatusText("Tap Play again or check browser sound.");
+      setStatusText(`Play failed: ${detail || "browser blocked the audio"}`);
     }
   }
-
   function stopRadio() {
     const audio = document.querySelector("audio") as HTMLAudioElement | null;
 
@@ -1490,5 +1515,6 @@ const styles: Record<string, CSSProperties> = {
 
 
 // REAL_LOGO_CIRCLE_FILE_FINAL_V1
+
 
 
