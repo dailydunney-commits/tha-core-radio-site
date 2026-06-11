@@ -1,14 +1,17 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState } from "react";
 
-function shouldShowOwnerHomeButton() {
+function shouldShowScheduleButtons() {
   if (typeof window === "undefined") return false;
 
   const path = window.location.pathname.toLowerCase().replace(/\/+$/, "");
   const search = window.location.search.toLowerCase();
   const hash = window.location.hash.toLowerCase();
   const href = window.location.href.toLowerCase();
+
+  if (path === "/schedule") return true;
+  if (path.includes("schedule")) return true;
 
   const isOwner = path === "/owner" || path.startsWith("/owner/");
   if (!isOwner) return false;
@@ -17,7 +20,6 @@ function shouldShowOwnerHomeButton() {
   if (isOwnerHome) return false;
 
   return (
-    path.includes("schedule") ||
     search.includes("schedule") ||
     search.includes("editor") ||
     hash.includes("schedule") ||
@@ -31,7 +33,7 @@ export default function OwnerEditorHomeButton() {
   const [show, setShow] = useState(false);
 
   useEffect(() => {
-    const check = () => setShow(shouldShowOwnerHomeButton());
+    const check = () => setShow(shouldShowScheduleButtons());
 
     check();
     const timer = window.setInterval(check, 500);
@@ -45,28 +47,52 @@ export default function OwnerEditorHomeButton() {
 
   if (!show) return null;
 
+  const buttonBase = {
+    color: "#fff",
+    border: "2px solid #ffcc00",
+    borderRadius: "999px",
+    padding: "10px 16px",
+    fontWeight: 900,
+    textDecoration: "none",
+    boxShadow: "0 0 18px rgba(255,0,0,0.65)",
+    fontSize: "14px",
+    letterSpacing: "0.04em",
+    display: "inline-block"
+  } as const;
+
   return (
-    <a
-      href="/owner"
+    <div
       style={{
         position: "fixed",
         top: "14px",
         left: "14px",
         zIndex: 999999,
-        background: "#b00000",
-        color: "#fff",
-        border: "2px solid #ffcc00",
-        borderRadius: "999px",
-        padding: "10px 16px",
-        fontWeight: 900,
-        textDecoration: "none",
-        boxShadow: "0 0 18px rgba(255,0,0,0.65)",
-        fontSize: "14px",
-        letterSpacing: "0.04em"
+        display: "flex",
+        gap: "10px",
+        alignItems: "center"
       }}
-      title="Return to Owner Home"
     >
-      ← Owner Home
-    </a>
+      <a
+        href="/owner"
+        style={{
+          ...buttonBase,
+          background: "#b00000"
+        }}
+        title="Return to Owner Home"
+      >
+        ← Owner Home
+      </a>
+
+      <a
+        href="https://live.thacoreonlinerad.com"
+        style={{
+          ...buttonBase,
+          background: "#111"
+        }}
+        title="Open Live Radio"
+      >
+        ▶ Live Radio
+      </a>
+    </div>
   );
 }
