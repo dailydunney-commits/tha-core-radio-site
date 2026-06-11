@@ -1,9 +1,9 @@
-
+﻿
 // NIA_RUNDOWN_CONTENT_FEEDS_V1
 const NIA_RUNDOWN_CONTENT_FEEDS_V1 = [
   "Nia must sound like a real radio news host, not a system checker.",
   "Use local Jamaica news, international news, weather, sports, entertainment/culture, and community notes when supplied.",
-  "Do not say verify, verification, context, source check, backend, feed, owner, or owner did not feed weather.",
+  "Use finished radio news copy only. Never read production notes, system notes, backend notes, feed notes, owner notes, or editor notes on air.",
   "Do not repeat the name Nia every story. Say it once in the opening only.",
   "Use exact live Jamaica time only when supplied by the runner at broadcast time.",
   "If weather or sports is missing, say: We will have the full weather and sports update in the next bulletin.",
@@ -23,7 +23,7 @@ type NewsItem = {
   sourceName?: string;
   sourceUrl?: string;
   publishedAt?: string;
-  verifiedAt?: string;
+  confirmedAt?: string;
   allowCommentary?: boolean;
 };
 
@@ -137,7 +137,7 @@ function normalizeItems(items: NewsItem[], testMode: boolean) {
       sourceName: cleanText(item.sourceName, "", 120),
       sourceUrl: cleanText(item.sourceUrl, "", 500),
       publishedAt: cleanText(item.publishedAt, "", 80),
-      verifiedAt: cleanText(item.verifiedAt, "", 80),
+      confirmedAt: cleanText(item.confirmedAt, "", 80),
       allowCommentary: item.allowCommentary !== false,
     }))
     .filter((item) => item.headline && item.summary && item.sourceName);
@@ -154,7 +154,7 @@ function normalizeItems(items: NewsItem[], testMode: boolean) {
       sourceName: "Tha Core internal test",
       sourceUrl: "",
       publishedAt: new Date().toISOString(),
-      verifiedAt: new Date().toISOString(),
+      confirmedAt: new Date().toISOString(),
       allowCommentary: false,
     },
   ];
@@ -188,7 +188,7 @@ function buildPrompt(body: NewsRundownBody, items: NewsItem[], repeats: string[]
         `Source: ${item.sourceName}`,
         item.sourceUrl ? `Source URL/reference: ${item.sourceUrl}` : "Source URL/reference: not provided",
         item.publishedAt ? `Published: ${item.publishedAt}` : "Published: not provided",
-        item.verifiedAt ? `Verified: ${item.verifiedAt}` : "Verified: not provided",
+        item.confirmedAt ? `Verified: ${item.confirmedAt}` : "Verified: not provided",
         `Commentary allowed: ${item.allowCommentary === false ? "no" : "yes"}`,
       ].join("\n");
     })
@@ -207,7 +207,7 @@ function buildPrompt(body: NewsRundownBody, items: NewsItem[], repeats: string[]
       `- Program: ${programName}`,
       `- Block type: ${blockType}`,
       `- Program slot: ${programSlot}`,
-      `- Recap mode: ${recapMode ? "yes - recap what changed and avoid repeating old stories" : "no - fresh full rundown"}`,
+      `- Fresh mode: build a fresh full rundown first. Only mention an earlier story if there is a real new development.${recapMode ? "yes - recap what changed and avoid repeating old stories" : "no - fresh full rundown"}`,
       `- Target duration: about ${durationMinutes} minutes`,
       `- Location focus: ${location}`,
       `- Editorial focus: ${focus}`,
@@ -215,18 +215,18 @@ function buildPrompt(body: NewsRundownBody, items: NewsItem[], repeats: string[]
       `- Tone: ${tone}`,
       "",
       "STRICT NEWS RULES:",
-      "- Use ONLY the verified story items provided below.",
+      "- Use ONLY the confirmed story items provided below.",
       "- Do NOT invent breaking news, names, statistics, weather, scores, crimes, deaths, arrests, government claims, celebrity claims, or quotes.",
       "- If a detail is not provided, do not add it.",
-      "- NIA_NEWS_FACTUAL_GUARD_V1: Do not describe the day as sunny, rainy, cloudy, hot, stormy, calm, busy, or any other condition unless that exact detail is provided in the verified items or weatherText.",
+      "- NIA_NEWS_FACTUAL_GUARD_V1: Do not describe the day as sunny, rainy, cloudy, hot, stormy, calm, busy, or any other condition unless that exact detail is provided in the confirmed items or weatherText.",
       "- Nia may use the provided Current Jamaica time label for the weekday and time of day, but must not invent location condition, road condition, public mood, or weather from the clock alone.",
       "- If weatherText says no exact forecast was supplied, say only that no exact forecast was supplied and keep the weather note general.",
-      "- Do not say a story is making headlines unless it is a real verified news item from a real source.",
+      "- Do not say a story is making headlines unless it is a real confirmed news item from a real source.",
       "- Attribute stories naturally to their source names.",
       "- If the sourceName contains internal test, clearly say it is a system test and not public news.",
       "- Internal system test items are not public news and must not be presented as Jamaica headlines.",
       "- Do not repeat stories marked as recently used unless there is a clear update.",
-      "- For recap blocks, explain what changed since the last bulletin and summarize earlier stories briefly only if still important.",
+      "- For all blocks, lead with fresh confirmed updates. Do not summarize earlier stories unless there is a real new development.",
       "- For full news blocks, read the news properly like a real radio bulletin, not just a short update.",
       "- Keep the script clean: no profanity, no slurs, no insults, no explicit content.",
       "- Commentary can be light and human, but must be clearly based on the provided story summary.",
@@ -239,10 +239,10 @@ function buildPrompt(body: NewsRundownBody, items: NewsItem[], repeats: string[]
       "- Give a clear rundown of the provided stories.",
       "- If this is a 6 AM block, make it a full morning start.",
       "- If this is a 10 AM block, focus on updates since the morning.",
-      "- If this is a 1 PM block, make it a midday news recap plus new items.",
+      "- If this is a 1 PM block, make it a fresh midday news update with Jamaica, regional Caribbean, international/world, and sports.",
       "- If this is a 3 PM block, make it an afternoon update.",
-      "- If this is a 5:30 PM block, make it a drive-time news and road-safe recap.",
-      "- If this is an 8 PM block, make it an evening wrap-up and day recap.",
+      "- If this is a 5:30 PM block, make it a fresh drive-time news update with road-safe tone, Jamaica, regional Caribbean, international/world, and sports.",
+      "- If this is an 8 PM block, make it a fresh evening news update and only include day recap items when there is a new development.",
       "- Include short transitions between categories.",
       body.includeWeather && weatherText
         ? `- Include this weather text exactly as a general weather note, without adding extra claims: ${weatherText}`
@@ -276,14 +276,14 @@ export async function GET() {
     phase: "NIA_NEWS_PROGRAM_BRAIN_V1",
     hostName: "Nia from Tha Core",
     purpose:
-      "Builds full Nia news/program scripts from verified story items. Does not fetch or invent news by itself.",
+      "Builds full Nia news/program scripts from confirmed story items. Does not fetch or invent news by itself.",
     model: process.env.OPENAI_AI_HOST_MODEL || DEFAULT_MODEL,
     scheduleTargets: [
       "6:00 AM Morning News",
       "10:00 AM News Update",
       "1:00 PM Midday News",
       "3:00 PM Afternoon Update",
-      "5:30 PM Drive-Time News Recap",
+      "5:30 PM Fresh Drive-Time News Update",
       "8:00 PM Evening News Wrap-Up"
     ],
     historyCount: Array.isArray(history.used) ? history.used.length : 0,
@@ -315,7 +315,7 @@ export async function POST(req: NextRequest) {
           ok: false,
           error: "NO_VERIFIED_NEWS_ITEMS",
           message:
-            "Nia will not invent news. Send verified items with headline, summary, and sourceName.",
+            "Nia will not invent news. Send confirmed items with headline, summary, and sourceName.",
         },
         { status: 422 }
       );
@@ -337,7 +337,7 @@ export async function POST(req: NextRequest) {
       body: JSON.stringify({
         model,
         instructions:
-          "You are Nia's clean radio news writer for Tha Core Online Radio. You write accurate, source-grounded radio scripts only from provided verified items.",
+          "You are Nia's clean radio news writer for Tha Core Online Radio. You write accurate, source-grounded radio scripts only from provided confirmed items.",
         input: built.prompt,
         max_output_tokens: Math.max(1800, Math.min(6500, built.durationMinutes * 650)),
       }),
@@ -420,3 +420,37 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
+
+/*
+FRESH_NEWS_ONLY_V2:
+Nia must not recycle the same stories by changing the wording.
+If no fresh confirmed update exists, the item should be left out.
+Nia must not say process words like verify, context, source check, backend, feed, runner, rumor, unverified, transition, sound down, or sound up.
+*/
+
+/*
+NIA_NEWS_CATEGORIES_REQUIRED_V1:
+A full Nia news broadcast must include:
+1. Jamaica local news
+2. Regional Caribbean news
+3. International/world news
+4. Sports
+
+Nia must not recycle the same stories by changing wording.
+If a category has no fresh confirmed item, omit it or use a short clean line.
+Nia must not say process words like verify, context, source check, backend, feed, runner, rumor, unverified, transition, sound down, or sound up.
+*/
+
+/*
+NIA_REQUIRED_NEWS_MIX_V2:
+Full Nia news must attempt:
+1. Jamaica local news
+2. Regional Caribbean news
+3. International/world news
+4. Sports
+
+Do not recycle the same stories by changing wording.
+Do not pad a bulletin with repeated stories.
+A shorter fresh bulletin is better than a long repeated one.
+*/

@@ -13,16 +13,20 @@ type NewsItem = {
 };
 
 const NEWS_FEEDS: Record<string, string> = {
+  jamaica:
+    "https://news.google.com/rss/search?q=jamaica+news&hl=en-US&gl=JM&ceid=JM:en",
+  caribbean:
+    "https://news.google.com/rss/search?q=caribbean+news+OR+west+indies&hl=en-US&gl=JM&ceid=JM:en",
   world:
-    "https://news.google.com/rss/search?q=world+news&hl=en-US&gl=US&ceid=US:en",
+    "https://news.google.com/rss/search?q=international+world+news&hl=en-US&gl=US&ceid=US:en",
+  sports:
+    "https://news.google.com/rss/search?q=jamaica+caribbean+sports+cricket+football+track+and+field&hl=en-US&gl=JM&ceid=JM:en",
   music:
     "https://news.google.com/rss/search?q=reggae+dancehall+music+news&hl=en-US&gl=US&ceid=US:en",
-  sports:
-    "https://news.google.com/rss/search?q=sports+news+jamaica+caribbean&hl=en-US&gl=US&ceid=US:en",
   business:
-    "https://news.google.com/rss/search?q=business+news+jamaica+caribbean&hl=en-US&gl=US&ceid=US:en",
+    "https://news.google.com/rss/search?q=business+news+jamaica+caribbean&hl=en-US&gl=JM&ceid=JM:en",
   weather:
-    "https://news.google.com/rss/search?q=jamaica+weather+storm+hurricane&hl=en-US&gl=US&ceid=US:en",
+    "https://news.google.com/rss/search?q=jamaica+weather+storm+hurricane&hl=en-US&gl=JM&ceid=JM:en",
   radio:
     "https://news.google.com/rss/search?q=radio+music+entertainment+news&hl=en-US&gl=US&ceid=US:en",
 };
@@ -142,3 +146,4 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+

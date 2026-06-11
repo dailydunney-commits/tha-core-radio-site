@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { mkdir, readFile, writeFile } from "fs/promises";
 import { existsSync } from "fs";
 import { join } from "path";
@@ -183,6 +183,50 @@ function pickRunnableItems(input: unknown) {
     .slice(0, 12);
 }
 
+
+async function fetchFreshNiaNewsItemsV1(): Promise<AnyRecord[]> {
+  const categories = ["jamaica", "caribbean", "world", "sports"];
+  const freshItems: AnyRecord[] = [];
+
+  for (const category of categories) {
+    try {
+      const res = await fetch(`${INTERNAL_BASE_URL}/api/news?category=${encodeURIComponent(category)}`, {
+        cache: "no-store",
+        headers: {
+          Accept: "application/json",
+        },
+      });
+
+      if (!res.ok) continue;
+
+      const data = await res.json();
+      const rawItems = unwrapNewsItems(data?.items || data?.newsItems || data?.stories || data?.articles || data);
+
+      rawItems.slice(0, 5).forEach((raw, index) => {
+        const normalized = normalizeItem({
+          ...raw,
+          category: raw?.category || category,
+          newsCategory: raw?.newsCategory || category,
+        }, index);
+
+        if (normalized.headline && normalized.summary) {
+          freshItems.push(normalized);
+        }
+      });
+    } catch {
+      // Keep runner safe. If a feed fails, continue to the next category.
+    }
+  }
+
+  const seen = new Set<string>();
+  return freshItems.filter((item) => {
+    const key = String(item.headline || "").trim().toLowerCase();
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+// NIA_FRESH_SOURCE_COLLECTOR_V1
 export async function GET() {
   const rawItems = await readJson<unknown>(VERIFIED_ITEMS_FILE, []);
   const items = unwrapNewsItems(rawItems);
@@ -227,8 +271,8 @@ export async function POST(req: NextRequest) {
     );
     // NIA_LATE_NEWS_APOLOGY_REAL_TIME_V1
     const lateNewsInstruction = isLateNewsCatchup
-      ? `Open by apologizing clearly because this news update is late. Say this is a late/catch-up update for ${programSlot}. Use the real Jamaica time now: ${realJamaicaTime}. For spoken voice say Thaa Core, never Tah Core.`
-      : `Use the real Jamaica time now: ${realJamaicaTime}. For spoken voice say Thaa Core, never Tah Core.`;
+      ? `Open by apologizing clearly because this news update is late. Say this is a late/catch-up update for ${programSlot}. Use the real Jamaica time now: ${realJamaicaTime}. For spoken voice say Tha Core, never Tah Core.`
+      : `Use the real Jamaica time now: ${realJamaicaTime}. For spoken voice say Tha Core, never Tah Core.`;
     const programName = cleanText(
       body.programName || `Tha Core ${programSlot} Jamaica News`,
       `Tha Core ${programSlot} Jamaica News`,
@@ -264,7 +308,8 @@ export async function POST(req: NextRequest) {
     const storedRawItems = await readJson<unknown>(VERIFIED_ITEMS_FILE, []);
     const suppliedItems = unwrapNewsItems(body.items || body.newsItems || body.verifiedItems || body.stories || body.articles || body.results || body.records || body.payload || body.data);
     const storedItems = unwrapNewsItems(storedRawItems);
-    const items = pickRunnableItems(suppliedItems.length ? suppliedItems : storedItems);
+    const freshItems = await fetchFreshNiaNewsItemsV1();
+    const items = pickRunnableItems(suppliedItems.length ? suppliedItems : (freshItems.length ? freshItems : storedItems));
 
     if (!items.length) {
       return NextResponse.json(
@@ -292,12 +337,12 @@ export async function POST(req: NextRequest) {
       programName,
       programSlot,
       blockType,
-      recapMode: body.recapMode ?? true,
+      recapMode: body.recapMode ?? false,
       timeText,
       weatherText,
       includeWeather: Boolean(weatherText),
       instruction:
-        "NIA_BRAND_PRONUNCIATION_LOCK_V1: Always pronounce the station as Tha Core naturally, like the core with attitude. Never say Tah Core. If spelling helps, think Thuh Core, but speak it naturally as Tha Core. NIA_REAL_JAMAICA_TIME_AT_VOICE_V1: Use the supplied current Jamaica time as the live time. Do not use old script time. If unsure, say right now in Jamaica instead of giving an exact minute. NIA_ON_AIR_NATURAL_HOST_STYLE_V1: Speak as the live host from Thaa Core. Never talk about yourself in third person. Never say phrases like Nia needs to, Nia should, context, verified source, source update, or where the news came from. Do not read backend instructions on air. Sound natural, confident, and human. NIA_FRESH_NEWS_GUARD_V1: Use only fresh news items. Do not repeat old stories from last week as if they are new. If a story was already covered before, clearly label it as a follow-up, update, development, or continuing story. NIA_FOLLOWUP_NOT_REPEAT_RULE_V1: Repeated headline or same story angle must be framed as follow-up only. Never present repeats like fresh breaking news. NIA_WIDER_NEWS_AND_HOST_BREAK_POOL_V1: Cover Jamaica/local, Caribbean, Africa, United States, Canada, United Kingdom, Latin America, Europe, Asia, world affairs, sports, entertainment, Dancehall, Reggae, Hip-Hop, R&B, Hollywood, Bollywood, finance/business, technology, community, weather, road/life safety, music culture, and station/community notes when news items are available. NIA_HOST_PERSONALITY_ROTATION_V1: Nia is not only a news reader. For 10-30 second drops and 60-90 second breaks, rotate quick news, upcoming news tease, social comment, money/financial tip, relationship/life advice, light clean joke, sports/entertainment comment, artist/music culture note, country/city/town big-up, world observation, and motivational advice. Keep jokes clean and short. Keep advice practical and respectful. NIA_PLACE_BIG_UPS_V1: Big up countries, cities, towns, islands, parishes, communities, diaspora places, and listeners around the world including Jamaica, Montego Bay, Kingston, St. James, Hanover, Trelawny, Portmore, Ocho Rios, Negril, Mandeville, Miami, New York, London, Toronto, Atlanta, Brooklyn, Brixton, Trinidad, Barbados, Guyana, Bahamas, Africa, UK, US, Canada, Caribbean, and worldwide listeners. Use only news items. Do not invent news. Recap without repeating the same words every block.",
+        "NIA_BRAND_PRONUNCIATION_LOCK_V1: Always pronounce the station as Tha Core naturally, like the core with attitude. Never say Tah Core. If spelling helps, think Thuh Core, but speak it naturally as Tha Core. NIA_REAL_JAMAICA_TIME_AT_VOICE_V1: Use the supplied current Jamaica time as the live time. Do not use old script time. If unsure, say right now in Jamaica instead of giving an exact minute. NIA_ON_AIR_NATURAL_HOST_STYLE_V1: Speak as the live host from Tha Core. Never talk about yourself in third person. Never say phrases like Nia needs to, Nia should, context, verified source, source update, or where the news came from. Do not read backend instructions on air. Sound natural, confident, and human. NIA_FRESH_NEWS_GUARD_V1: Use only fresh news items. Do not repeat old stories from last week as if they are new. If a story was already covered before, clearly label it as a follow-up, update, development, or continuing story. NIA_FOLLOWUP_NOT_REPEAT_RULE_V1: Repeated headline or same story angle must be framed as follow-up only. Never present repeats like fresh breaking news. NIA_WIDER_NEWS_AND_HOST_BREAK_POOL_V1: Cover Jamaica/local, Caribbean, Africa, United States, Canada, United Kingdom, Latin America, Europe, Asia, world affairs, sports, entertainment, Dancehall, Reggae, Hip-Hop, R&B, Hollywood, Bollywood, finance/business, technology, community, weather, road/life safety, music culture, and station/community notes when news items are available. NIA_HOST_PERSONALITY_ROTATION_V1: Nia is not only a news reader. For 10-30 second drops and 60-90 second breaks, rotate quick news, upcoming news tease, social comment, money/financial tip, relationship/life advice, light clean joke, sports/entertainment comment, artist/music culture note, country/city/town big-up, world observation, and motivational advice. Keep jokes clean and short. Keep advice practical and respectful. NIA_PLACE_BIG_UPS_V1: Big up countries, cities, towns, islands, parishes, communities, diaspora places, and listeners around the world including Jamaica, Montego Bay, Kingston, St. James, Hanover, Trelawny, Portmore, Ocho Rios, Negril, Mandeville, Miami, New York, London, Toronto, Atlanta, Brooklyn, Brixton, Trinidad, Barbados, Guyana, Bahamas, Africa, UK, US, Canada, Caribbean, and worldwide listeners. Use only news items. Do not invent news. Recap without repeating the same words every block.",
       items,
     };
 
@@ -328,7 +373,87 @@ export async function POST(req: NextRequest) {
     // Shared fallback for all Nia news/program slots.
     // If AI retry still returns a short script, expand from news items only.
     // Do not lower the 7-minute rule and do not invent facts.
-    function estimateRunnerScriptSeconds(text: string) {
+    
+
+const NIA_ONAIR_SAFE_RULES_V3 = [
+  "Every full Nia news broadcast must include fresh confirmed updates from Jamaica local news, regional Caribbean news, international/world news, and sports.",
+  "Nia must not recycle the same stories by changing wording.",
+  "If a story already aired today and has no new development, skip it.",
+  "Nia must never read production notes, editor notes, backend notes, feed notes, runner notes, transition notes, verification notes, or source-checking notes on air.",
+  "Nia must never say rumor, rumours, verify, verification, context, source check, runner, backend, feed, soft transition, sound down, or sound up on air.",
+  "Nia speaks like a finished radio news anchor."
+].join(" ");
+
+function removeNiaPhraseCaseInsensitiveV3(text: string, phrase: string): string {
+  let out = String(text || "");
+  const needle = String(phrase || "").toLowerCase();
+  if (!needle) return out;
+
+  let lower = out.toLowerCase();
+  let index = lower.indexOf(needle);
+
+  while (index >= 0) {
+    out = out.slice(0, index) + out.slice(index + phrase.length);
+    lower = out.toLowerCase();
+    index = lower.indexOf(needle);
+  }
+
+  return out;
+}
+
+function applyNiaOnAirFirewallV3(input: string): string {
+  const bannedPhrases = [
+    "soft transition",
+    "sound down",
+    "sound up",
+    "no new update from runner",
+    "no new update",
+    "from runner",
+    "runner",
+    "rumour",
+    "rumor",
+    "context",
+    "verify",
+    "verification",
+    "verified before",
+    "unverified",
+    "source check",
+    "backend",
+    "feed",
+    "fade",
+    "duck",
+    "bring music",
+    "lower music",
+    "shouldn't be adding",
+    "should not be adding",
+    "same news pool",
+    "same verified news pool"
+  ];
+
+  let out = String(input || "");
+
+  for (const phrase of bannedPhrases) {
+    out = removeNiaPhraseCaseInsensitiveV3(out, phrase);
+  }
+
+  out = out
+    .replace(/\s{2,}/g, " ")
+    .replace(/\s+([.,!?;:])/g, "$1")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+
+  return out;
+}
+// NIA_ONAIR_SAFE_FIREWALL_V3
+
+const NIA_NO_RECYCLED_PADDING_V1 = [
+  "Do not pad Nia news by repeating the same story with new wording.",
+  "Do not force seven minutes if the fresh confirmed news pool is short.",
+  "A shorter fresh bulletin is better than a long repeated bulletin.",
+  "Every full bulletin should attempt Jamaica local, regional Caribbean, international/world, and sports.",
+  "If one category has no fresh confirmed item, move on cleanly without explaining the process."
+].join(" ");
+function estimateRunnerScriptSeconds(text: string) {
       const words = text.trim().split(/\s+/).filter(Boolean).length;
       return Math.max(8, Math.round((words / 145) * 60));
     }
@@ -343,10 +468,10 @@ export async function POST(req: NextRequest) {
 
       const expansionHeader = [
         "",
-        "Nia extended context and recap:",
+        "Nia extended news report:",
         `This is ${programName} for ${programSlot}.`,
-        "Before we close, here is the fuller context from the verified stories we are already carrying.",
-        "No unverified claims are being added. This is a careful expansion of the same verified news pool."
+        "Before we close, here is more from the confirmed stories we are carrying.",
+        "Only fresh confirmed updates are included. Do not recycle old stories or pad the bulletin by changing wording."
       ].join(" ");
 
       const expansionSections = items.map((item, index) => {
@@ -359,16 +484,16 @@ export async function POST(req: NextRequest) {
           `Extended item ${index + 1}, ${category}.`,
           headline ? `Headline: ${headline}.` : "",
           sourceName ? `Verified source: ${sourceName}.` : "",
-          summary ? `Context: ${summary}` : "",
+          summary ? `Story background: ${summary}` : "",
           "Why it matters: listeners should understand the practical impact, the community angle, and what may need follow-up from official or verified sources.",
-          "Nia keeps this factual, calm, and clear, without adding rumors or unconfirmed details."
+          "Nia keeps this factual, calm, and clear, using confirmed details only."
         ]
           .filter(Boolean)
           .join(" ");
       });
 
       const recapSections = [
-        "Nia recap:",
+        "Nia fresh update:",
         "The main stories in this update connect back to community safety, public trust, business pressure, weather awareness, culture, sports, and the daily lives of listeners.",
         "The key reminder is simple: stay informed, check verified sources, and do not spread claims that have not been confirmed.",
         "Tha Core will keep the music clean, the information useful, and the station focused on service.",
@@ -404,8 +529,8 @@ ${block}`, "", 40000);
         `Aim for about ${targetMinutes} minutes while staying inside the 7 to 15 minute Nia news/program window.`,
         "Do not write a short bulletin.",
         "Develop each verified item with headline, context, why it matters, what listeners should watch next, and smooth transitions.",
-        "Use only verified supplied items. Do not invent facts.",
-        "If the available items are many, cover more items. If the items are few, develop each item more deeply while staying factual.",
+        "Use only confirmed supplied or freshly fetched items. Do not invent facts.",
+        "If the available items are many, cover more items. If the items are few, keep the bulletin shorter instead of padding or repeating stories.",
         "The output must be a full radio script, not notes, not bullets, and not a summary."
       ].join(" ");
 
@@ -485,7 +610,7 @@ ${block}`, "", 40000);
         `The previous script was estimated at only ${estimatedMinutes} minutes.`,
         `That is below the locked ${requestedMinutes}-minute minimum.`,
         "Regenerate a longer version now.",
-        "Keep the same verified facts, but expand the explanation, transitions, context, station framing, recap, and listener takeaways.",
+        "Do not reuse the same facts just to fill time. Prioritize fresh confirmed updates from Jamaica, regional Caribbean, international/world, and sports. If there are not enough fresh items, keep the bulletin shorter and return to music.",
         "Do not add fake facts. Do not add filler. Make it a real full-length Nia program script."
       ].join(" ");
 
@@ -501,6 +626,9 @@ ${block}`, "", 40000);
         }
       }
 
+      script = applyNiaOnAirFirewallV3(script);
+      script = applyNiaOnAirFirewallV3(script);
+      script = applyNiaOnAirFirewallV3(script);
       if (estimateRunnerScriptSeconds(script) < requestedMinimumSeconds) {
         const fallbackScript = buildVerifiedExpansionFallback(
           script,
@@ -615,3 +743,10 @@ ${block}`, "", 40000);
     );
   }
 }
+
+
+
+
+
+
+
