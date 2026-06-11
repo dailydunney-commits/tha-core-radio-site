@@ -221,7 +221,7 @@ function SmartZjRequestTimerPanel() {
 
   return (
     <section className="owner-request-timer-panel panel">
-      <style jsx>{`
+      <style>{`
         .owner-request-timer-panel {
           border: 1px solid rgba(255, 215, 0, 0.35);
           border-radius: 18px;
@@ -1083,7 +1083,7 @@ return {
   return (
     <section className="owner-control-smartdj-playlist panel">
       <audio ref={audioRef} preload="none" />
-      <style jsx>{`
+      <style>{`
         @keyframes smartDjDetectorBlink {
           0%, 100% {
             opacity: 1;
@@ -3416,7 +3416,7 @@ const SELECTED_DISPLAY_MEMORY_KEY = "tha-core-owner-selected-display-v1";
         </footer>
       </section>
 
-      <style jsx global>{`
+      <style>{`
         * { box-sizing: border-box; }
 
         /* OWNER_FOCUS_HIDE_MAIN_STUDIO_GLOBAL_RULE_V1 */
@@ -4958,4 +4958,5 @@ function ControlSlider({
 
 
 // SMARTDJ_DISPATCH_LOADED_MESSAGE_COUNT_ONLY_V1
+
 

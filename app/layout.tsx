@@ -1,5 +1,5 @@
-import { headers } from "next/headers";
-import PersistentRadioPlayer from "./components/PersistentRadioPlayer";
+﻿import { headers } from "next/headers";
+import PublicRadioPlayerGate from "./components/PublicRadioPlayerGate";
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import RootShell from "@/components/root-shell";
@@ -41,8 +41,9 @@ export default async function RootLayout({
       >
         <OwnerEditorHomeButton />
         <RootShell>{children}</RootShell>
-        {!hidePublicPlayerOnAdminHost && <PersistentRadioPlayer />}
+        {!hidePublicPlayerOnAdminHost && <PublicRadioPlayerGate />}
       </body>
     </html>
   );
 }
+
