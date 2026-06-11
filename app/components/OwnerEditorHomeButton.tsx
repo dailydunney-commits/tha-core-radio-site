@@ -2,29 +2,14 @@
 
 import { useEffect, useState } from "react";
 
-function shouldShowOwnerHomeButton() {
-  if (typeof window === "undefined") return false;
-
-  const path = window.location.pathname.toLowerCase();
-  const href = window.location.href.toLowerCase();
-  const search = window.location.search.toLowerCase();
-
-  return (
-    path.startsWith("/owner") &&
-    (
-      search.includes("schedule") ||
-      search.includes("editor") ||
-      href.includes("schedule-editor") ||
-      href.includes("panel=schedule")
-    )
-  );
-}
-
 export default function OwnerEditorHomeButton() {
   const [show, setShow] = useState(false);
 
   useEffect(() => {
-    const check = () => setShow(shouldShowOwnerHomeButton());
+    const check = () => {
+      if (typeof window === "undefined") return;
+      setShow(window.location.pathname.toLowerCase().startsWith("/owner"));
+    };
 
     check();
     const timer = window.setInterval(check, 500);
