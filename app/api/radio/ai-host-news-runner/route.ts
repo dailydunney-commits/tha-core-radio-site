@@ -387,7 +387,18 @@ const NIA_ONAIR_SAFE_RULES_V3 = [
 function removeNiaPhraseCaseInsensitiveV3(text: string, phrase: string): string {
   let out = String(text || "");
   const needle = String(phrase || "").toLowerCase();
-  if (!needle) return out;
+  if (!needle) return out
+    .replace(/\bExtended item\s+\d+[^.!?\n]*(\.|!|\?)?/gi, "")
+    .replace(/\bStory background\b[:\-]*/gi, "")
+    .replace(/\bWhy it matters\b[:\-]*/gi, "")
+    .replace(/\bHeadline\b[:\-]*/gi, "")
+    .replace(/\bSource\b[:\-]*/gi, "")
+    .replace(/\bNia\s+(keeps|should|must|says|will say|needs to)\b[^.!?\n]*(\.|!|\?)?/gi, "")
+    .replace(/\bDo not add stale story\b[^.!?\n]*(\.|!|\?)?/gi, "")
+    .replace(/\bRegenerate a longer version now\b[^.!?\n]*(\.|!|\?)?/gi, "")
+    .replace(/\bThe previous script was estimated\b[^.!?\n]*(\.|!|\?)?/gi, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 
   let lower = out.toLowerCase();
   let index = lower.indexOf(needle);
@@ -398,7 +409,18 @@ function removeNiaPhraseCaseInsensitiveV3(text: string, phrase: string): string 
     index = lower.indexOf(needle);
   }
 
-  return out;
+  return out
+    .replace(/\bExtended item\s+\d+[^.!?\n]*(\.|!|\?)?/gi, "")
+    .replace(/\bStory background\b[:\-]*/gi, "")
+    .replace(/\bWhy it matters\b[:\-]*/gi, "")
+    .replace(/\bHeadline\b[:\-]*/gi, "")
+    .replace(/\bSource\b[:\-]*/gi, "")
+    .replace(/\bNia\s+(keeps|should|must|says|will say|needs to)\b[^.!?\n]*(\.|!|\?)?/gi, "")
+    .replace(/\bDo not add stale story\b[^.!?\n]*(\.|!|\?)?/gi, "")
+    .replace(/\bRegenerate a longer version now\b[^.!?\n]*(\.|!|\?)?/gi, "")
+    .replace(/\bThe previous script was estimated\b[^.!?\n]*(\.|!|\?)?/gi, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
 
 function applyNiaOnAirFirewallV3(input: string): string {
@@ -408,6 +430,22 @@ function applyNiaOnAirFirewallV3(input: string): string {
     "sound up",
     "no new update from production",
     "no new update",
+    "extended item",
+    "story background",
+    "why it matters",
+    "nia keeps",
+    "nia should",
+    "nia must",
+    "nia says",
+    "nia will say",
+    "do not add stale story",
+    "do not add fake facts",
+    "do not add filler",
+    "regenerate a longer version",
+    "previous script was estimated",
+    "below the locked",
+    "source:",
+    "headline:",
     "from production",
     "production",
     "rumour",
@@ -442,7 +480,18 @@ function applyNiaOnAirFirewallV3(input: string): string {
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 
-  return out;
+  return out
+    .replace(/\bExtended item\s+\d+[^.!?\n]*(\.|!|\?)?/gi, "")
+    .replace(/\bStory background\b[:\-]*/gi, "")
+    .replace(/\bWhy it matters\b[:\-]*/gi, "")
+    .replace(/\bHeadline\b[:\-]*/gi, "")
+    .replace(/\bSource\b[:\-]*/gi, "")
+    .replace(/\bNia\s+(keeps|should|must|says|will say|needs to)\b[^.!?\n]*(\.|!|\?)?/gi, "")
+    .replace(/\bDo not add stale story\b[^.!?\n]*(\.|!|\?)?/gi, "")
+    .replace(/\bRegenerate a longer version now\b[^.!?\n]*(\.|!|\?)?/gi, "")
+    .replace(/\bThe previous script was estimated\b[^.!?\n]*(\.|!|\?)?/gi, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
 // NIA_ONAIR_SAFE_FIREWALL_V3
 
@@ -482,11 +531,11 @@ function estimateRunnerScriptSeconds(text: string) {
 
         return [
           `Extended item ${index + 1}, ${category}.`,
-          headline ? `Headline: ${headline}.` : "",
-          sourceName ? `Source: ${sourceName}.` : "",
-          summary ? `Story background: ${summary}` : "",
-          "Why it matters: listeners should understand the practical impact, the community angle, and what may need follow-up from official confirmed reports.",
-          "Nia keeps this factual, calm, and clear, using confirmed details only."
+          headline ? `${headline}.` : "",
+          sourceName ? `This update is attributed to ${sourceName}.` : "",
+          summary ? `${summary}` : "",
+          "This matters for listeners because it may affect the community, public services, safety, business, travel, culture, or daily life.",
+          "Keep the update factual, calm, clear, and based only on confirmed details."
         ]
           .filter(Boolean)
           .join(" ");
@@ -740,6 +789,7 @@ ${block}`, "", 40000);
     );
   }
 }
+
 
 
 
