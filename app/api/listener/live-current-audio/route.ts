@@ -8,6 +8,7 @@ export const dynamic = "force-dynamic";
 
 const ROOT_DIR = process.cwd();
 const PUBLIC_DIR = path.join(ROOT_DIR, "public");
+const AI_HOST_DIR = path.join(PUBLIC_DIR, "audio", "ai-host");
 const DATA_DIR = path.join(ROOT_DIR, ".data");
 const CURRENT_BROADCAST_FILE = path.join(DATA_DIR, "current-broadcast.json");
 const DEBUG_FILE = path.join(DATA_DIR, "live-current-audio-debug.json");
@@ -16,31 +17,10 @@ type AnyObj = Record<string, any>;
 
 async function readJson(file: string): Promise<AnyObj | null> {
   try {
-    const raw = await fs.readFile(file, "utf8");
-    return JSON.parse(raw);
+    return JSON.parse(await fs.readFile(file, "utf8"));
   } catch {
     return null;
   }
-}
-
-function safePublicAudioPath(url: unknown): string | null {
-  if (typeof url !== "string" || !url.trim()) return null;
-
-  let clean = url.split("?")[0].split("#")[0].trim();
-
-  try {
-    clean = decodeURIComponent(clean);
-  } catch {
-    return null;
-  }
-
-  if (!clean.startsWith("/audio/")) return null;
-
-  const file = path.normalize(path.join(PUBLIC_DIR, clean.replace(/^\/+/, "")));
-  const publicRoot = path.normalize(PUBLIC_DIR + path.sep);
-
-  if (!file.startsWith(publicRoot)) return null;
-  return file;
 }
 
 async function writeDebug(payload: AnyObj) {
@@ -48,6 +28,13 @@ async function writeDebug(payload: AnyObj) {
     await fs.mkdir(DATA_DIR, { recursive: true });
     await fs.writeFile(DEBUG_FILE, JSON.stringify(payload, null, 2));
   } catch {}
+}
+
+function safeMp3FileName(value: string | null): string | null {
+  const file = String(value || "").trim();
+  if (!/^[a-zA-Z0-9._-]+\.mp3$/.test(file)) return null;
+  if (file.includes("..") || file.includes("/") || file.includes("\\")) return null;
+  return file;
 }
 
 function getCurrentAudioUrl(current: AnyObj): string {
@@ -64,17 +51,56 @@ function getCurrentAudioUrl(current: AnyObj): string {
   );
 }
 
+function resolveAudioFile(audioUrl: string): { file: string | null; reason: string } {
+  const raw = String(audioUrl || "").trim();
+
+  if (raw.startsWith("/api/listener/ai-host-audio")) {
+    const url = new URL(raw, "http://127.0.0.1");
+    const safeName = safeMp3FileName(url.searchParams.get("file"));
+
+    if (!safeName) {
+      return { file: null, reason: "UNSAFE_AI_HOST_AUDIO_FILE" };
+    }
+
+    return {
+      file: path.join(AI_HOST_DIR, safeName),
+      reason: "OWNER_AI_HOST_AUDIO_ROUTE",
+    };
+  }
+
+  if (raw.startsWith("/audio/")) {
+    let clean = raw.split("?")[0].split("#")[0].trim();
+
+    try {
+      clean = decodeURIComponent(clean);
+    } catch {
+      return { file: null, reason: "BAD_AUDIO_URL_ENCODING" };
+    }
+
+    const file = path.normalize(path.join(PUBLIC_DIR, clean.replace(/^\/+/, "")));
+    const publicRoot = path.normalize(PUBLIC_DIR + path.sep);
+
+    if (!file.startsWith(publicRoot)) {
+      return { file: null, reason: "AUDIO_PATH_OUTSIDE_PUBLIC" };
+    }
+
+    return { file, reason: "OWNER_PUBLIC_AUDIO_PATH" };
+  }
+
+  return { file: null, reason: "UNSUPPORTED_OWNER_AUDIO_URL" };
+}
+
 async function handle(req: NextRequest) {
   const current = await readJson(CURRENT_BROADCAST_FILE);
   const currentAudio = current ? getCurrentAudioUrl(current) : "";
-  const file = safePublicAudioPath(currentAudio);
+  const resolved = resolveAudioFile(currentAudio);
 
-  if (!current || !file) {
+  if (!current || !resolved.file) {
     await writeDebug({
       at: new Date().toISOString(),
       method: req.method,
       ok: false,
-      reason: "NO_VALID_OWNER_CURRENT_AUDIO",
+      reason: resolved.reason,
       currentAudio,
       programName: current?.programName || null,
       title: current?.title || null,
@@ -85,13 +111,14 @@ async function handle(req: NextRequest) {
       headers: {
         "Cache-Control": "no-store, no-cache, must-revalidate",
         "X-Tha-Core-No-Old-Fallback": "true",
+        "X-Tha-Core-Reason": resolved.reason,
       },
     });
   }
 
   let stat;
   try {
-    stat = await fs.stat(file);
+    stat = await fs.stat(resolved.file);
     if (!stat.isFile()) throw new Error("not file");
   } catch {
     await writeDebug({
@@ -100,7 +127,8 @@ async function handle(req: NextRequest) {
       ok: false,
       reason: "OWNER_CURRENT_AUDIO_FILE_MISSING",
       currentAudio,
-      file,
+      resolvedReason: resolved.reason,
+      file: resolved.file,
       programName: current.programName || null,
       title: current.title || null,
     });
@@ -110,6 +138,7 @@ async function handle(req: NextRequest) {
       headers: {
         "Cache-Control": "no-store, no-cache, must-revalidate",
         "X-Tha-Core-No-Old-Fallback": "true",
+        "X-Tha-Core-Reason": "OWNER_CURRENT_AUDIO_FILE_MISSING",
       },
     });
   }
@@ -121,9 +150,10 @@ async function handle(req: NextRequest) {
     at: new Date().toISOString(),
     method: req.method,
     ok: true,
-    reason: "OWNER_CURRENT_DIRECT_AUDIO_ONLY",
+    reason: resolved.reason,
+    mode: "OWNER_CURRENT_AUDIO_ROUTE_AWARE",
     currentAudio,
-    file: path.basename(file),
+    file: path.basename(resolved.file),
     size,
     range: range || null,
     programName: current.programName || current.track?.programName || null,
@@ -138,7 +168,8 @@ async function handle(req: NextRequest) {
     Expires: "0",
     "X-Tha-Core-Current-Broadcast": "true",
     "X-Tha-Core-No-Old-Fallback": "true",
-    "X-Tha-Core-Audio-Mode": "OWNER_CURRENT_DIRECT_AUDIO_ONLY",
+    "X-Tha-Core-Audio-Mode": "OWNER_CURRENT_AUDIO_ROUTE_AWARE",
+    "X-Tha-Core-Resolved-Reason": resolved.reason,
   };
 
   if (req.method === "HEAD") {
@@ -159,7 +190,7 @@ async function handle(req: NextRequest) {
     const safeEnd = Math.max(safeStart, Math.min(end, size - 1));
     const chunkSize = safeEnd - safeStart + 1;
 
-    return new Response(createReadStream(file, { start: safeStart, end: safeEnd }) as any, {
+    return new Response(createReadStream(resolved.file, { start: safeStart, end: safeEnd }) as any, {
       status: 206,
       headers: {
         ...baseHeaders,
@@ -169,7 +200,7 @@ async function handle(req: NextRequest) {
     });
   }
 
-  return new Response(createReadStream(file) as any, {
+  return new Response(createReadStream(resolved.file) as any, {
     status: 200,
     headers: {
       ...baseHeaders,
