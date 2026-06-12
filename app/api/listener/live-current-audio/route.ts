@@ -175,7 +175,7 @@ async function handle(req: NextRequest) {
   const preferDirect =
     current.track?.stitchedAudio === true ||
     current.sequence?.stitchedAudio === true ||
-    directAudioUrl.includes("stitched");
+    directAudioUrl.includes("stitched") || directAudioUrl.includes("program-archive") || current.track?.archivedPlayback === true || current.archivedPlayback === true;
 
   let files: { file: string; size: number; reason: string; partNumber: number; title: string }[] = [];
 
@@ -297,4 +297,5 @@ export async function GET(req: NextRequest) {
 export async function HEAD(req: NextRequest) {
   return handle(req);
 }
+
 
