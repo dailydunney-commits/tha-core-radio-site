@@ -170,12 +170,30 @@ async function handle(req: NextRequest) {
     return new Response("No current broadcast.", { status: 404 });
   }
 
-  let files = await collectCurrentProgramFiles(current);
+  const directAudioUrl = getCurrentAudioUrl(current);
+  const direct = await existingAudioFile(directAudioUrl);
+  const preferDirect =
+    current.track?.stitchedAudio === true ||
+    current.sequence?.stitchedAudio === true ||
+    directAudioUrl.includes("stitched");
 
-  if (files.length < 1) {
-    const direct = await existingAudioFile(getCurrentAudioUrl(current));
-    if (direct) {
-      files = [{ ...direct, partNumber: Number(current.track?.partNumber || 1), title: String(current.title || "Current Broadcast") }];
+  let files: { file: string; size: number; reason: string; partNumber: number; title: string }[] = [];
+
+  if (preferDirect && direct) {
+    files = [{
+      ...direct,
+      partNumber: 1,
+      title: String(current.title || "Current Broadcast Stitched Audio"),
+    }];
+  } else {
+    files = await collectCurrentProgramFiles(current);
+
+    if (files.length < 1 && direct) {
+      files = [{
+        ...direct,
+        partNumber: Number(current.track?.partNumber || 1),
+        title: String(current.title || "Current Broadcast"),
+      }];
     }
   }
 
@@ -279,3 +297,4 @@ export async function GET(req: NextRequest) {
 export async function HEAD(req: NextRequest) {
   return handle(req);
 }
+
