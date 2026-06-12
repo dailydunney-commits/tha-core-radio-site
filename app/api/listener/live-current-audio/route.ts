@@ -1,349 +1,314 @@
-﻿import fs from "fs";
+﻿import { NextRequest } from "next/server";
+import fs from "fs/promises";
 import path from "path";
+import { createReadStream } from "fs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+const ROOT_DIR = process.cwd();
+const PUBLIC_DIR = path.join(ROOT_DIR, "public");
+const DATA_DIR = path.join(ROOT_DIR, ".data");
+const AI_HOST_DIR = path.join(PUBLIC_DIR, "audio", "ai-host");
+const LONG_SHOW_DIR = path.join(DATA_DIR, "ai-host-long-show-programs");
+const CURRENT_BROADCAST_FILE = path.join(DATA_DIR, "current-broadcast.json");
+const DEBUG_FILE = path.join(DATA_DIR, "live-current-audio-debug.json");
+
 type AnyObj = Record<string, any>;
 
-const ROOT = process.cwd();
-const DATA_DIR = path.join(ROOT, ".data");
-const CURRENT_PATH = path.join(DATA_DIR, "current-broadcast.json");
-const DEBUG_PATH = path.join(DATA_DIR, "live-current-audio-debug.json");
-const PROGRAM_DIR = path.join(DATA_DIR, "ai-host-long-show-programs");
-const PUBLIC_DIR = path.join(ROOT, "public");
-
-function readJson(filePath: string): AnyObj | null {
+async function readJson(file: string): Promise<AnyObj | null> {
   try {
-    return JSON.parse(fs.readFileSync(filePath, "utf8"));
+    const raw = await fs.readFile(file, "utf8");
+    return JSON.parse(raw);
   } catch {
     return null;
   }
 }
 
-function writeDebug(payload: AnyObj) {
+async function existsFile(file: string): Promise<boolean> {
   try {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
-    fs.writeFileSync(
-      DEBUG_PATH,
-      JSON.stringify(
-        {
-          at: new Date().toISOString(),
-          ...payload,
-        },
-        null,
-        2
-      )
-    );
-  } catch {}
+    const stat = await fs.stat(file);
+    return stat.isFile();
+  } catch {
+    return false;
+  }
 }
 
-function insidePublic(filePath: string): boolean {
-  const publicRoot = path.resolve(PUBLIC_DIR);
-  const target = path.resolve(filePath);
-  return target === publicRoot || target.startsWith(publicRoot + path.sep);
-}
+function safePublicAudioPath(url: unknown): string | null {
+  if (typeof url !== "string" || !url.trim()) return null;
 
-function normalizeAudioPath(raw: unknown): string {
-  const value = String(raw || "").trim();
-  if (!value) return "";
+  let clean = url.split("?")[0].split("#")[0].trim();
 
   try {
-    if (value.startsWith("http://") || value.startsWith("https://")) {
-      const parsed = new URL(value);
-      return parsed.pathname;
+    clean = decodeURIComponent(clean);
+  } catch {
+    return null;
+  }
+
+  if (!clean.startsWith("/audio/")) return null;
+
+  const file = path.normalize(path.join(PUBLIC_DIR, clean.replace(/^\/+/, "")));
+  const publicRoot = path.normalize(PUBLIC_DIR + path.sep);
+
+  if (!file.startsWith(publicRoot)) return null;
+  return file;
+}
+
+function basename(fileOrUrl: string): string {
+  return path.basename(fileOrUrl.split("?")[0].split("#")[0]);
+}
+
+function getPartNumber(name: string): number {
+  const match = basename(name).match(/part-(\d+)/i);
+  return match ? Number.parseInt(match[1], 10) || 0 : 0;
+}
+
+function getLongShowPrefix(name: string): string | null {
+  const base = basename(name);
+  const match = base.match(/^(.*?)-part-\d{1,4}-/i);
+  return match?.[1] || null;
+}
+
+function collectAudioUrls(value: unknown, out: string[] = []): string[] {
+  if (typeof value === "string") {
+    if (value.includes("/audio/ai-host/") && value.toLowerCase().includes(".mp3")) {
+      out.push(value);
     }
-  } catch {}
+    return out;
+  }
 
-  return value.split("?")[0].trim();
-}
+  if (Array.isArray(value)) {
+    for (const item of value) collectAudioUrls(item, out);
+    return out;
+  }
 
-function publicAudioFile(raw: unknown): string | null {
-  const audioPath = normalizeAudioPath(raw);
-
-  if (!audioPath.startsWith("/audio/")) return null;
-  if (audioPath.includes("/api/listener/live-current-audio")) return null;
-
-  const filePath = path.join(PUBLIC_DIR, audioPath.replace(/^\/+/, ""));
-
-  if (!insidePublic(filePath)) return null;
-  if (!fs.existsSync(filePath)) return null;
-
-  const stat = fs.statSync(filePath);
-  if (!stat.isFile() || stat.size <= 0) return null;
-
-  return filePath;
-}
-
-function uniqueFiles(files: Array<string | null | undefined>): string[] {
-  const seen = new Set<string>();
-  const out: string[] = [];
-
-  for (const file of files) {
-    if (!file) continue;
-    const full = path.resolve(file);
-    if (seen.has(full)) continue;
-    if (!fs.existsSync(full)) continue;
-    seen.add(full);
-    out.push(full);
+  if (value && typeof value === "object") {
+    for (const item of Object.values(value as AnyObj)) collectAudioUrls(item, out);
   }
 
   return out;
 }
 
-function listManifestFiles(): string[] {
-  if (!fs.existsSync(PROGRAM_DIR)) return [];
+async function walkJsonFiles(dir: string): Promise<string[]> {
+  try {
+    const entries = await fs.readdir(dir, { withFileTypes: true });
+    const files: string[] = [];
 
-  return fs
-    .readdirSync(PROGRAM_DIR)
-    .filter((name) => name.toLowerCase().endsWith(".json"))
-    .map((name) => path.join(PROGRAM_DIR, name))
-    .filter((file) => fs.existsSync(file))
-    .sort((a, b) => fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs);
-}
-
-function audioParts(manifest: AnyObj | null): AnyObj[] {
-  if (!manifest) return [];
-
-  const parts = Array.isArray(manifest.audioParts)
-    ? manifest.audioParts
-    : Array.isArray(manifest.parts)
-      ? manifest.parts
-      : [];
-
-  return parts
-    .filter((part: AnyObj) => part && (part.audioUrl || part.storageUrl))
-    .sort((a: AnyObj, b: AnyObj) => Number(a.partNumber || 0) - Number(b.partNumber || 0));
-}
-
-function findMatchingManifest(current: AnyObj): AnyObj | null {
-  const currentAudio = normalizeAudioPath(current.audioUrl || current.streamUrl || current.listen_url);
-  const currentProgramId = String(current.programId || "");
-  const currentProgramName = String(current.programName || current.showName || current.playlist || "").toLowerCase();
-
-  for (const file of listManifestFiles()) {
-    const manifest = readJson(file);
-    if (!manifest) continue;
-
-    const manifestId = String(manifest.programId || "");
-    const manifestName = String(manifest.showName || manifest.programName || "").toLowerCase();
-
-    const parts = audioParts(manifest);
-    const hasCurrentAudio = parts.some((part) => {
-      const partAudio = normalizeAudioPath(part.audioUrl || part.storageUrl);
-      return currentAudio && partAudio === currentAudio;
-    });
-
-    if (
-      (currentProgramId && manifestId === currentProgramId) ||
-      (currentProgramName && manifestName === currentProgramName) ||
-      hasCurrentAudio
-    ) {
-      return manifest;
+    for (const entry of entries) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        files.push(...(await walkJsonFiles(full)));
+      } else if (entry.isFile() && entry.name.toLowerCase().endsWith(".json")) {
+        files.push(full);
+      }
     }
-  }
 
-  return null;
+    return files;
+  } catch {
+    return [];
+  }
 }
 
-function collectMp3Files(dirPath: string, max = 40): string[] {
-  const found: string[] = [];
+async function fromLongShowManifest(current: AnyObj): Promise<string[]> {
+  const programId = String(current.programId || current.track?.programId || "");
+  const programName = String(current.programName || current.track?.programName || "");
+  const currentAudio = String(current.audioUrl || current.track?.audioUrl || "");
+  const prefix = getLongShowPrefix(currentAudio);
 
-  function walk(folder: string) {
-    if (!fs.existsSync(folder)) return;
+  const jsonFiles = await walkJsonFiles(LONG_SHOW_DIR);
+  const selected: string[] = [];
 
-    for (const item of fs.readdirSync(folder)) {
-      const full = path.join(folder, item);
-      let stat: fs.Stats;
-
-      try {
-        stat = fs.statSync(full);
-      } catch {
-        continue;
-      }
-
-      if (stat.isDirectory()) {
-        walk(full);
-        continue;
-      }
-
+  for (const jsonFile of jsonFiles) {
+    let parsed: AnyObj | null = null;
+    try {
+      const raw = await fs.readFile(jsonFile, "utf8");
       if (
-        stat.isFile() &&
-        stat.size > 0 &&
-        full.toLowerCase().endsWith(".mp3") &&
-        insidePublic(full)
+        (programId && !raw.includes(programId)) &&
+        (programName && !raw.includes(programName)) &&
+        (prefix && !raw.includes(prefix))
       ) {
-        found.push(full);
+        continue;
       }
+      parsed = JSON.parse(raw);
+    } catch {
+      continue;
+    }
+
+    const urls = collectAudioUrls(parsed);
+    for (const url of urls) {
+      if (prefix && !basename(url).startsWith(`${prefix}-part-`)) continue;
+      const file = safePublicAudioPath(url);
+      if (file && await existsFile(file)) selected.push(file);
     }
   }
 
-  walk(dirPath);
-
-  return found
-    .sort((a, b) => fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs)
-    .slice(0, max);
+  return Array.from(new Set(selected)).sort((a, b) => getPartNumber(a) - getPartNumber(b));
 }
 
-function buildSequence(current: AnyObj): { files: string[]; reason: string; currentAudio: string } {
-  const currentAudio = normalizeAudioPath(current.audioUrl || current.streamUrl || current.listen_url);
+async function fromAiHostPrefix(currentAudio: string): Promise<string[]> {
+  const prefix = getLongShowPrefix(currentAudio);
+  if (!prefix) return [];
 
-  const directCurrent = publicAudioFile(currentAudio);
+  try {
+    const entries = await fs.readdir(AI_HOST_DIR, { withFileTypes: true });
+    const files = entries
+      .filter((entry) => entry.isFile())
+      .map((entry) => entry.name)
+      .filter((name) => name.startsWith(`${prefix}-part-`) && name.toLowerCase().endsWith(".mp3"))
+      .map((name) => path.join(AI_HOST_DIR, name))
+      .sort((a, b) => getPartNumber(a) - getPartNumber(b));
 
-  const manifest = findMatchingManifest(current);
-  const manifestParts = audioParts(manifest);
-
-  const manifestFiles = manifestParts.map((part) => publicAudioFile(part.audioUrl || part.storageUrl));
-  const currentIndex = manifestParts.findIndex((part) => {
-    const partAudio = normalizeAudioPath(part.audioUrl || part.storageUrl);
-    return currentAudio && partAudio === currentAudio;
-  });
-
-  if (manifestFiles.some(Boolean)) {
-    const validParts = manifestParts
-      .map((part) => ({
-        part,
-        file: publicAudioFile(part.audioUrl || part.storageUrl),
-      }))
-      .filter((x) => x.file);
-
-    const start = currentIndex >= 0 ? currentIndex : 0;
-    const ordered = [
-      ...validParts.slice(start),
-      ...validParts.slice(0, start),
-    ].map((x) => x.file);
-
-    return {
-      files: uniqueFiles([directCurrent, ...ordered]),
-      reason: "MATCHED_LONG_SHOW_MANIFEST",
-      currentAudio,
-    };
+    const existing: string[] = [];
+    for (const file of files) {
+      if (await existsFile(file)) existing.push(file);
+    }
+    return existing;
+  } catch {
+    return [];
   }
+}
 
-  if (directCurrent) {
-    const aiHostFallback = collectMp3Files(path.join(PUBLIC_DIR, "audio", "ai-host"), 30);
-    return {
-      files: uniqueFiles([directCurrent, ...aiHostFallback]),
-      reason: "DIRECT_CURRENT_PLUS_AI_HOST_FALLBACK",
-      currentAudio,
-    };
-  }
-
-  const latestManifest: AnyObj | null =
-    listManifestFiles()
-      .map((file) => readJson(file))
-      .find((item): item is AnyObj => Boolean(item && audioParts(item).length > 0)) || null;
-
-  const latestManifestFiles = audioParts(latestManifest).map((part) =>
-    publicAudioFile(part.audioUrl || part.storageUrl)
+async function selectCurrentBroadcastFiles(current: AnyObj): Promise<{ reason: string; files: string[]; currentAudio: string }> {
+  const currentAudio = String(
+    current.audioUrl ||
+      current.streamUrl ||
+      current.listen_url ||
+      current.cleanAudioUrl ||
+      current.track?.audioUrl ||
+      current.track?.streamUrl ||
+      current.track?.listen_url ||
+      ""
   );
 
-  if (latestManifestFiles.some(Boolean)) {
-    return {
-      files: uniqueFiles(latestManifestFiles),
-      reason: "LATEST_LONG_SHOW_MANIFEST_FALLBACK",
-      currentAudio,
-    };
+  const manifestFiles = await fromLongShowManifest(current);
+  if (manifestFiles.length > 0) {
+    return { reason: "CURRENT_LONG_SHOW_MANIFEST", files: manifestFiles, currentAudio };
   }
 
-  const aiHostOnly = collectMp3Files(path.join(PUBLIC_DIR, "audio", "ai-host"), 40);
+  const prefixFiles = await fromAiHostPrefix(currentAudio);
+  if (prefixFiles.length > 0) {
+    return { reason: "CURRENT_LONG_SHOW_PREFIX", files: prefixFiles, currentAudio };
+  }
 
-  return {
-    files: uniqueFiles(aiHostOnly),
-    reason: "AI_HOST_FOLDER_FALLBACK",
-    currentAudio,
-  };
+  const direct = safePublicAudioPath(currentAudio);
+  if (direct && await existsFile(direct)) {
+    return { reason: "CURRENT_DIRECT_AUDIO", files: [direct], currentAudio };
+  }
+
+  return { reason: "CURRENT_AUDIO_NOT_FOUND_NO_FALLBACK", files: [], currentAudio };
 }
 
-function responseHeaders(files: string[], reason: string): HeadersInit {
-  return {
-    "Content-Type": "audio/mpeg",
-    "Cache-Control": "no-store, no-cache, must-revalidate",
-    "X-Tha-Core-Current-Broadcast": "true",
-    "X-Tha-Core-Continuous-Chain": "true",
-    "X-Tha-Core-Chain-Count": String(files.length),
-    "X-Tha-Core-Chain-Reason": reason,
-  };
+async function writeDebug(payload: AnyObj) {
+  try {
+    await fs.mkdir(DATA_DIR, { recursive: true });
+    await fs.writeFile(DEBUG_FILE, JSON.stringify(payload, null, 2));
+  } catch {
+    // ignore debug write failure
+  }
 }
 
-export async function HEAD() {
-  const current = readJson(CURRENT_PATH) || {};
-  const sequence = buildSequence(current);
+async function* fileChunks(files: string[]) {
+  for (const file of files) {
+    const stream = createReadStream(file);
+    for await (const chunk of stream) {
+      if (typeof chunk === "string") {
+        yield Buffer.from(chunk);
+      } else {
+        yield chunk;
+      }
+    }
+  }
+}
 
-  writeDebug({
-    method: "HEAD",
-    ok: sequence.files.length > 0,
-    reason: sequence.reason,
-    currentAudio: sequence.currentAudio,
-    fileCount: sequence.files.length,
-    files: sequence.files.map((file) => path.basename(file)),
+function iteratorToStream(iterator: AsyncGenerator<Buffer>) {
+  return new ReadableStream<Uint8Array>({
+    async pull(controller) {
+      const result = await iterator.next();
+
+      if (result.done) {
+        controller.close();
+        return;
+      }
+
+      controller.enqueue(new Uint8Array(result.value));
+    },
+    async cancel() {
+      if (iterator.return) await iterator.return(undefined);
+    },
   });
+}
 
-  if (!sequence.files.length) {
-    return new Response(null, {
+async function handle(req: NextRequest) {
+  const current = await readJson(CURRENT_BROADCAST_FILE);
+
+  if (!current) {
+    await writeDebug({
+      at: new Date().toISOString(),
+      method: req.method,
+      ok: false,
+      reason: "NO_CURRENT_BROADCAST_FILE",
+    });
+
+    return new Response("No owner current broadcast.", {
       status: 404,
       headers: {
-        "Content-Type": "application/json",
-        "X-Tha-Core-Chain-Reason": sequence.reason,
-        "X-Tha-Core-Chain-Count": "0",
+        "Cache-Control": "no-store, no-cache, must-revalidate",
       },
     });
   }
 
-  return new Response(null, {
-    status: 200,
-    headers: responseHeaders(sequence.files, sequence.reason),
-  });
-}
+  const selected = await selectCurrentBroadcastFiles(current);
 
-export async function GET() {
-  const current = readJson(CURRENT_PATH) || {};
-  const sequence = buildSequence(current);
-
-  writeDebug({
-    method: "GET",
-    ok: sequence.files.length > 0,
-    reason: sequence.reason,
-    currentTitle: current.title || "",
-    currentProgram: current.programName || current.showName || current.playlist || "",
-    currentAudio: sequence.currentAudio,
-    fileCount: sequence.files.length,
-    files: sequence.files.map((file) => path.basename(file)),
+  await writeDebug({
+    at: new Date().toISOString(),
+    method: req.method,
+    ok: selected.files.length > 0,
+    reason: selected.reason,
+    currentAudio: selected.currentAudio,
+    programId: current.programId || current.track?.programId || null,
+    programName: current.programName || current.track?.programName || null,
+    fileCount: selected.files.length,
+    files: selected.files.map((file) => path.basename(file)),
   });
 
-  if (!sequence.files.length) {
-    return Response.json(
-      {
-        ok: false,
-        error: "NO_PLAYABLE_APPROVED_AUDIO_FOUND",
-        reason: sequence.reason,
-        currentTitle: current.title || "",
-        currentAudio: sequence.currentAudio,
+  if (selected.files.length < 1) {
+    return new Response("Owner current broadcast audio was not found. No old AI/Nia fallback was used.", {
+      status: 404,
+      headers: {
+        "Cache-Control": "no-store, no-cache, must-revalidate",
+        "X-Tha-Core-Current-Broadcast": "true",
+        "X-Tha-Core-No-Old-Fallback": "true",
+        "X-Tha-Core-Reason": selected.reason,
       },
-      { status: 404 }
-    );
+    });
   }
 
-  const stream = new ReadableStream<Uint8Array>({
-    async start(controller) {
-      try {
-        for (let cycle = 0; cycle < 50; cycle += 1) {
-          for (const filePath of sequence.files) {
-            const bytes = await fs.promises.readFile(filePath);
-            controller.enqueue(new Uint8Array(bytes));
-          }
-        }
+  const headers = {
+    "Content-Type": "audio/mpeg",
+    "Cache-Control": "no-store, no-cache, must-revalidate",
+    Pragma: "no-cache",
+    Expires: "0",
+    "X-Tha-Core-Current-Broadcast": "true",
+    "X-Tha-Core-No-Old-Fallback": "true",
+    "X-Tha-Core-Continuous-Chain": selected.files.length > 1 ? "true" : "false",
+    "X-Tha-Core-Chain-Count": String(selected.files.length),
+    "X-Tha-Core-Chain-Reason": selected.reason,
+  };
 
-        controller.close();
-      } catch (error) {
-        controller.error(error);
-      }
-    },
-  });
+  if (req.method === "HEAD") {
+    return new Response(null, { status: 200, headers });
+  }
 
-  return new Response(stream, {
+  return new Response(iteratorToStream(fileChunks(selected.files)), {
     status: 200,
-    headers: responseHeaders(sequence.files, sequence.reason),
+    headers,
   });
 }
 
+export async function GET(req: NextRequest) {
+  return handle(req);
+}
+
+export async function HEAD(req: NextRequest) {
+  return handle(req);
+}
