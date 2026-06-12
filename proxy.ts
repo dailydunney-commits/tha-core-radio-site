@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 
 const PROTECTED_PREFIXES = [
   "/owner",
@@ -9,6 +9,15 @@ const PROTECTED_PREFIXES = [
 ];
 
 function isProtectedPath(pathname: string) {
+  // PLAY_PROGRAM_NOW_LOCAL_DEV_BYPASS_V1
+  // Local Windows testing only. Production owner/security lock stays protected.
+  if (
+    process.env.NODE_ENV !== "production" &&
+    (pathname === "/api/radio/play-program-now" ||
+      pathname.startsWith("/api/radio/play-program-now/"))
+  ) {
+    return false;
+  }
   return PROTECTED_PREFIXES.some(
     (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
   );
@@ -247,6 +256,7 @@ export const config = {
     "/api/azuracast/control/:path*",
   ],
 };
+
 
 
 

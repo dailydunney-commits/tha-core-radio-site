@@ -1,579 +1,199 @@
 ﻿"use client";
 
-import { useEffect, useRef, useState } from "react";
-import type { CSSProperties } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
+type NowPlayingResponse = {
+  audioUrl?: string;
+  streamUrl?: string;
+  listen_url?: string;
+  cleanAudioUrl?: string;
+  title?: string;
+  artist?: string;
+  message?: string;
+  listeners?: {
+    total?: number;
+    current?: number;
+  };
+  station?: {
+    listen_url?: string;
+    mounts?: Array<{
+      url?: string;
+      is_default?: boolean;
+    }>;
+  };
+  now_playing?: {
+    song?: {
+      text?: string;
+      title?: string;
+      artist?: string;
+    };
+    playlist?: string;
+  };
+};
+
+function pickTitle(data: NowPlayingResponse | null) {
+  return (
+    data?.now_playing?.song?.text ||
+    [data?.artist, data?.title].filter(Boolean).join(" - ") ||
+    data?.title ||
+    "Current Broadcast"
+  );
+}
+
+function hasAudio(data: NowPlayingResponse | null) {
+  return Boolean(
+    data?.listen_url ||
+      data?.streamUrl ||
+      data?.audioUrl ||
+      data?.cleanAudioUrl ||
+      data?.station?.listen_url ||
+      data?.station?.mounts?.find((mount) => mount?.is_default)?.url ||
+      data?.station?.mounts?.[0]?.url
+  );
+}
 
 export default function PersistentRadioPlayer() {
-const [hideOnAdminSurface, setHideOnAdminSurface] = useState(() => {
-  if (typeof window === "undefined") return false;
-
-  const host = window.location.hostname.toLowerCase();
-  const path = window.location.pathname.toLowerCase();
-
-  return (
-    host.startsWith("admin.") ||
-    path.startsWith("/owner") ||
-    path.startsWith("/control-panel") ||
-    path.startsWith("/schedule")
-  );
-});
-
-useEffect(() => {
-  // ADMIN_HIDE_PERSISTENT_PLAYER_V1
-  // Public persistent player belongs on listener/public pages only.
-  // Hide it on admin/control surfaces so it does not fight the studio/control-panel monitor.
-  const host = window.location.hostname.toLowerCase();
-  const path = window.location.pathname.toLowerCase();
-
-  const shouldHide =
-    host.startsWith("admin.") ||
-    path.startsWith("/owner") ||
-    path.startsWith("/control-panel") ||
-    path.startsWith("/schedule");
-
-  setHideOnAdminSurface(shouldHide);
-}, []);
-
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-// SMARTZJ_MINI_AUTONEXT_PLAYER_V1
-  async function playNextSmartZjCleanTrack(kickWatchdog = false) {
-  const audio = audioRef.current;
-  if (!audio) return;
+  const [title, setTitle] = useState("Current Broadcast");
+  const [volume, setVolume] = useState(0.85);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [statusText, setStatusText] = useState("Ready to play current broadcast");
+  const [listeners, setListeners] = useState(0);
 
-  if ((audio as any).__smartZjAutoNextLock) return;
-  (audio as any).__smartZjAutoNextLock = true;
+  const pushGlobalState = useCallback(
+    (next?: Partial<{ isPlaying: boolean; message: string; nowPlaying: string; listeners: number }>) => {
+      window.dispatchEvent(
+        new CustomEvent("tha-core-radio-state", {
+          detail: {
+            isPlaying: next?.isPlaying ?? isPlaying,
+            message: next?.message ?? statusText,
+            nowPlaying: next?.nowPlaying ?? title,
+            listeners: next?.listeners ?? listeners,
+          },
+        })
+      );
+    },
+    [isPlaying, statusText, title, listeners]
+  );
 
-  window.setTimeout(() => {
-    if (audio) {
-      (audio as any).__smartZjAutoNextLock = false;
-    }
-  }, 2500);
-
-  try {
-    if (kickWatchdog) {
-      setMessage("Asking SmartZJ watchdog for the next clean broadcast...");
-      // PUBLIC_PLAYERS_FOLLOW_ONLY_V1: public players do not advance SmartZJ.
-    }
-
-    setMessage("Syncing to SmartZJ broadcast...");
-
-    const response = await fetch(`/api/listener/now-playing?persistentSync=${Date.now()}`, {
+  const refreshNowPlaying = useCallback(async () => {
+    const res = await fetch(`/api/listener/now-playing?fresh=${Date.now()}`, {
       cache: "no-store",
     });
 
-    const data = await response.json().catch(() => null);
-    const currentBroadcast = data?.currentBroadcast || {};
+    const data = (await res.json()) as NowPlayingResponse;
+    const nextTitle = pickTitle(data);
+    const nextListeners = data?.listeners?.current ?? data?.listeners?.total ?? 0;
+    const nextStatus = hasAudio(data)
+      ? data.message || "Current broadcast audio ready"
+      : data.message || "Waiting for owner/control panel current broadcast";
 
-    const nextUrl = String(
-      data?.streamUrl ||
-        data?.audioUrl ||
-        data?.listen_url ||
-        currentBroadcast?.audioUrl ||
-        ""
-    ).trim();
+    setTitle(nextTitle);
+    setListeners(nextListeners);
+    setStatusText(nextStatus);
 
-    const startedAt = String(
-      currentBroadcast?.startedAt ||
-        data?.live?.broadcast_start ||
-        ""
+    window.dispatchEvent(
+      new CustomEvent("tha-core-radio-state", {
+        detail: {
+          isPlaying: audioRef.current ? !audioRef.current.paused : false,
+          message: nextStatus,
+          nowPlaying: nextTitle,
+          listeners: nextListeners,
+        },
+      })
     );
 
-    if (!nextUrl) {
-      audio.pause();
-      setIsPlaying(false);
-      setMessage("Waiting for SmartZJ broadcast brain...");
-      return;
-    }
-
-    const absoluteNextUrl = new URL(nextUrl, window.location.origin).href;
-
-    if (!audio.src || audio.src !== absoluteNextUrl) {
-      audio.src = nextUrl;
-      audio.load();
-    }
-
-    if (audio.readyState < 1) {
-      await new Promise<void>((resolve) => {
-        let done = false;
-
-        const finish = () => {
-          if (done) return;
-          done = true;
-          audio.removeEventListener("loadedmetadata", finish);
-          audio.removeEventListener("canplay", finish);
-          resolve();
-        };
-
-        audio.addEventListener("loadedmetadata", finish);
-        audio.addEventListener("canplay", finish);
-        window.setTimeout(finish, 1800);
-      });
-    }
-
-    const started = Date.parse(startedAt);
-    if (Number.isFinite(started)) {
-      const elapsed = Math.max(0, Math.floor((Date.now() - started) / 1000));
-      const duration = Number(audio.duration || 0);
-      let target = elapsed;
-
-      if (Number.isFinite(duration) && duration > 5) {
-        target = Math.min(elapsed, Math.max(0, duration - 2));
-      }
-
-      if (target > 0 && Math.abs(audio.currentTime - target) > 4) {
-        audio.currentTime = target;
-      }
-    }
-
-    audio.volume = Math.max(0.75, Number(volume || 0));
-    await audio.play();
-
-    setIsPlaying(true);
-    setMessage("Synced to current SmartZJ broadcast");
-  } catch {
-    audio.pause();
-    setIsPlaying(false);
-    setMessage("Could not sync to SmartZJ broadcast");
-  }
-}
-
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-
-  const handleEnded = () => {
-    const endedUrl = audio.src;
-    setIsPlaying(false);
-    setMessage("Track ended. Waiting for control panel broadcast brain...");
-
-    const startedWaitingAt = Date.now();
-
-    void fetch(`/api/listener/smartzj-ended-resync?publicEnded=1&endedFollow=${Date.now()}`, {
-      method: "POST",
-      cache: "no-store",
-    }).catch(() => null);
-
-    const waitForNextBroadcast = async () => {
-      try {
-        const response = await fetch(`/api/listener/now-playing?endedFollow=${Date.now()}`, { cache: "no-store" });
-        const data = await response.json().catch(() => null);
-        const currentBroadcast = data?.currentBroadcast || {};
-        const nextUrl = String(data?.streamUrl || data?.audioUrl || data?.listen_url || currentBroadcast?.audioUrl || "").trim();
-
-        if (nextUrl) {
-          const absoluteNextUrl = new URL(nextUrl, window.location.origin).href;
-          if (absoluteNextUrl !== endedUrl) {
-            audio.src = nextUrl;
-            audio.load();
-            audio.volume = Math.max(0.75, Number(volume || 0));
-            await audio.play();
-            setIsPlaying(true);
-            setMessage("Following control panel broadcast");
-            return;
-          }
-        }
-      } catch {}
-
-      if (Date.now() - startedWaitingAt < 90000) {
-        window.setTimeout(waitForNextBroadcast, 750);
-      }
-    };
-
-    window.setTimeout(waitForNextBroadcast, 250);
-  };
-
-    audio.addEventListener("ended", handleEnded);
-
-    return () => {
-      audio.removeEventListener("ended", handleEnded);
-    };
+    return data;
   }, []);
 
-
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [volume, setVolume] = useState(0.85);
-  const [nowPlaying, setNowPlaying] = useState("Tha Core Live Mix");
-  const [listeners, setListeners] = useState("0");
-  const [message, setMessage] = useState("Ready to play live");
-
-  // PUBLIC_AUDIO_PRIME_BEFORE_CLICK_V1
-  // Keep current clean broadcast URL loaded before user taps Play.
-  async function primeCurrentBroadcastForPlay() {
-    const audio = audioRef.current;
-    if (!audio) return false;
-
-    try {
-      const response = await fetch(`/api/listener/now-playing?primeBeforePlay=${Date.now()}`, {
-        cache: "no-store",
-      });
-
-      const data = await response.json().catch(() => null);
-      const currentBroadcast = data?.currentBroadcast || {};
-      const song = data?.now_playing?.song || {};
-
-      const nextUrl = String(
-        data?.streamUrl ||
-          data?.audioUrl ||
-          data?.listen_url ||
-          currentBroadcast?.audioUrl ||
-          ""
-      ).trim();
-
-      if (!nextUrl) return false;
-
-      const absoluteNextUrl = new URL(nextUrl, window.location.origin).href;
-
-      if (!audio.src || audio.src !== absoluteNextUrl) {
-        audio.src = nextUrl;
-        audio.load();
-      }
-
-      setNowPlaying(String(song?.text || currentBroadcast?.title || "Tha Core Live Mix"));
-      setListeners(String(data?.listeners?.current ?? data?.listeners?.total ?? "0"));
-
-      return true;
-    } catch {
-      return false;
-    }
-  }
-
   useEffect(() => {
-    void primeCurrentBroadcastForPlay();
+    refreshNowPlaying().catch(() => {
+      setStatusText("Waiting for current broadcast");
+    });
 
     const timer = window.setInterval(() => {
-      const audio = audioRef.current;
-
-      if (!audio || audio.paused) {
-        void primeCurrentBroadcastForPlay();
-      }
+      refreshNowPlaying().catch(() => {});
     }, 5000);
 
     return () => window.clearInterval(timer);
-  }, []);
+  }, [refreshNowPlaying]);
 
   useEffect(() => {
-    const saved = window.localStorage.getItem("tha-core-radio-volume");
-
-    if (saved) {
-      const parsed = Number(saved);
-
-      if (!Number.isNaN(parsed)) {
-        setVolume(parsed <= 0.05 ? 0.85 : parsed);
-      }
-    }
-  }, []);
-
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-
-    audio.volume = Math.max(0.75, Number(volume || 0));
-    window.localStorage.setItem("tha-core-radio-volume", String(volume));
+    if (audioRef.current) audioRef.current.volume = volume;
   }, [volume]);
 
-  useEffect(() => {
+  async function playCurrentBroadcast() {
+    const audio = audioRef.current;
+
+    if (!audio) {
+      setStatusText("Audio player is not ready.");
+      return;
+    }
+
+    try {
+      const liveUrl = `/api/listener/live-current-audio?fresh=${Date.now()}`;
+
+      // Important: do not await fetch before play().
+      // Keep audio.play() inside the user click chain.
+      audio.src = liveUrl;
+      audio.volume = volume;
+      audio.load();
+
+      setStatusText("Starting current broadcast...");
+      pushGlobalState({ message: "Starting current broadcast..." });
+
+      await audio.play();
+
+      setIsPlaying(true);
+      setStatusText("Playing current broadcast");
+      pushGlobalState({
+        isPlaying: true,
+        message: "Playing current broadcast",
+      });
+
+      void refreshNowPlaying();
+    } catch (error) {
+      console.error("PLAY_CURRENT_BROADCAST_FAILED", error);
+      setIsPlaying(false);
+      setStatusText("Play failed. Check browser console/audio permission.");
+      pushGlobalState({
+        isPlaying: false,
+        message: "Play failed. Check browser console/audio permission.",
+      });
+    }
+  }
+
+  function pauseLocalAudio() {
     const audio = audioRef.current;
     if (!audio) return;
 
-    function handlePlay() {
-      setIsPlaying(true);
-      setMessage("Playing live");
-    }
-
-    function handlePause() {
-      setIsPlaying(false);
-      setMessage("Paused by listener");
-    }
-
-    function handleError() {
-      setIsPlaying(false);
-      setMessage("Stream unavailable - check Azura");
-    }
-
-    audio.addEventListener("play", handlePlay);
-    audio.addEventListener("pause", handlePause);
-    audio.addEventListener("error", handleError);
-
-    return () => {
-      audio.removeEventListener("play", handlePlay);
-      audio.removeEventListener("pause", handlePause);
-      audio.removeEventListener("error", handleError);
-
-      // Do NOT pause here.
-      // Do NOT stop Azura here.
-      // This keeps page navigation from killing the listener player.
-    };
-  }, []);
-
-  useEffect(() => {
-    async function loadNowPlaying() {
-      try {
-        const res = await fetch("/api/listener/now-playing", {
-          cache: "no-store",
-        });
-
-        const data = await res.json();
-
-        const song =
-          data?.now_playing?.song?.text ||
-          data?.nowPlaying ||
-          data?.song ||
-          "Tha Core Live Mix";
-
-        const currentListeners =
-          data?.listeners?.current ?? data?.listeners ?? "0";
-
-        setNowPlaying(String(song));
-        setListeners(String(currentListeners));
-      } catch {
-        setNowPlaying("Tha Core Live Mix");
-      }
-    }
-
-    loadNowPlaying();
-
-    const timer = window.setInterval(loadNowPlaying, 10000);
-
-    return () => window.clearInterval(timer);
-  }, []);
-
-  // SMARTZJ_MINI_AUTONEXT_WATCHDOG_DISABLED_STABILITY_V1
-  // Disabled because pause/error/near-end watchdog can force early SmartZJ skips.
-  // The audio element's normal ended handler remains responsible for moving to the next clean track.
-    // FLOATING_PLAYER_CURRENT_BROADCAST_RESYNC_WATCH_V1
-  useEffect(() => {
-    if (!isPlaying) return;
-
-    let cancelled = false;
-
-    const timer = window.setInterval(() => {
-      void (async () => {
-        const audio = audioRef.current;
-        if (!audio || audio.paused) return;
-
-        const response = await fetch(`/api/listener/now-playing?floatingWatch=${Date.now()}`, {
-          cache: "no-store",
-        });
-
-        const data = await response.json().catch(() => null);
-        const currentBroadcast = data?.currentBroadcast || {};
-
-        const nextUrl = String(
-          data?.streamUrl ||
-            data?.audioUrl ||
-            data?.listen_url ||
-            currentBroadcast?.audioUrl ||
-            ""
-        ).trim();
-
-        if (!nextUrl) return;
-
-        const absoluteNextUrl = new URL(nextUrl, window.location.origin).href;
-
-        if (audio.src === absoluteNextUrl) return;
-
-        setMessage("Broadcast changed. Resyncing...");
-
-        audio.src = nextUrl;
-        audio.load();
-
-        await new Promise<void>((resolve) => {
-          let done = false;
-
-          const finish = () => {
-            if (done) return;
-            done = true;
-            audio.removeEventListener("loadedmetadata", finish);
-            audio.removeEventListener("canplay", finish);
-            resolve();
-          };
-
-          audio.addEventListener("loadedmetadata", finish);
-          audio.addEventListener("canplay", finish);
-          window.setTimeout(finish, 1800);
-        });
-
-        if (cancelled) return;
-
-        const startedAt = String(
-          currentBroadcast?.startedAt ||
-            data?.live?.broadcast_start ||
-            ""
-        );
-
-        const started = Date.parse(startedAt);
-
-        if (Number.isFinite(started)) {
-          const elapsed = Math.max(0, Math.floor((Date.now() - started) / 1000));
-          const duration = Number(audio.duration || 0);
-          let target = elapsed;
-
-          if (Number.isFinite(duration) && duration > 5) {
-            target = Math.min(elapsed, Math.max(0, duration - 2));
-          }
-
-          if (target > 0 && Math.abs(audio.currentTime - target) > 4) {
-            audio.currentTime = target;
-          }
-        }
-
-        audio.volume = Math.max(0.75, Number(volume || 0));
-        await audio.play();
-
-        if (cancelled) return;
-
-        setIsPlaying(true);
-        setMessage("Synced to current broadcast");
-      })().catch(() => {
-        if (!cancelled) setMessage("Could not resync current broadcast");
-      });
-    }, 3000);
-
-    return () => {
-      cancelled = true;
-      window.clearInterval(timer);
-    };
-  }, [isPlaying, volume]);
-async function togglePlay() {
-const audio = audioRef.current;
-if (!audio) return;
-
-try {
-  if (isPlaying || !audio.paused) {
     audio.pause();
     setIsPlaying(false);
-    setMessage("Paused by listener");
-    return;
+    setStatusText("Paused by listener");
+    pushGlobalState({
+      isPlaying: false,
+      message: "Paused by listener",
+    });
   }
-
-  setMessage("Starting Tha Core live stream...");
-
-  if (!audio.src) {
-    await primeCurrentBroadcastForPlay();
-  }
-
-  if (audio.src) {
-    audio.volume = Math.max(0.75, Number(volume || 0));
-    await audio.play();
-    setIsPlaying(true);
-    setMessage("Playing live");
-
-    // After audio starts, resync to backend current-broadcast.
-    void playNextSmartZjCleanTrack();
-    return;
-  }
-
-  const response = await fetch(`/api/listener/now-playing?manualPublicPlay=${Date.now()}`, {
-    cache: "no-store",
-  });
-
-  const data = await response.json().catch(() => null);
-  const currentBroadcast = data?.currentBroadcast || {};
-  const song = data?.now_playing?.song || {};
-
-  const nextUrl = String(
-    data?.streamUrl ||
-      data?.audioUrl ||
-      data?.listen_url ||
-      currentBroadcast?.audioUrl ||
-      ""
-  ).trim();
-
-  if (!nextUrl) {
-    setIsPlaying(false);
-    setMessage("Waiting for Tha Core broadcast brain...");
-    return;
-  }
-
-  const absoluteNextUrl = new URL(nextUrl, window.location.origin).href;
-
-  if (!audio.src || audio.src !== absoluteNextUrl) {
-    audio.src = nextUrl;
-    audio.load();
-  }
-
-  audio.volume = Math.max(0.75, Number(volume || 0));
-
-  await new Promise<void>((resolve) => {
-    let done = false;
-
-    const finish = () => {
-      if (done) return;
-      done = true;
-      audio.removeEventListener("loadedmetadata", finish);
-      audio.removeEventListener("canplay", finish);
-      resolve();
-    };
-
-    audio.addEventListener("loadedmetadata", finish);
-    audio.addEventListener("canplay", finish);
-    window.setTimeout(finish, 1200);
-  });
-
-  const startedAt = String(currentBroadcast?.startedAt || data?.live?.broadcast_start || "");
-  const started = Date.parse(startedAt);
-
-  if (Number.isFinite(started)) {
-    const elapsed = Math.max(0, Math.floor((Date.now() - started) / 1000));
-    const duration = Number(audio.duration || 0);
-    let target = elapsed;
-
-    if (Number.isFinite(duration) && duration > 5) {
-      target = Math.min(elapsed, Math.max(0, duration - 2));
-    }
-
-    if (target > 0 && Math.abs(audio.currentTime - target) > 4) {
-      audio.currentTime = target;
-    }
-  }
-
-  setNowPlaying(String(song?.text || currentBroadcast?.title || "Tha Core Live Mix"));
-  setListeners(String(data?.listeners?.current ?? data?.listeners?.total ?? "0"));
-
-  await audio.play();
-
-  setIsPlaying(true);
-  setMessage("Playing live");
-} catch (error) {
-  console.error("Public radio direct play failed:", error);
-  setIsPlaying(false);
-  setMessage("Tap Play again or check stream");
-}
-}
-
-    // PUBLIC_GLOBAL_AUDIO_ENGINE_V1
-  // One public audio engine across homepage, schedule, store, news, chat, and public pages.
-  useEffect(() => {
-    window.dispatchEvent(new CustomEvent("tha-core-radio-state", {
-      detail: {
-        isPlaying,
-        message,
-        nowPlaying,
-        listeners,
-      },
-    }));
-  }, [isPlaying, message, nowPlaying, listeners]);
 
   useEffect(() => {
-    const handleToggle = () => {
-      void togglePlay();
-    };
-
-    const handleStop = () => {
+    function handleToggle() {
       const audio = audioRef.current;
 
-      if (audio) {
-        audio.pause();
-        audio.currentTime = 0;
+      if (audio && !audio.paused) {
+        pauseLocalAudio();
+        return;
       }
 
-      setIsPlaying(false);
-      setMessage("Stopped by listener");
-    };
+      void playCurrentBroadcast();
+    }
 
-    const handleVolume = (event: Event) => {
+    function handleStop() {
+      pauseLocalAudio();
+    }
+
+    function handleVolume(event: Event) {
       const detail = (event as CustomEvent).detail || {};
       const nextVolume = Number(detail.volume);
 
@@ -585,7 +205,7 @@ try {
       if (audioRef.current) {
         audioRef.current.volume = safeVolume;
       }
-    };
+    }
 
     window.addEventListener("tha-core-radio-toggle", handleToggle);
     window.addEventListener("tha-core-radio-stop", handleStop);
@@ -596,189 +216,108 @@ try {
       window.removeEventListener("tha-core-radio-stop", handleStop);
       window.removeEventListener("tha-core-radio-volume", handleVolume);
     };
-  }, [isPlaying, volume]);
-function changeVolume(value: number) {
-    setVolume(value);
+  }, [volume]);
 
-    if (audioRef.current) {
-      audioRef.current.volume = value;
-    }
-  }
+  useEffect(() => {
+    pushGlobalState();
+  }, [pushGlobalState]);
 
-
-  if (hideOnAdminSurface) {
-    return null; // ADMIN_HIDE_RETURN_NULL_V2
-  }
   return (
-    <div style={styles.player}>
+    <div
+      style={{
+        position: "fixed",
+        left: 14,
+        right: 14,
+        bottom: 14,
+        zIndex: 999999,
+        minHeight: 92,
+        border: "1px solid #ff1744",
+        borderRadius: 22,
+        background: "linear-gradient(180deg, rgba(20,0,5,.98), rgba(0,0,0,.98))",
+        boxShadow: "0 0 35px rgba(255,23,68,.45)",
+        display: "grid",
+        gridTemplateColumns: "1fr auto",
+        gap: 16,
+        alignItems: "center",
+        padding: "14px 18px",
+        color: "#fff",
+        fontFamily: "Arial, Helvetica, sans-serif",
+      }}
+    >
       <audio
-      ref={audioRef}
-      preload="none"
-    />
+        ref={audioRef}
+        preload="none"
+        onEnded={() => setIsPlaying(false)}
+        onPause={() => setIsPlaying(false)}
+        onPlay={() => setIsPlaying(true)}
+      />
 
-      <div style={styles.left}>
-        <div style={isPlaying ? styles.liveDotOn : styles.liveDotOff} />
-
-        <div style={styles.textWrap}>
-          <p style={styles.label}>THA CORE ONLINE RADIO</p>
-          <p style={styles.nowPlaying}>{nowPlaying}</p>
-          <p style={styles.status}>
-            {message} - Listeners: {listeners}
+      <div style={{ display: "flex", alignItems: "center", gap: 14, minWidth: 0 }}>
+        <div
+          style={{
+            width: 18,
+            height: 18,
+            borderRadius: "50%",
+            background: isPlaying ? "#00ff88" : "#ff1744",
+            boxShadow: isPlaying ? "0 0 18px #00ff88" : "0 0 18px #ff1744",
+          }}
+        />
+        <div style={{ minWidth: 0 }}>
+          <p style={{ margin: 0, color: "#ff1744", fontSize: 13, fontWeight: 1000, letterSpacing: 2 }}>
+            THA CORE ONLINE RADIO
+          </p>
+          <p
+            style={{
+              margin: "4px 0",
+              color: "#fff",
+              fontSize: 18,
+              fontWeight: 1000,
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              maxWidth: "60vw",
+            }}
+          >
+            {title}
+          </p>
+          <p style={{ margin: 0, color: "#cfcfcf", fontSize: 12, fontWeight: 700 }}>
+            {statusText} - Listeners: {listeners}
           </p>
         </div>
       </div>
 
-      <div style={styles.controls}>
+      <div style={{ display: "grid", gridTemplateColumns: "160px 260px", gap: 12, alignItems: "center" }}>
         <button
           type="button"
-          onClick={togglePlay}
-          style={isPlaying ? styles.pauseButton : styles.playButton}
+          onClick={playCurrentBroadcast}
+          style={{
+            border: "1px solid #00ff88",
+            borderRadius: 14,
+            background: "linear-gradient(180deg,#00c853,#003d14)",
+            color: "#fff",
+            padding: "14px 16px",
+            fontWeight: 1000,
+            cursor: "pointer",
+            boxShadow: "0 0 18px rgba(0,255,120,.45)",
+          }}
         >
-          {isPlaying ? "PAUSE LIVE" : "PLAY LIVE"}
+          {isPlaying ? "PLAYING" : "PLAY LIVE"}
         </button>
 
-        <div style={styles.volumeBox}>
-          <span style={styles.volumeText}>VOL</span>
-
+        <div style={{ display: "grid", gridTemplateColumns: "34px 1fr 46px", gap: 8, alignItems: "center" }}>
+          <span style={{ color: "#fff", fontSize: 12, fontWeight: 900 }}>VOL</span>
           <input
             type="range"
             min="0"
             max="1"
             step="0.01"
             value={volume}
-            onChange={(e) => changeVolume(Number(e.target.value))}
-            style={styles.slider}
+            onChange={(event) => setVolume(Number(event.target.value))}
+            style={{ width: "100%", accentColor: "#ff1744" }}
           />
-
-          <span style={styles.volumeText}>{Math.round(volume * 100)}%</span>
+          <span style={{ color: "#fff", fontSize: 12, fontWeight: 900 }}>{Math.round(volume * 100)}%</span>
         </div>
       </div>
     </div>
   );
 }
-
-const styles: Record<string, CSSProperties> = {
-  player: {
-    position: "fixed",
-    left: 14,
-    right: 14,
-    bottom: 14,
-    zIndex: 999999,
-    minHeight: 92,
-    border: "1px solid #ff1744",
-    borderRadius: 22,
-    background:
-      "linear-gradient(180deg, rgba(20,0,5,.98), rgba(0,0,0,.98))",
-    boxShadow: "0 0 35px rgba(255,23,68,.45)",
-    display: "grid",
-    gridTemplateColumns: "1fr auto",
-    gap: 16,
-    alignItems: "center",
-    padding: "14px 18px",
-    color: "#fff",
-    fontFamily: "Arial, Helvetica, sans-serif",
-  },
-
-  left: {
-    display: "flex",
-    alignItems: "center",
-    gap: 14,
-    minWidth: 0,
-  },
-
-  textWrap: {
-    minWidth: 0,
-  },
-
-  label: {
-    margin: 0,
-    color: "#ff1744",
-    fontSize: 13,
-    fontWeight: 1000,
-    letterSpacing: 2,
-  },
-
-  nowPlaying: {
-    margin: "4px 0",
-    color: "#fff",
-    fontSize: 18,
-    fontWeight: 1000,
-    whiteSpace: "nowrap",
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-    maxWidth: "60vw",
-  },
-
-  status: {
-    margin: 0,
-    color: "#cfcfcf",
-    fontSize: 12,
-    fontWeight: 700,
-  },
-
-  controls: {
-    display: "grid",
-    gridTemplateColumns: "160px 260px",
-    gap: 12,
-    alignItems: "center",
-  },
-
-  playButton: {
-    border: "1px solid #00ff88",
-    borderRadius: 14,
-    background: "linear-gradient(180deg,#00c853,#003d14)",
-    color: "#fff",
-    padding: "14px 16px",
-    fontWeight: 1000,
-    cursor: "pointer",
-    boxShadow: "0 0 18px rgba(0,255,120,.45)",
-  },
-
-  pauseButton: {
-    border: "1px solid #ff1744",
-    borderRadius: 14,
-    background: "linear-gradient(180deg,#b00020,#43000c)",
-    color: "#fff",
-    padding: "14px 16px",
-    fontWeight: 1000,
-    cursor: "pointer",
-    boxShadow: "0 0 18px rgba(255,23,68,.45)",
-  },
-
-  volumeBox: {
-    display: "grid",
-    gridTemplateColumns: "34px 1fr 46px",
-    gap: 8,
-    alignItems: "center",
-  },
-
-  volumeText: {
-    color: "#fff",
-    fontSize: 12,
-    fontWeight: 900,
-  },
-
-  slider: {
-    width: "100%",
-    accentColor: "#ff1744",
-  },
-
-  liveDotOn: {
-    width: 18,
-    height: 18,
-    borderRadius: "50%",
-    background: "#39ff14",
-    boxShadow: "0 0 22px #39ff14",
-  },
-
-  liveDotOff: {
-    width: 18,
-    height: 18,
-    borderRadius: "50%",
-    background: "#ff1744",
-    boxShadow: "0 0 18px #ff1744",
-  },
-};
-
-
-

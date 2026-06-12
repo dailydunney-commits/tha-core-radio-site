@@ -179,7 +179,7 @@ export default function HomePage() {
   const [nowPlaying, setNowPlaying] = useState<NowPlayingData | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [volume, setVolume] = useState(0.8);
-  const [statusText, setStatusText] = useState("Connecting to Tha Core...");
+  const [statusText, setStatusText] = useState("Checking current broadcast...");
   const [showShoutout, setShowShoutout] = useState(false);
   // HOME_USES_GLOBAL_PUBLIC_AUDIO_ENGINE_V1
   // Homepage controls the global PersistentRadioPlayer audio engine.
@@ -226,7 +226,7 @@ export default function HomePage() {
       return `${song?.artist || "Tha Core"} - ${song?.title || "Live Mix"}`;
     }
 
-    return "Live From Tha Core - Tha Core Live Mix";
+    return "Live From Tha Core - Current Broadcast";
   }, [nowPlaying]);
 
   const songText = shortenText(rawSongText, 72);
@@ -316,7 +316,7 @@ export default function HomePage() {
             audio.volume = volume;
             await audio.play();
             setIsPlaying(true);
-            setStatusText("Synced to current SmartZJ broadcast.");
+            setStatusText("Synced to current broadcast.");
             return;
           }
         }
@@ -325,10 +325,10 @@ export default function HomePage() {
       }
 
       setIsPlaying(false);
-      setStatusText("Waiting for SmartZJ watchdog to start the next clean broadcast.");
+      setStatusText("Waiting for owner/control panel current broadcast.");
     } catch {
       setIsPlaying(false);
-      setStatusText("Could not resync to SmartZJ broadcast. Press Play Live to retry.");
+      setStatusText("Could not resync to current broadcast. Press Play Live to retry.");
     }
   }
 
@@ -381,7 +381,7 @@ export default function HomePage() {
         if (cancelled) return;
 
         setIsPlaying(true);
-        setStatusText("Synced to current SmartZJ broadcast.");
+        setStatusText("Synced to current broadcast.");
       })().catch(() => {
         if (!cancelled) {
           setStatusText("Current broadcast resync failed. Press Play Live to retry.");
@@ -410,7 +410,7 @@ export default function HomePage() {
 
     function handleError() {
       setIsPlaying(false);
-      setStatusText("Stream error. Check AzuraCast stream, then press Play Live.");
+      setStatusText("Stream error. Check current broadcast audio, then press Play Live.");
     }
 
     audio.addEventListener("play", handlePlay);
@@ -453,7 +453,7 @@ export default function HomePage() {
             audio.volume = volume;
             await audio.play();
             setIsPlaying(true);
-            setStatusText("Synced to current SmartZJ broadcast.");
+            setStatusText("Synced to current broadcast.");
             return;
           }
         }
@@ -462,10 +462,10 @@ export default function HomePage() {
       }
 
       setIsPlaying(false);
-      setStatusText("Waiting for SmartZJ watchdog to start the next clean broadcast.");
+      setStatusText("Waiting for owner/control panel current broadcast.");
     } catch {
       setIsPlaying(false);
-      setStatusText("Could not resync to SmartZJ broadcast. Press Play Live to retry.");
+      setStatusText("Could not resync to current broadcast. Press Play Live to retry.");
     }
   }
 
@@ -478,79 +478,14 @@ export default function HomePage() {
   }, []);
 
   async function toggleRadio() {
-    const audio = document.querySelector("audio") as HTMLAudioElement | null;
-
-    if (!audio) {
-      setStatusText("Radio player is still loading. Try again.");
-      return;
-    }
-
-    try {
-      if (!audio.paused) {
-        audio.pause();
-        setIsPlaying(false);
-        setStatusText("Paused by listener.");
-        return;
-      }
-
-      setStatusText("Loading Tha Core live broadcast...");
-
-      const response = await fetch(`/api/listener/now-playing?manualHomePlay=${Date.now()}`, {
-        cache: "no-store",
-      });
-
-      const data = await response.json().catch(() => null);
-      const currentBroadcast = data?.currentBroadcast || {};
-
-      const nextUrl = String(
-        data?.streamUrl ||
-          data?.audioUrl ||
-          data?.listen_url ||
-          data?.station?.listen_url ||
-          currentBroadcast?.audioUrl ||
-          ""
-      ).trim();
-
-      if (!nextUrl) {
-        setIsPlaying(false);
-        setStatusText("No playable broadcast audio is ready yet.");
-        return;
-      }
-
-      const absoluteNextUrl = new URL(nextUrl, window.location.origin).href;
-
-      if (!audio.src || audio.src !== absoluteNextUrl) {
-        audio.src = nextUrl;
-        audio.load();
-      }
-
-      audio.volume = Math.max(0.75, Number(volume || 0.85));
-
-      await waitForHomeAudioMetadata(audio);
-      await audio.play();
-
-      setIsPlaying(true);
-      setStatusText("Playing Tha Core live broadcast.");
-    } catch (error) {
-      const detail = error instanceof Error ? error.message : String(error);
-      console.error("HOME_PLAY_LIVE_FAILED", error);
-      setIsPlaying(false);
-      setStatusText(`Play failed: ${detail || "browser blocked the audio"}`);
-    }
+    setStatusText("Starting current broadcast...");
+    window.dispatchEvent(new CustomEvent("tha-core-radio-toggle"));
   }
   function stopRadio() {
-    const audio = document.querySelector("audio") as HTMLAudioElement | null;
-
-    if (audio) {
-      audio.pause();
-      audio.currentTime = 0;
-    }
-
     window.dispatchEvent(new CustomEvent("tha-core-radio-stop"));
     setIsPlaying(false);
-    setStatusText("Radio stopped on this device.");
+    setStatusText("Paused on this device.");
   }
-
   function changeGlobalVolume(value: number) {
     const safeVolume = Math.max(0, Math.min(1, value));
     const audio = document.querySelector("audio") as HTMLAudioElement | null;
@@ -604,7 +539,7 @@ export default function HomePage() {
             audio.volume = volume;
             await audio.play();
             setIsPlaying(true);
-            setStatusText("Synced to current SmartZJ broadcast.");
+            setStatusText("Synced to current broadcast.");
             return;
           }
         }
@@ -613,10 +548,10 @@ export default function HomePage() {
       }
 
       setIsPlaying(false);
-      setStatusText("Waiting for SmartZJ watchdog to start the next clean broadcast.");
+      setStatusText("Waiting for owner/control panel current broadcast.");
     } catch {
       setIsPlaying(false);
-      setStatusText("Could not resync to SmartZJ broadcast. Press Play Live to retry.");
+      setStatusText("Could not resync to current broadcast. Press Play Live to retry.");
     }
   }
 
@@ -660,7 +595,7 @@ export default function HomePage() {
               />
               <strong>{statusText}</strong>
               <span style={styles.statusDivider}>{"\u2022"}</span>
-              <span>{isLive ? "Live DJ on air" : "AutoDJ live mix"}</span>
+              <span>{isCurrentBroadcast ? "Current broadcast" : isLive ? "Live DJ on air" : "Waiting for current broadcast"}</span>
             </div>
 
             <div style={styles.heroActions}>
@@ -707,7 +642,7 @@ export default function HomePage() {
           </div>
 
           <div style={styles.nowPlayingBox}>
-            <p style={styles.nowPlayingLabel}>Tha Core Live Mix</p>
+            <p style={styles.nowPlayingLabel}>{isCurrentBroadcast ? "Current Broadcast" : "Tha Core Radio"}</p>
             <p style={styles.nowPlayingText}>{songText}</p>
             <p style={styles.listenerText}>
               {listeners} {listeners === 1 ? "listener" : "listeners"} online
@@ -1515,6 +1450,9 @@ const styles: Record<string, CSSProperties> = {
 
 
 // REAL_LOGO_CIRCLE_FILE_FINAL_V1
+
+
+
 
 
 
