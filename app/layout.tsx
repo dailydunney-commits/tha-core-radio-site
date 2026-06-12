@@ -1,5 +1,4 @@
 import { headers } from "next/headers";
-import OwnerProgramPlaybackLibrary from "./components/OwnerProgramPlaybackLibrary";
 
 import OwnerProgramQuickPlay from "./components/OwnerProgramQuickPlay";
 import PublicRadioPlayerGate from "./components/PublicRadioPlayerGate";
@@ -47,7 +46,7 @@ export default async function RootLayout({
         <RootShell>{children}</RootShell>
         {!hidePublicPlayerOnAdminHost && <PublicRadioPlayerGate />}
               <OwnerProgramQuickPlay />
-                <OwnerProgramPlaybackLibrary />
+                  <OwnerProgramPlaybackLibrary />
         </body>
     </html>
   );
