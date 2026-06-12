@@ -1,4 +1,6 @@
 ﻿import { headers } from "next/headers";
+
+import OwnerProgramQuickPlay from "./components/OwnerProgramQuickPlay";
 import PublicRadioPlayerGate from "./components/PublicRadioPlayerGate";
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
@@ -42,8 +44,10 @@ export default async function RootLayout({
         <OwnerEditorHomeButton />
         <RootShell>{children}</RootShell>
         {!hidePublicPlayerOnAdminHost && <PublicRadioPlayerGate />}
+              <OwnerProgramQuickPlay />
       </body>
     </html>
   );
 }
+
 
