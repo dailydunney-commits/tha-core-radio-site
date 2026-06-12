@@ -1,4 +1,5 @@
-﻿import { headers } from "next/headers";
+import { headers } from "next/headers";
+import OwnerProgramPlaybackLibrary from "./components/OwnerProgramPlaybackLibrary";
 
 import OwnerProgramQuickPlay from "./components/OwnerProgramQuickPlay";
 import PublicRadioPlayerGate from "./components/PublicRadioPlayerGate";
@@ -6,6 +7,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import RootShell from "@/components/root-shell";
 import OwnerEditorHomeButton from './components/OwnerEditorHomeButton';
+import OwnerProgramPlaybackLibrary from "./components/OwnerProgramPlaybackLibrary";
 
 export const metadata: Metadata = {
   title: "Tha Core Online Radio",
@@ -45,7 +47,8 @@ export default async function RootLayout({
         <RootShell>{children}</RootShell>
         {!hidePublicPlayerOnAdminHost && <PublicRadioPlayerGate />}
               <OwnerProgramQuickPlay />
-      </body>
+                <OwnerProgramPlaybackLibrary />
+        </body>
     </html>
   );
 }
