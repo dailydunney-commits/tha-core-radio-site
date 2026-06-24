@@ -67,3 +67,10 @@ public/audio/smartdj/clean/
 
 # Generated AI host audio - do not commit
 public/audio/ai-host/
+
+# Local AI Studio voice/runtime files
+.venv-voice/
+voices/*.onnx
+voices/*.onnx.json
+public/audio/ai-studio/*.wav
+download-extra-piper-voices.py
