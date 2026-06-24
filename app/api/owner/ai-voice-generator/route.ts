@@ -131,7 +131,7 @@ export async function POST(request: NextRequest) {
       voiceId,
       voiceLabel: voice.label,
       model: voice.model,
-      audioUrl: `/audio/ai-studio/${filename}`,
+      audioUrl: `/audio/ai-studio/${filename}`.replace(/\/{2,}/g, "/"),
       filename,
       note: "Generated quick voice preview only. Full long-script voice parts come next.",
     });
@@ -145,5 +145,6 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
 
 
