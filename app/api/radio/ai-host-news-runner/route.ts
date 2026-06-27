@@ -323,7 +323,7 @@ function buildLocalNiaScript(input: {
   const recap = [
     "Before we go, here’s the quick recap.",
     recapItems.length ? recapItems.join(" ") : "The main update is that Tha Core has carried a safe local Nia news-system check without inventing headlines.",
-    "That’s your Tha Core News Update. I’m Nia. Mission over mood. Peace over pride. Progress over pressure. Keep it locked to Tha Core Online Radio."
+    "That’s your Tha Core News Update. I’m Nia. Keep it locked to Tha Core Online Radio."
   ].join(" ");
 
   return cleanText([...intro, ...storyBlocks, weatherLine, recap].join("\n\n"), "", 50000);
@@ -479,7 +479,6 @@ export async function GET() {
     ok: true,
     route: "/api/radio/ai-host-news-runner",
     phase: "THA_CORE_LOCAL_ONLY_NIA_NEWS_RUNNER_V1",
-    rule: "Mission over mood. Peace over pride. Progress over pressure.",
     purpose: "Local-only Nia news script, local Piper voice, intro/outro jingle joined package.",
     confirmedItemCount: storedItems.length,
     localPiperExe: localPiperExePath(),
@@ -591,7 +590,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       ...lastRun,
       safety: "THA_CORE_LOCAL_NIA_NEWS_READY",
-      rule: "Mission over mood. Peace over pride. Progress over pressure.",
       voice: {
         programId: manifest.programId,
         partCount: manifest.partCount,
