@@ -350,7 +350,7 @@ function buildLocalNiaScript(input: {
 
   const intro = [
     opening,
-    "Here are the confirmed updates we are carrying right now. No rumours, no guesswork — just the verified stories available to Tha Core."
+    "Here are the updates Tha Core is carrying right now.",
   ];
 
   const requestedStoryCount = targetStoryCountForDuration(input.targetDurationSeconds);
