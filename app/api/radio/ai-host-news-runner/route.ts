@@ -61,7 +61,7 @@ function jamaicaDateTimeLabel() {
 THA_CORE_NIA_30_MIN_NO_REPEAT_V1:
 Nia news may run up to 30 minutes when enough unique confirmed stories exist.
 Do not repeat stories, do not pad fake news, and do not invent items.
-If there are not enough unique items, produce a shorter clean bulletin.
+If this is a scheduled Schedule Editor insert and there are not enough unique confirmed items for the requested duration, do not create a short fake takeover. Return a not-ready result so Schedule Editor keeps control.
 */
 const NIA_NEWS_MAX_SECONDS = 30 * 60;
 const NIA_NEWS_DEFAULT_SECONDS = 7 * 60;
@@ -370,7 +370,7 @@ function buildLocalNiaScript(input: {
         ].join(" ");
       })
     : [
-        "No fresh confirmed public news item was supplied for this local test run, so Nia is keeping this as a safe station news-system check instead of inventing headlines."
+        "Tha Core News system check is ready."
       ];
 
   const weatherLine = input.weatherText
@@ -686,3 +686,6 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
+// THA_CORE_NIA_NO_PROCESS_WORDING_DURATION_AUTHORITY_V1
+
