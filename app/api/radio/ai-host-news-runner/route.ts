@@ -57,6 +57,68 @@ function jamaicaDateTimeLabel() {
   }).format(new Date());
 }
 
+/*
+THA_CORE_NIA_30_MIN_NO_REPEAT_V1:
+Nia news may run up to 30 minutes when enough unique confirmed stories exist.
+Do not repeat stories, do not pad fake news, and do not invent items.
+If there are not enough unique items, produce a shorter clean bulletin.
+*/
+const NIA_NEWS_MAX_SECONDS = 30 * 60;
+const NIA_NEWS_DEFAULT_SECONDS = 7 * 60;
+
+function clampNewsDurationSeconds(value: unknown) {
+  const raw = Number(value);
+  if (!Number.isFinite(raw) || raw <= 0) return NIA_NEWS_DEFAULT_SECONDS;
+  return Math.max(60, Math.min(NIA_NEWS_MAX_SECONDS, Math.round(raw)));
+}
+
+function estimateScriptSeconds(text: string) {
+  const words = cleanText(text, "", 100000).split(/\s+/).filter(Boolean).length;
+  return Math.max(8, Math.round((words / 145) * 60));
+}
+
+function storyFingerprint(item: AnyRecord) {
+  return [
+    cleanOneLine(item.headline || item.title || "", "", 240).toLowerCase(),
+    cleanOneLine(item.summary || item.description || item.body || "", "", 360).toLowerCase(),
+    cleanOneLine(item.sourceUrl || item.url || "", "", 300).toLowerCase()
+  ]
+    .join("|")
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function uniqueNewsItems(items: AnyRecord[]) {
+  const seen = new Set<string>();
+  const out: AnyRecord[] = [];
+
+  for (const item of items) {
+    const normalized = normalizeItem(item, out.length);
+    if (!normalized.headline && !normalized.summary) continue;
+
+    const fp = storyFingerprint(normalized) || cleanOneLine(normalized.headline || normalized.summary, "", 300).toLowerCase();
+    if (!fp || seen.has(fp)) continue;
+
+    seen.add(fp);
+    out.push(normalized);
+  }
+
+  return out;
+}
+
+function targetStoryCountForDuration(seconds: number) {
+  // About 50-75 seconds per story block after intro/recap/weather.
+  // 30 minutes needs roughly 24-32 unique stories.
+  if (seconds >= 1800) return 36;
+  if (seconds >= 1500) return 30;
+  if (seconds >= 1200) return 24;
+  if (seconds >= 900) return 18;
+  if (seconds >= 600) return 12;
+  if (seconds >= 420) return 8;
+  return 5;
+}
+
 function slugify(value: string) {
   return cleanOneLine(value, "nia-news", 160)
     .toLowerCase()
@@ -198,7 +260,7 @@ function splitForPiper(script: string) {
 
   if (current) chunks.push(current);
 
-  return chunks.filter((chunk) => chunk.length >= 10).slice(0, 24);
+  return chunks.filter((chunk) => chunk.length >= 10).slice(0, 80);
 }
 
 function speakWithLocalPiper(inputText: string, outputMp3Path: string) {
@@ -278,6 +340,7 @@ function buildLocalNiaScript(input: {
   items: AnyRecord[];
   weatherText: string;
   late: boolean;
+  targetDurationSeconds: number;
 }) {
   const timeText = jamaicaDateTimeLabel();
 
@@ -290,10 +353,8 @@ function buildLocalNiaScript(input: {
     "Here are the confirmed updates we are carrying right now. No rumours, no guesswork — just the verified stories available to Tha Core."
   ];
 
-  const usableItems = input.items
-    .map(normalizeItem)
-    .filter((item) => item.headline || item.summary)
-    .slice(0, 12);
+  const requestedStoryCount = targetStoryCountForDuration(input.targetDurationSeconds);
+  const usableItems = uniqueNewsItems(input.items).slice(0, requestedStoryCount);
 
   const storyBlocks = usableItems.length
     ? usableItems.map((item, index) => {
@@ -320,13 +381,19 @@ function buildLocalNiaScript(input: {
     return `${index + 1}. ${item.headline || "confirmed update"}`;
   });
 
+  const durationNotice =
+    usableItems.length < requestedStoryCount
+      ? "Note from Nia: We are keeping this bulletin clean and tight because there are not enough unique confirmed stories to stretch it longer without repeating."
+      : "";
+
   const recap = [
+    durationNotice,
     "Before we go, here’s the quick recap.",
     recapItems.length ? recapItems.join(" ") : "The main update is that Tha Core has carried a safe local Nia news-system check without inventing headlines.",
     "That’s your Tha Core News Update. I’m Nia. Keep it locked to Tha Core Online Radio."
-  ].join(" ");
+  ].filter(Boolean).join(" ");
 
-  return cleanText([...intro, ...storyBlocks, weatherLine, recap].join("\n\n"), "", 50000);
+  return cleanText([...intro, ...storyBlocks, weatherLine, recap].join("\n\n"), "", 100000);
 }
 
 async function postJson(path: string, body: AnyRecord) {
@@ -525,6 +592,10 @@ export async function POST(req: NextRequest) {
       .map(normalizeItem)
       .filter((item) => item.headline || item.summary);
 
+    const targetDurationSeconds = clampNewsDurationSeconds(
+      body.targetDurationSeconds || body.durationSeconds || body.maxDurationSeconds || body.requestedDurationSeconds
+    );
+
     const weatherText = cleanText(body.weatherText || "", "", 800);
     const late = Boolean(
       body.late === true ||
@@ -540,6 +611,7 @@ export async function POST(req: NextRequest) {
       items,
       weatherText,
       late,
+      targetDurationSeconds,
     });
 
     const manifest = await buildLocalNewsPackage({
@@ -575,6 +647,9 @@ export async function POST(req: NextRequest) {
       blockType,
       itemCount: items.length,
       scriptLength: script.length,
+      requestedTargetDurationSeconds: targetDurationSeconds,
+      estimatedScriptSeconds: estimateScriptSeconds(script),
+      uniqueItemCount: uniqueNewsItems(items).length,
       programId: manifest.programId,
       partCount: manifest.partCount,
       totalEstimatedSeconds: manifest.totalEstimatedSeconds,
