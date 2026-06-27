@@ -242,6 +242,9 @@ async function broadcastPart(input: {
     listen_url: audioUrl,
     startedAt,
     updatedAt: startedAt,
+    // THA_CORE_CURRENT_BROADCAST_TOP_LEVEL_DURATION_V1
+    durationSeconds: returnAfterSeconds,
+    expectedEndAt,
     reason: input.reason,
     selectionReason: input.reason,
     scheduleJingleInsert: false,
