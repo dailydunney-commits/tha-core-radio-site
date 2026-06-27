@@ -61,6 +61,11 @@ function jamaicaDateTimeLabel() {
 THA_CORE_NIA_30_MIN_NO_REPEAT_V1:
 Nia news may run up to 30 minutes when enough unique confirmed stories exist.
 Do not repeat stories, do not pad fake news, and do not invent items.
+THA_CORE_NIA_SCHEDULE_EDITOR_INSERT_AUTHORITY_V1:
+All Nia/news/show/program broadcasts must be requested by Schedule Editor / muzik block inserts.
+No Nia/news/show/program route should auto-take-over radio outside Schedule Editor authority.
+If a scheduled insert requests a target duration, do not collapse it into a short fake broadcast.
+If confirmed content is missing or too thin for the scheduled window, return not-ready and let Schedule Editor/music keep control.
 If this is a scheduled Schedule Editor insert and there are not enough unique confirmed items for the requested duration, do not create a short fake takeover. Return a not-ready result so Schedule Editor keeps control.
 */
 const NIA_NEWS_MAX_SECONDS = 30 * 60;
@@ -688,4 +693,5 @@ export async function POST(req: NextRequest) {
 }
 
 // THA_CORE_NIA_NO_PROCESS_WORDING_DURATION_AUTHORITY_V1
+
 
