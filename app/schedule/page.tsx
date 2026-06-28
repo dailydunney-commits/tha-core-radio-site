@@ -112,6 +112,31 @@ function makeNewBlock(index: number) {
 
 export default function SmartZjSchedulePage() {
   const [response, setResponse] = useState<AnyRecord | null>(null);
+  const [musicLibrary, setMusicLibrary] = useState<AnyRecord | null>(null); // THA_CORE_MUSIC_PICKER_INSIDE_BLOCK_V1
+
+  useEffect(() => {
+    let alive = true;
+
+    async function loadMusicLibrary() {
+      try {
+        const res = await fetch("/api/radio/music-library?limit=10000", {
+          cache: "no-store",
+          credentials: "same-origin",
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (alive) setMusicLibrary(data || null);
+      } catch {
+        if (alive) setMusicLibrary(null);
+      }
+    }
+
+    loadMusicLibrary();
+
+    return () => {
+      alive = false;
+    };
+  }, []);
   const [draft, setDraft] = useState<AnyRecord | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -155,10 +180,86 @@ export default function SmartZjSchedulePage() {
     return Array.isArray(draft?.blocks) ? draft?.blocks : [];
   }, [draft]);
 
+  function musicTracks(): AnyRecord[] {
+    const tracks = musicLibrary?.tracks;
+    return Array.isArray(tracks) ? tracks : [];
+  }
+
+  function cleanMusicPath(value: unknown) {
+    return clean(value).replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
+  }
+
+  function trackFolderPath(track: AnyRecord) {
+    const relativePath = cleanMusicPath(track.relativePath || track.azuraRelativePath || track.sourceRelativePath || "");
+    if (relativePath.includes("/")) return relativePath.split("/").slice(0, -1).join("/");
+
+    const folder = cleanMusicPath(track.folder || "");
+    const subfolder = cleanMusicPath(track.subfolder || "");
+    return [folder, subfolder].filter(Boolean).join("/");
+  }
+
+  function trackMatchesBlock(track: AnyRecord, block: AnyRecord) {
+    const selected = cleanMusicPath(block.primaryLane || "");
+    if (!selected) return false;
+
+    const relativePath = cleanMusicPath(track.relativePath || track.azuraRelativePath || track.sourceRelativePath || "");
+    const folderPath = trackFolderPath(track);
+    const folder = cleanMusicPath(track.folder || "");
+    const lane = cleanMusicPath(track.genreLane || track.lane || track.genre || folder || "");
+
+    return (
+      relativePath === selected ||
+      relativePath.startsWith(selected + "/") ||
+      folderPath === selected ||
+      folderPath.startsWith(selected + "/") ||
+      folder === selected ||
+      lane === selected
+    );
+  }
+
+  function blockTracks(block: AnyRecord) {
+    const tracks = musicTracks();
+    if (tracks.length === 0) return [];
+    return tracks.filter((track) => trackMatchesBlock(track, block));
+  }
+
   function blockTrackCount(block: AnyRecord) {
+    const matched = blockTracks(block);
+    if (matched.length > 0) return matched.length;
+
     const lane = clean(block.primaryLane);
     const count = Number(response?.laneCounts?.[lane] || 0);
     return count;
+  }
+
+  function folderOptionsFromTree() {
+    const root = musicLibrary?.tree;
+    const options: { label: string; value: string }[] = [];
+
+    function walk(node: AnyRecord, depth: number) {
+      if (!node || typeof node !== "object") return;
+
+      const value = cleanMusicPath(node.path || "");
+      const name = clean(node.name || value || "Music Library");
+      const count = Number(node.trackCount || 0);
+
+      if (value) {
+        options.push({
+          label: `${"— ".repeat(Math.max(0, depth - 1))}${name} (${count})`,
+          value,
+        });
+      }
+
+      const rawChildren = node.children && typeof node.children === "object" ? Object.values(node.children) : [];
+      const children = rawChildren as AnyRecord[];
+
+      children
+        .sort((a, b) => clean(a.name).localeCompare(clean(b.name)))
+        .forEach((child) => walk(child, depth + 1));
+    }
+
+    walk(root as AnyRecord, 0);
+    return options;
   }
 
   function updateDraft(field: string, value: any) {
@@ -600,7 +701,7 @@ export default function SmartZjSchedulePage() {
             </label>
 
             <label style={labelStyle}>
-              <span>Primary lane</span>
+              <span>Primary lane / music folder</span>
               <select
                 style={inputStyle}
                 value={clean(block.primaryLane)}
@@ -609,7 +710,16 @@ export default function SmartZjSchedulePage() {
                 {LANES.map((lane) => (
                   <option key={lane} value={lane}>{lane}</option>
                 ))}
+                {folderOptionsFromTree().length > 0 ? (
+                  <option disabled value="">──────── Music folders ────────</option>
+                ) : null}
+                {folderOptionsFromTree().map((item) => (
+                  <option key={item.value} value={item.value}>{item.label}</option>
+                ))}
               </select>
+              <small style={{ color: "#aaa" }}>
+                Pick a lane or exact folder/subfolder. Example: Reggae / 1981 / Riddim.
+              </small>
             </label>
 
             <label style={labelStyle}>
