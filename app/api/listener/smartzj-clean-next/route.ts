@@ -394,7 +394,12 @@ function pickSafeUrl(track: AnyTrack) {
 function publicCleanAudioExists(url: string) {
   const cleanUrl = cleanText(url).split("?")[0];
 
-  if (!cleanUrl.startsWith("/audio/smartdj/clean/")) {
+  // THA_CORE_CONTROL_PANEL_MUZIK_PUBLIC_AUDIO_EXISTS_V1
+  const allowedPublicAudioRoot =
+    cleanUrl.startsWith("/audio/smartdj/clean/") ||
+    cleanUrl.startsWith("/audio/control-panel/muzik/");
+
+  if (!allowedPublicAudioRoot) {
     return false;
   }
 
@@ -639,6 +644,78 @@ function isEmergencyHeldTrack(track: AnyTrack, holdKeys: Set<string>) {
     .filter(Boolean);
 
   return keys.some((key) => holdKeys.has(key));
+}
+
+
+// THA_CORE_CLEAN_NEXT_LOAD_SCHEDULE_MUSIC_LIBRARY_V1
+async function readScheduleMusicLibraryTracksForCleanNextV1() {
+  try {
+    const res = await fetch(`${internalBaseUrl()}/api/radio/smartzj-schedule?cleanNextMusicLibrary=1`, {
+      method: "GET",
+      cache: "no-store",
+      headers: { "Cache-Control": "no-store" },
+    });
+
+    const data = await res.json().catch(() => ({}));
+    const tracks = Array.isArray(data?.musicLibrary?.tracks) ? data.musicLibrary.tracks : [];
+
+    return tracks
+      .map((track: Record<string, any>, index: number) => {
+        const rel = cleanText(track.relativePath || track.sourceRelativePath || track.file || "");
+        const audioUrl = cleanText(
+          track.safeAudioUrl ||
+            track.cleanAudioUrl ||
+            track.audioUrl ||
+            track.url ||
+            track.publicPath ||
+            ""
+        );
+
+        if (
+          !audioUrl.startsWith("/audio/control-panel/muzik/") &&
+          !audioUrl.startsWith("/audio/smartdj/clean/")
+        ) {
+          return null;
+        }
+
+        const relParts = rel.split(/[\\/]+/).filter(Boolean);
+        const urlParts = audioUrl.split(/[\\/]+/).filter(Boolean);
+        const folderLane = cleanText(track.genreLane || track.lane || track.primaryLane || track.folder || relParts[0] || urlParts[2] || "");
+        const genreLane = canonicalSmartZjLane(folderLane);
+        const fileName = cleanText(relParts[relParts.length - 1] || urlParts[urlParts.length - 1] || `schedule-track-${index + 1}`);
+        const title = cleanText(track.title || track.name || fileName.replace(/\.[a-z0-9]+$/i, "") || "Schedule Editor Track");
+        const id = cleanText(track.id || track.trackId || rel || audioUrl || `${genreLane}-${index}`);
+
+        return {
+          ...track,
+          id,
+          trackId: cleanText(track.trackId || id),
+          title,
+          artist: cleanText(track.artist || "Schedule Editor"),
+          genreLane,
+          lane: genreLane,
+          folder: genreLane,
+          audioUrl,
+          safeAudioUrl: audioUrl,
+          cleanAudioUrl: audioUrl,
+          processedAudioUrl: audioUrl,
+          streamUrl: audioUrl,
+          listen_url: audioUrl,
+          relativePath: rel || audioUrl.replace(/^\/audio\/control-panel\/muzik\//, ""),
+          sourceRelativePath: rel || audioUrl.replace(/^\/audio\/control-panel\/muzik\//, ""),
+          source: "SCHEDULE_EDITOR_MUSIC_LIBRARY",
+          status: "READY",
+          safetyStatus: "READY",
+          cleanStatus: "PROCESSED_AUDIO_READY",
+          rawAudioBlocked: true,
+          held: false,
+          needsBleep: false,
+        };
+      })
+      .filter(Boolean) as AnyTrack[];
+  } catch {
+    return [];
+  }
 }
 
 function readSmartTracks() {
@@ -1630,7 +1707,11 @@ async function runMiniAutoNext(req?: NextRequest) {
     );
   }
 
-  const allCleanTracks = mergeScheduleJinglesWithCleanTracks(readSmartTracks());
+  const scheduleMusicLibraryTracks = await readScheduleMusicLibraryTracksForCleanNextV1();
+  const allCleanTracks = mergeScheduleJinglesWithCleanTracks([
+    ...readSmartTracks(),
+    ...scheduleMusicLibraryTracks,
+  ]);
   const requestedLane = await getRequestedLane(req);
   const schedulePolicy = await getSchedulePolicy();
   const scheduleModeActive =
@@ -1727,12 +1808,20 @@ const currentKey = getCurrentKey();
     !allowEarlyScheduleInterrupt &&
     !bypassSmartZjEarlyHold;
 
+  const currentBroadcastAudioForHoldV3 = cleanText(
+    currentBroadcastState?.audioUrl ||
+      currentBroadcastState?.streamUrl ||
+      currentBroadcastState?.listen_url ||
+      currentBroadcastState?.track?.audioUrl ||
+      ""
+  ); // THA_CORE_NO_HOLD_EMPTY_STANDBY_WHEN_SCHEDULE_HAS_TRACKS_V1
+
   const currentBroadcastSelectedLaneOk = !requestedLane || trackMatchesSelectedScheduleLaneV2(
     currentBroadcastTrackForLaneCheckV1(currentBroadcastState),
     requestedLane
   );
 
-  if (shouldHoldCurrentTrack && currentBroadcastSelectedLaneOk) {
+  if (shouldHoldCurrentTrack && currentBroadcastAudioForHoldV3 && currentBroadcastSelectedLaneOk) {
     const ageSeconds = getBroadcastAgeSeconds(currentBroadcastState);
 
     if (ageSeconds < SMARTZJ_MIN_MUSIC_PLAY_SECONDS) {
