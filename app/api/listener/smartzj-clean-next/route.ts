@@ -296,6 +296,65 @@ function trackStrictlyMatchesRequestedFolderLaneV1(track: AnyTrack, requestedLan
   return pathText.includes("/" + lane.toLowerCase() + "/") || pathText.includes(lane.toLowerCase());
 }
 
+
+// THA_CORE_CLEAN_NEXT_FINAL_SELECTED_LANE_GATE_V1
+function currentBroadcastTrackForLaneCheckV1(current: Record<string, any>) {
+  const track = (current?.track && typeof current.track === "object") ? current.track : {};
+  const audioUrl = cleanText(
+    current?.audioUrl ||
+      current?.streamUrl ||
+      current?.listen_url ||
+      track.audioUrl ||
+      track.cleanAudioUrl ||
+      track.processedAudioUrl ||
+      ""
+  );
+
+  return {
+    ...track,
+    audioUrl,
+    cleanAudioUrl: audioUrl,
+    processedAudioUrl: audioUrl,
+    streamUrl: audioUrl,
+    listen_url: audioUrl,
+    genreLane: cleanText(current?.genreLane || track.genreLane || ""),
+    title: cleanText(current?.title || track.title || ""),
+  };
+}
+
+function writeSelectedLaneNoAudioStandbyV1(
+  requestedLane: string,
+  reason: string,
+  extra: Record<string, any> = {}
+) {
+  const now = new Date().toISOString();
+
+  writeJson(CURRENT_BROADCAST_FILE, {
+    ok: false,
+    type: "standby",
+    mode: "SCHEDULE_SELECTED_LANE_NO_AUDIO",
+    source: "CONTROL_PANEL_MASTER_SCHEDULE_EDITOR",
+    status: reason,
+    requestedLane,
+    selectedLane: requestedLane,
+    laneLocked: Boolean(requestedLane),
+    title: "No scheduled audio ready",
+    artist: "",
+    genreLane: requestedLane,
+    audioUrl: "",
+    streamUrl: "",
+    listen_url: "",
+    directAudioUrl: "",
+    rawAzuraBlocked: true,
+    oldFallbackBlocked: true,
+    blockedFallbackLeak: true,
+    smartZJRequired: false,
+    updatedAt: now,
+    message: "Selected Schedule Editor lane has no matching clean audio ready. Current-broadcast cleared to safe no-audio standby.",
+    ...extra,
+  });
+}
+
 function getLaneCounts(tracks: AnyTrack[]) {
   const counts: Record<string, number> = {};
 
@@ -1585,6 +1644,21 @@ async function runMiniAutoNext(req?: NextRequest) {
   const skippedMissingAudioCount = laneCleanTracks.length - cleanTracks.length;
 
   if (!cleanTracks.length) {
+    if (requestedLane) {
+      writeSelectedLaneNoAudioStandbyV1(
+        requestedLane,
+        skippedMissingAudioCount > 0
+          ? "NO_PLAYABLE_CLEAN_AUDIO_FILES_FOR_SELECTED_FOLDER_LANE"
+          : "NO_READY_CLEAN_TRACKS_FOR_SELECTED_FOLDER_LANE",
+        {
+          allCleanTrackCount: allCleanTracks.length,
+          laneTrackCount: laneCleanTracks.length,
+          skippedMissingAudioCount,
+          laneCounts: getLaneCounts(allCleanTracks),
+        }
+      );
+    }
+
     return NextResponse.json(
       {
         ok: false,
@@ -1642,7 +1716,12 @@ const currentKey = getCurrentKey();
     !allowEarlyScheduleInterrupt &&
     !bypassSmartZjEarlyHold;
 
-  if (shouldHoldCurrentTrack) {
+  const currentBroadcastStrictLaneOk = !requestedLane || trackStrictlyMatchesRequestedFolderLaneV1(
+    currentBroadcastTrackForLaneCheckV1(currentBroadcastState),
+    requestedLane
+  );
+
+  if (shouldHoldCurrentTrack && currentBroadcastStrictLaneOk) {
     const ageSeconds = getBroadcastAgeSeconds(currentBroadcastState);
 
     if (ageSeconds < SMARTZJ_MIN_MUSIC_PLAY_SECONDS) {
@@ -1866,6 +1945,57 @@ const currentKey = getCurrentKey();
       rawAudioBlocked: true,
     },
   };
+
+  if (
+    requestedLane &&
+    !selectedIsScheduleJingle &&
+    !trackStrictlyMatchesRequestedFolderLaneV1(
+      {
+        ...track,
+        audioUrl,
+        cleanAudioUrl: audioUrl,
+        processedAudioUrl: audioUrl,
+        streamUrl: audioUrl,
+        listen_url: audioUrl,
+        genreLane,
+        title,
+      },
+      requestedLane
+    )
+  ) {
+    writeSelectedLaneNoAudioStandbyV1(
+      requestedLane,
+      "FINAL_GATE_BLOCKED_WRONG_SELECTED_FOLDER_LANE",
+      {
+        blockedTitle: title,
+        blockedArtist: artist,
+        blockedGenreLane: genreLane,
+        blockedAudioUrl: audioUrl,
+        selectionReason,
+      }
+    );
+
+    return NextResponse.json(
+      {
+        ok: false,
+        route: "/api/listener/smartzj-clean-next",
+        action: "SMARTZJ_SELECTED_LANE_FINAL_GATE_BLOCKED",
+        status: "NO_PLAYABLE_FOR_SELECTED_FOLDER_LANE",
+        requestedLane,
+        blockedTitle: title,
+        blockedArtist: artist,
+        blockedGenreLane: genreLane,
+        blockedAudioUrl: audioUrl,
+        rawAzuraBlocked: true,
+        oldFallbackBlocked: true,
+        message: "Clean-next tried to select audio outside the active Schedule Editor lane. Current-broadcast cleared to safe no-audio standby.",
+      },
+      {
+        status: 423,
+        headers: { "Cache-Control": "no-store, no-cache, must-revalidate" },
+      }
+    );
+  }
 
   writeJson(CURRENT_BROADCAST_FILE, broadcast);
   if (!selectedIsScheduleJingle) rememberSmartZjFreshFirstPlay(track, cleanTracks);
