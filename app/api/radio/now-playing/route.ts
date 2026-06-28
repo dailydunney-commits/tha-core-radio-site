@@ -1,117 +1,107 @@
-﻿import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
-const BASE_URL =
-  process.env.AZURACAST_BASE_URL ||
-  "http://thacoreonlinerad.com";
-
-const STATION_SHORTCODE =
-  process.env.AZURACAST_STATION_SHORTCODE ||
-  "tha-core-online";
-
-const DIRECT_NOW_PLAYING_URL =
-  process.env.AZURACAST_NOW_PLAYING_URL ||
-  process.env.NEXT_PUBLIC_AZURACAST_NOW_PLAYING_URL ||
-  "";
-
-const NOW_PLAYING_URL =
-  DIRECT_NOW_PLAYING_URL ||
-  `${BASE_URL}/api/nowplaying/${STATION_SHORTCODE}`;
-
-function fallbackPayload(errorMessage: string) {
+function noStoreHeaders() {
   return {
-    ok: false,
-    fallback: true,
-    error: errorMessage,
-    station: {
-      name: "Tha Core Online Radio",
-      shortcode: STATION_SHORTCODE,
-    },
-    listeners: {
-      total: 0,
-      unique: 0,
-      current: 0,
-    },
-    now_playing: {
-      song: {
-        title: "Live stream active",
-        artist: "Tha Core Online Radio",
-        text: "Tha Core Online Radio - Live stream active",
-        art: "",
-      },
-    },
-    playing_next: null,
-    song_history: [],
-    checked_at: new Date().toISOString(),
+    "Cache-Control": "no-store, no-cache, must-revalidate",
+    Pragma: "no-cache",
+    Expires: "0",
+    "X-Tha-Core-Owner-Truth-Only": "true",
+    "X-Tha-Core-Raw-Azura-Blocked": "true",
+    "X-Tha-Core-No-Old-Fallback": "true",
   };
 }
 
-async function fetchWithTimeout(url: string, timeoutMs = 8000) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-
-  try {
-    const response = await fetch(url, {
-      method: "GET",
-      cache: "no-store",
-      headers: {
-        Accept: "application/json",
+function safeStandby(message: string) {
+  // THA_CORE_NOW_PLAYING_OWNER_TRUTH_ONLY_NO_LEAK_V1
+  return NextResponse.json(
+    {
+      ok: true,
+      mode: "SAFE_STANDBY",
+      safety: "OWNER_TRUTH_ONLY_NO_RAW_AZURA_NO_OLD_FALLBACK",
+      source: "OWNER_CURRENT_BROADCAST_MIRROR",
+      type: "standby",
+      is_online: false,
+      title: "",
+      artist: "",
+      programName: "",
+      audioUrl: "",
+      streamUrl: "",
+      listen_url: "",
+      directAudioUrl: "",
+      station: {
+        name: "Tha Core Online Radio",
+        listen_url: "",
+        mounts: [],
       },
-      signal: controller.signal,
-    });
-
-    return response;
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
-async function getNowPlaying() {
-  let lastError = "Unknown now-playing error.";
-
-  for (let attempt = 1; attempt <= 3; attempt += 1) {
-    try {
-      const response = await fetchWithTimeout(NOW_PLAYING_URL, attempt === 1 ? 8000 : 12000);
-      const text = await response.text();
-
-      let data: unknown = null;
-
-      try {
-        data = text ? JSON.parse(text) : null;
-      } catch {
-        throw new Error("AzuraCast returned non-JSON now-playing data.");
-      }
-
-      if (!response.ok) {
-        lastError = `AzuraCast now-playing failed with status ${response.status}.`;
-        continue;
-      }
-
-      return {
-        ok: true,
-        source: NOW_PLAYING_URL,
-        checked_at: new Date().toISOString(),
-        ...(typeof data === "object" && data !== null ? data : { raw: data }),
-      };
-    } catch (error) {
-      lastError =
-        error instanceof Error
-          ? error.message
-          : "Could not reach AzuraCast now-playing.";
-    }
-  }
-
-  return fallbackPayload(lastError);
-}
-
-export async function GET() {
-  const data = await getNowPlaying();
-
-  return NextResponse.json(data, {
-    status: 200,
-    headers: {
-      "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+      listeners: { total: 0, unique: 0, current: 0 },
+      live: { is_live: false, streamer_name: "" },
+      now_playing: {
+        song: { title: "", artist: "", text: "" },
+        duration: 0,
+        elapsed: 0,
+      },
+      playing_next: null,
+      song_history: [],
+      cache: null,
+      protectedBroadcast: false,
+      smartZJRequired: false,
+      rawAzuraBlocked: true,
+      azuraBypassed: true,
+      oldFallbackBlocked: true,
+      message,
     },
-  });
+    { status: 200, headers: noStoreHeaders() }
+  );
+}
+
+export async function GET(req: NextRequest) {
+  try {
+    const ownerTruthUrl = new URL("/api/listener/now-playing", req.url);
+    ownerTruthUrl.searchParams.set("_mirror", "now-playing-owner-truth-only");
+
+    const upstream = await fetch(ownerTruthUrl.toString(), { cache: "no-store" });
+    const body = await upstream.text();
+
+    let data: any = {};
+    try {
+      data = body ? JSON.parse(body) : {};
+    } catch {
+      return safeStandby("Owner current-broadcast mirror returned non-JSON. No fallback audio used.");
+    }
+
+    const hasOwnerAudio = Boolean(
+      data?.audioUrl ||
+        data?.streamUrl ||
+        data?.listen_url ||
+        data?.directAudioUrl
+    );
+
+    if (!hasOwnerAudio) {
+      return safeStandby(
+        data?.message ||
+          "No valid owner/schedule-editor current broadcast audio. No fallback audio used."
+      );
+    }
+
+    return NextResponse.json(
+      {
+        ...data,
+        route: new URL(req.url).pathname,
+        source: data.source || "OWNER_CURRENT_BROADCAST_MIRROR",
+        smartZJRequired: false,
+        rawAzuraBlocked: true,
+        azuraBypassed: true,
+        oldFallbackBlocked: true,
+        message:
+          data.message ||
+          "Now-playing mirrors owner/control-panel current broadcast only.",
+      },
+      { status: 200, headers: noStoreHeaders() }
+    );
+  } catch {
+    return safeStandby("Now-playing owner mirror failed. Raw Azura and old fallback blocked.");
+  }
 }
