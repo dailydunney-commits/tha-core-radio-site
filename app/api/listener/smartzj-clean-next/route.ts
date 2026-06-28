@@ -355,6 +355,17 @@ function writeSelectedLaneNoAudioStandbyV1(
   });
 }
 
+
+// THA_CORE_CLEAN_NEXT_SELECTED_LANE_METADATA_OR_PATH_V2
+function trackMatchesSelectedScheduleLaneV2(track: AnyTrack, requestedLane: string) {
+  const lane = canonicalSmartZjLane(requestedLane);
+  if (!lane) return true;
+
+  // Schedule Editor lane truth can come from metadata/library counts OR physical clean path.
+  // Do not reject valid Schedule Editor tracks just because their clean URL is stored under an older/original folder.
+  return trackMatchesLane(track, lane) || trackStrictlyMatchesRequestedFolderLaneV1(track, lane);
+}
+
 function getLaneCounts(tracks: AnyTrack[]) {
   const counts: Record<string, number> = {};
 
@@ -1630,7 +1641,7 @@ async function runMiniAutoNext(req?: NextRequest) {
     : allCleanTracks;
 
   let cleanTracks = laneCleanTracks.filter((track) => {
-    if (requestedLane && !trackStrictlyMatchesRequestedFolderLaneV1(track, requestedLane)) return false;
+    if (requestedLane && !trackMatchesSelectedScheduleLaneV2(track, requestedLane)) return false;
     const audioUrl = pickSafeUrl(track);
     return publicCleanAudioExists(audioUrl);
   });
@@ -1716,12 +1727,12 @@ const currentKey = getCurrentKey();
     !allowEarlyScheduleInterrupt &&
     !bypassSmartZjEarlyHold;
 
-  const currentBroadcastStrictLaneOk = !requestedLane || trackStrictlyMatchesRequestedFolderLaneV1(
+  const currentBroadcastSelectedLaneOk = !requestedLane || trackMatchesSelectedScheduleLaneV2(
     currentBroadcastTrackForLaneCheckV1(currentBroadcastState),
     requestedLane
   );
 
-  if (shouldHoldCurrentTrack && currentBroadcastStrictLaneOk) {
+  if (shouldHoldCurrentTrack && currentBroadcastSelectedLaneOk) {
     const ageSeconds = getBroadcastAgeSeconds(currentBroadcastState);
 
     if (ageSeconds < SMARTZJ_MIN_MUSIC_PLAY_SECONDS) {
@@ -1949,7 +1960,7 @@ const currentKey = getCurrentKey();
   if (
     requestedLane &&
     !selectedIsScheduleJingle &&
-    !trackStrictlyMatchesRequestedFolderLaneV1(
+    !trackMatchesSelectedScheduleLaneV2(
       {
         ...track,
         audioUrl,
