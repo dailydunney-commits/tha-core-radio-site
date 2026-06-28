@@ -112,6 +112,28 @@ function makeNewBlock(index: number) {
 
 export default function SmartZjSchedulePage() {
   const [response, setResponse] = useState<AnyRecord | null>(null);
+  const [musicLibrary, setMusicLibrary] = useState<AnyRecord | null>(null); // THA_CORE_FULL_MUSIC_FOLDER_TREE_EDITOR_V1
+
+  useEffect(() => {
+    let alive = true;
+
+    async function loadMusicLibraryTree() {
+      try {
+        const res = await fetch("/api/radio/music-library?limit=50000", { cache: "no-store" });
+        const data = await res.json();
+        if (alive) setMusicLibrary(data || null);
+      } catch {
+        if (alive) setMusicLibrary(null);
+      }
+    }
+
+    loadMusicLibraryTree();
+    const timer = window.setInterval(loadMusicLibraryTree, 60000);
+    return () => {
+      alive = false;
+      window.clearInterval(timer);
+    };
+  }, []);
   const [draft, setDraft] = useState<AnyRecord | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -155,10 +177,104 @@ export default function SmartZjSchedulePage() {
     return Array.isArray(draft?.blocks) ? draft?.blocks : [];
   }, [draft]);
 
+  function libraryTracks(): AnyRecord[] {
+    const tracks = (musicLibrary as AnyRecord)?.tracks;
+    return Array.isArray(tracks) ? tracks : [];
+  }
+
+  function cleanPath(value: unknown) {
+    return clean(value).replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
+  }
+
+  function trackFolderPath(track: AnyRecord) {
+    const relativePath = cleanPath(track.relativePath || track.azuraRelativePath || track.sourceRelativePath || track.sourcePath || "");
+    if (relativePath.includes("/")) return relativePath.split("/").slice(0, -1).join("/");
+
+    const folder = cleanPath(track.folder || "");
+    const subfolder = cleanPath(track.subfolder || "");
+    return [folder, subfolder].filter(Boolean).join("/");
+  }
+
+  function trackMatchesSelection(track: AnyRecord, selection: string) {
+    const selected = cleanPath(selection);
+    if (!selected) return false;
+
+    const rel = cleanPath(track.relativePath || track.azuraRelativePath || track.sourceRelativePath || "");
+    const folderPath = trackFolderPath(track);
+    const folder = cleanPath(track.folder || "");
+    const lane = cleanPath(track.genreLane || track.lane || track.genre || folder || "");
+
+    return (
+      rel === selected ||
+      rel.startsWith(selected + "/") ||
+      folderPath === selected ||
+      folderPath.startsWith(selected + "/") ||
+      folder === selected ||
+      lane === selected
+    );
+  }
+
+  function tracksForBlock(block: AnyRecord) {
+    const selected = cleanPath(block.primaryLane || block.lane || block.genreLane || block.selectedFolder || block.folderPath || "");
+    const tracks = libraryTracks();
+    if (!selected || tracks.length === 0) return [];
+    return tracks.filter((track) => trackMatchesSelection(track, selected));
+  }
+
   function blockTrackCount(block: AnyRecord) {
+    const matched = tracksForBlock(block);
+    if (matched.length > 0) return matched.length;
+
     const lane = clean(block.primaryLane);
     const count = Number(response?.laneCounts?.[lane] || 0);
     return count;
+  }
+
+  function blockDurationLabel(block: AnyRecord) {
+    const matched = tracksForBlock(block);
+    const totalSeconds = matched.reduce((sum, track) => {
+      return sum + Number(track.durationSec || track.durationSeconds || track.lengthSec || track.lengthSeconds || 0);
+    }, 0);
+
+    if (totalSeconds > 0) {
+      const minutes = Math.round(totalSeconds / 60);
+      return `${minutes} min from ${matched.length} tracks`;
+    }
+
+    const count = blockTrackCount(block);
+    return count > 0 ? `${count} tracks loaded` : "0 tracks";
+  }
+
+  function renderFolderNode(node: AnyRecord, depth = 0): any[] {
+    if (!node || typeof node !== "object") return [];
+
+    const childrenObj = node.children && typeof node.children === "object" ? node.children as AnyRecord : {};
+    const children = Object.values(childrenObj) as AnyRecord[];
+    const name = clean(node.name || "Music Library");
+    const nodePath = clean(node.path || "");
+    const count = Number(node.trackCount || 0);
+
+    const rows: any[] = [
+      <div
+        key={`folder-${nodePath || "root"}-${depth}`}
+        style={{
+          padding: "5px 0",
+          marginLeft: depth * 18,
+          borderBottom: depth === 0 ? "1px solid rgba(255,255,255,0.15)" : "0",
+          color: depth === 0 ? "#fff" : "#ddd",
+        }}
+      >
+        <span style={{ fontWeight: depth <= 1 ? 800 : 500 }}>{name}</span>
+        <span style={{ color: "#aaa" }}> — {count} tracks</span>
+        {nodePath ? <code style={{ marginLeft: 10, color: "#facc15" }}>{nodePath}</code> : null}
+      </div>,
+    ];
+
+    for (const child of children.sort((a, b) => clean(a.name).localeCompare(clean(b.name)))) {
+      rows.push(...renderFolderNode(child, depth + 1));
+    }
+
+    return rows;
   }
 
   function updateDraft(field: string, value: any) {
@@ -433,6 +549,16 @@ export default function SmartZjSchedulePage() {
         </div>
 
         <div style={cardStyle}>
+          <h2 style={headingStyle}>Full Music Folder Tree</h2>
+          <p style={{ color: "#ccc", marginTop: 0 }}>
+            Shows original folders and subfolders from the music library. Use these paths in the block lane/folder field.
+          </p>
+          <div style={{ maxHeight: "420px", overflow: "auto", background: "rgba(0,0,0,0.35)", padding: 12, borderRadius: 10 }}>
+            {renderFolderNode((musicLibrary as AnyRecord)?.tree || { name: "Music Library", path: "", trackCount: 0, children: {}, tracks: [] })}
+          </div>
+        </div>
+
+        <div style={cardStyle}>
           <h2 style={headingStyle}>Lane Counts</h2>
           <pre style={preStyle}>{JSON.stringify(response?.laneCounts || {}, null, 2)}</pre>
         </div>
@@ -478,7 +604,7 @@ export default function SmartZjSchedulePage() {
                 <p style={{ margin: "0 0 6px", color: "#ccc" }}>Time: {clean(block.start)} - {clean(block.end)}</p>
                 <p style={{ margin: "0 0 6px", color: "#ccc" }}>Lane: {clean(block.primaryLane)}</p>
                 <p style={{ margin: "0 0 6px", color: "#ccc" }}>Tracks: {blockTrackCount(block)}</p>
-                <p style={{ margin: "0 0 6px", color: "#ccc" }}>Duration: pending length scan</p>
+                <p style={{ margin: "0 0 6px", color: "#ccc" }}>Duration: {blockDurationLabel(block)}</p>
                 <p style={{ margin: "0 0 6px", color: "#ccc" }}>Playback: {clean(block.playbackOrder || "shuffled")}</p>
                 <p style={{ margin: "0 0 6px", color: "#ccc" }}>Priority: {Number(block.priority || 5)}</p>
                 <p style={{ margin: 0, color: "#ccc" }}>Days: {joinLanes(block.days)}</p>
