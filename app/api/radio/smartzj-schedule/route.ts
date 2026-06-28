@@ -1,3 +1,5 @@
+import * as scheduleEditorFsV2 from "fs";
+import * as scheduleEditorPathV2 from "path";
 import { NextRequest, NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
@@ -585,11 +587,201 @@ async function triggerScheduleInterruptHandoff(response: AnyRecord) {
   }
 }
 
+
+type ScheduleEditorMusicFolderNodeV2 = {
+  name: string;
+  path: string;
+  trackCount: number;
+  children: Record<string, ScheduleEditorMusicFolderNodeV2>;
+};
+
+type ScheduleEditorMusicTrackV2 = {
+  title: string;
+  relativePath: string;
+  sourceRelativePath: string;
+  folder: string;
+  sourceRoot: string;
+  url: string;
+};
+
+const SCHEDULE_EDITOR_AUDIO_EXTENSIONS_V2 = new Set([".mp3", ".wav", ".m4a", ".flac", ".aac", ".ogg"]);
+
+function scheduleEditorMusicCandidateRootsV2() {
+  return [
+    process.env.THACORE_SCHEDULE_EDITOR_MUSIC_DIR,
+    process.env.THACORE_MUSIC_LIBRARY_DIR,
+    scheduleEditorPathV2.join(process.cwd(), "public", "audio", "control-panel", "muzik"),
+    scheduleEditorPathV2.join(process.cwd(), "public", "audio", "smartdj", "clean"),
+    scheduleEditorPathV2.join(process.cwd(), "public", "audio"),
+    "/var/lib/docker/volumes/azuracast_station_data/_data/tha-core-online/media",
+  ]
+    .filter((root): root is string => Boolean(root && root.trim()))
+    .map((root) => scheduleEditorPathV2.resolve(root));
+}
+
+function scheduleEditorFirstExistingRootV2() {
+  for (const candidate of scheduleEditorMusicCandidateRootsV2()) {
+    try {
+      if (scheduleEditorFsV2.existsSync(candidate) && scheduleEditorFsV2.statSync(candidate).isDirectory()) {
+        return candidate;
+      }
+    } catch {
+      // Keep checking.
+    }
+  }
+
+  return null;
+}
+
+function scheduleEditorPublicUrlV2(fullPath: string) {
+  const publicRoot = scheduleEditorPathV2.join(process.cwd(), "public");
+  const relativeToPublic = scheduleEditorPathV2.relative(publicRoot, fullPath).replace(/\\/g, "/");
+  if (!relativeToPublic.startsWith("..")) return "/" + relativeToPublic;
+  return "";
+}
+
+function scheduleEditorAddTrackToTreeV2(tree: ScheduleEditorMusicFolderNodeV2, relativePath: string) {
+  const parts = relativePath.split("/").filter(Boolean);
+  const folders = parts.slice(0, -1);
+  let current = tree;
+  current.trackCount += 1;
+
+  let runningPath = "";
+
+  for (const folder of folders) {
+    runningPath = runningPath ? runningPath + "/" + folder : folder;
+
+    if (!current.children[folder]) {
+      current.children[folder] = {
+        name: folder,
+        path: runningPath,
+        trackCount: 0,
+        children: {},
+      };
+    }
+
+    current = current.children[folder];
+    current.trackCount += 1;
+  }
+}
+
+function scheduleEditorFlattenLaneCountsV2(node: ScheduleEditorMusicFolderNodeV2, laneCounts: Record<string, number>) {
+  for (const child of Object.values(node.children)) {
+    if (child.path) {
+      laneCounts[child.path] = child.trackCount;
+      laneCounts[child.name] = Math.max(Number(laneCounts[child.name] || 0), child.trackCount);
+    }
+
+    scheduleEditorFlattenLaneCountsV2(child, laneCounts);
+  }
+}
+
+function buildScheduleEditorMusicLibraryV2() {
+  // THA_CORE_SCHEDULE_EDITOR_REAL_MUSIC_COUNTS_V2
+  const sourceRoot = scheduleEditorFirstExistingRootV2();
+
+  const tree: ScheduleEditorMusicFolderNodeV2 = {
+    name: "Music Library",
+    path: "",
+    trackCount: 0,
+    children: {},
+  };
+
+  const tracks: ScheduleEditorMusicTrackV2[] = [];
+  const laneCounts: Record<string, number> = {};
+
+  if (!sourceRoot) {
+    return {
+      laneCounts,
+      musicLibrary: {
+        ok: false,
+        mode: "SCHEDULE_EDITOR_REAL_MUSIC_COUNTS_V2",
+        error: "MUSIC_SOURCE_NOT_FOUND",
+        checkedRoots: scheduleEditorMusicCandidateRootsV2(),
+        sourceRoot: "",
+        trackCount: 0,
+        folderCount: 0,
+        tracks,
+        tree,
+      },
+    };
+  }
+
+  const stack = [sourceRoot];
+  const maxTracks = 10000;
+
+  while (stack.length > 0 && tracks.length < maxTracks) {
+    const current = stack.pop();
+    if (!current) continue;
+
+    let entries: scheduleEditorFsV2.Dirent[] = [];
+    try {
+      entries = scheduleEditorFsV2.readdirSync(current, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+
+    for (const entry of entries) {
+      const fullPath = scheduleEditorPathV2.join(current, entry.name);
+
+      if (entry.isDirectory()) {
+        stack.push(fullPath);
+        continue;
+      }
+
+      if (!entry.isFile()) continue;
+
+      const ext = scheduleEditorPathV2.extname(entry.name).toLowerCase();
+      if (!SCHEDULE_EDITOR_AUDIO_EXTENSIONS_V2.has(ext)) continue;
+
+      const relativePath = scheduleEditorPathV2.relative(sourceRoot, fullPath).replace(/\\/g, "/");
+      const parts = relativePath.split("/").filter(Boolean);
+      const folder = parts[0] || "Music";
+      const title = scheduleEditorPathV2.basename(entry.name, ext);
+
+      scheduleEditorAddTrackToTreeV2(tree, relativePath);
+
+      tracks.push({
+        title,
+        relativePath,
+        sourceRelativePath: relativePath,
+        folder,
+        sourceRoot,
+        url: scheduleEditorPublicUrlV2(fullPath),
+      });
+
+      if (tracks.length >= maxTracks) break;
+    }
+  }
+
+  scheduleEditorFlattenLaneCountsV2(tree, laneCounts);
+  tracks.sort((a, b) => a.relativePath.localeCompare(b.relativePath));
+
+  return {
+    laneCounts,
+    musicLibrary: {
+      ok: true,
+      mode: "SCHEDULE_EDITOR_REAL_MUSIC_COUNTS_V2",
+      sourceRoot,
+      trackCount: tracks.length,
+      folderCount: Object.keys(tree.children).length,
+      tracks,
+      tree,
+    },
+  };
+}
+
+
 function buildScheduleResponse() {
   const schedule = getSchedule();
   const now = timePartsForZone(String(schedule.timezone || "America/Jamaica"));
   const activeBlock = schedule.enabled ? getActiveBlock(schedule, now) : null;
-  const laneCounts = countPlayableByLane();
+  const scheduleEditorMusicV2 = buildScheduleEditorMusicLibraryV2();
+  const fallbackLaneCounts = countPlayableByLane();
+  const laneCounts =
+    Object.keys(scheduleEditorMusicV2.laneCounts).length > 0
+      ? scheduleEditorMusicV2.laneCounts
+      : fallbackLaneCounts;
   const laneChoice = choosePlayableLane(schedule, activeBlock, laneCounts);
 
   // SCHEDULE_ACTIVE_BLOCK_JINGLE_FREQUENCY_V1
@@ -612,6 +804,7 @@ function buildScheduleResponse() {
     now,
     activeBlock,
     laneCounts,
+    musicLibrary: scheduleEditorMusicV2.musicLibrary,
     ...laneChoice,
     scheduleOverrideActive: Boolean(activeBlock?.interruptBroadcast),
     requestPriorityBlocked: Boolean(activeBlock?.prioritizeOverRequests),

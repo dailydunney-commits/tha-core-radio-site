@@ -153,6 +153,7 @@ export default function SmartZjSchedulePage() {
       const data = await res.json();
       const schedule = data?.schedule || {};
       setResponse(data);
+      setMusicLibrary(data?.musicLibrary || null); // THA_CORE_SCHEDULE_RESPONSE_MUSIC_LIBRARY_FALLBACK_V2
       setDraft({
         ...schedule,
         enabled: Boolean(schedule.enabled),
