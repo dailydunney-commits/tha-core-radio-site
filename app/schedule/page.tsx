@@ -533,10 +533,14 @@ export default function SmartZjSchedulePage() {
             />
           </label>
         </div>
-
         <div style={cardStyle}>
-          <h2 style={headingStyle}>Lane Counts</h2>
-          <pre style={preStyle}>{JSON.stringify(response?.laneCounts || {}, null, 2)}</pre>
+          <h2 style={headingStyle}>Music Library</h2>
+          <p style={bigStyle}>{Number(response?.musicLibrary?.trackCount || 0).toLocaleString()} tracks loaded</p>
+          <p style={{ margin: "0 0 6px", color: "#ccc" }}>Reggae: {Number(response?.laneCounts?.Reggae || 0).toLocaleString()}</p>
+          <p style={{ margin: "0 0 6px", color: "#ccc" }}>Fresh Dancehall: {Number(response?.laneCounts?.["Fresh-Dancehall"] || 0).toLocaleString()}</p>
+          <p style={{ margin: "0 0 6px", color: "#ccc" }}>Old School Dancehall: {Number(response?.laneCounts?.["Ole-School-Dancehall"] || 0).toLocaleString()}</p>
+          <p style={{ margin: 0, color: "#aaa", fontSize: "13px" }}>Folders are selected inside each block.</p>
+          {/* THA_CORE_REMOVE_RAW_LANE_COUNTS_BOX_V2 */}
         </div>
       </section>
 
