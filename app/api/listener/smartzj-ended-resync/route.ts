@@ -22,6 +22,7 @@ export async function POST(request: NextRequest) {
   const now = Date.now();
   const requestUrl = new URL(request.url);
   const requestedLane = requestUrl.searchParams.get("lane") || "schedule";
+  let effectiveRequestedLane = requestedLane; // THA_CORE_SCHEDULE_REFRESH_REAL_SELECTED_LANE_V1
   // NIA_PROGRAM_ENDED_RESYNC_ADVANCE_V1
   // If a full Nia news program is active and the browser says audio ended,
   // advance Nia to the next program part instead of letting SmartZJ take over.
@@ -97,6 +98,10 @@ export async function POST(request: NextRequest) {
       selectedLaneCount > 0 &&
       !/NO_PLAYABLE|NOT_READY|MISSING|EMPTY|BLOCKED|FALLBACK/i.test(selectionReason);
 
+    if (hasPlayableScheduledMusic && selectedLane) {
+      effectiveRequestedLane = selectedLane;
+    }
+
     if (!hasPlayableScheduledMusic) {
       const current = await getJson(`/api/listener/now-playing?scheduleRefreshBlocked=${Date.now()}`);
 
@@ -130,7 +135,7 @@ export async function POST(request: NextRequest) {
   }
 
   const cleanNextPath =
-    `/api/listener/smartzj-clean-next?lane=${encodeURIComponent(requestedLane)}` +
+    `/api/listener/smartzj-clean-next?lane=${encodeURIComponent(effectiveRequestedLane)}` +
     `&ended=1&ownerMonitorEnded=1&controlPanelBrain=1&endedResync=${now}`;
 
   if (now - lastKickAt < 30000) {
@@ -158,6 +163,8 @@ export async function POST(request: NextRequest) {
     ok: true,
     action: "ENDED_RESYNC_KICKED_NEXT_ONCE",
     kicked: true,
+    requestedLane,
+    effectiveRequestedLane,
     cleanNextPath,
     nextResult,
     current,
