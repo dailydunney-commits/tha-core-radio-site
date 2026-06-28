@@ -347,7 +347,7 @@ function buildLocalNiaScript(input: {
   late: boolean;
   targetDurationSeconds: number;
 }) {
-  const timeText = "right now in Jamaica"; // THA_CORE_NIA_NO_PREP_TIME_ON_AIR_V1
+  const timeText = jamaicaDateTimeLabel(); // THA_CORE_NIA_EXACT_LIVE_JAMAICA_TIME_V1
 
   const opening = input.late
     ? `You’re tuned in to Tha Core Online Radio. I’m Nia, and this is a late catch-up Tha Core News Update for ${timeText}. Apologies for the delay, family — let’s get you caught up clean and clear.`
@@ -693,6 +693,7 @@ export async function POST(req: NextRequest) {
 }
 
 // THA_CORE_NIA_NO_PROCESS_WORDING_DURATION_AUTHORITY_V1
+
 
 
 
