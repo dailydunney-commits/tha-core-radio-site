@@ -234,6 +234,68 @@ function trackMatchesLane(track: AnyTrack, requestedLane: string) {
   return false;
 }
 
+
+// THA_CORE_CLEAN_NEXT_STRICT_FOLDER_LANE_V1
+function trackAudioPathTextV1(track: AnyTrack) {
+  return cleanText(
+    pickSafeUrl(track) ||
+      track.audioUrl ||
+      track.streamUrl ||
+      track.listen_url ||
+      track.cleanAudioUrl ||
+      track.processedAudioUrl ||
+      track.azuraRelativePath ||
+      track.sourceRelativePath ||
+      track.relativePath ||
+      track.sourceFilePath ||
+      track.localAudioPath ||
+      track.folder ||
+      track.id ||
+      track.trackId ||
+      ""
+  ).replace(/\\/g, "/");
+}
+
+function trackStrictlyMatchesRequestedFolderLaneV1(track: AnyTrack, requestedLane: string) {
+  const lane = canonicalSmartZjLane(requestedLane);
+  if (!lane) return true;
+
+  const key = laneKey(lane);
+  const pathText = trackAudioPathTextV1(track).toLowerCase();
+  if (!pathText) return false;
+
+  if (key === "oleschooldancehall") {
+    return pathText.includes("/ole-school-dancehall/") || pathText.includes("ole-school-dancehall");
+  }
+
+  if (key === "freshdancehall") {
+    return pathText.includes("/fresh-dancehall/") || pathText.includes("fresh-dancehall");
+  }
+
+  if (key === "reggae") {
+    return pathText.includes("/reggae/") || pathText.includes("reggae");
+  }
+
+  if (key === "hiphop") {
+    return pathText.includes("/hip-hop/") || pathText.includes("hip-hop") || pathText.includes("hiphop");
+  }
+
+  if (key === "rnb") {
+    return pathText.includes("/r-n-b/") || pathText.includes("r-n-b") || pathText.includes("rnb");
+  }
+
+  if (key === "dancehall") {
+    return (
+      pathText.includes("/dancehall/") ||
+      pathText.includes("/fresh-dancehall/") ||
+      pathText.includes("/ole-school-dancehall/") ||
+      pathText.includes("dancehall")
+    );
+  }
+
+  return pathText.includes("/" + lane.toLowerCase() + "/") || pathText.includes(lane.toLowerCase());
+}
+
 function getLaneCounts(tracks: AnyTrack[]) {
   const counts: Record<string, number> = {};
 
@@ -1509,6 +1571,7 @@ async function runMiniAutoNext(req?: NextRequest) {
     : allCleanTracks;
 
   let cleanTracks = laneCleanTracks.filter((track) => {
+    if (requestedLane && !trackStrictlyMatchesRequestedFolderLaneV1(track, requestedLane)) return false;
     const audioUrl = pickSafeUrl(track);
     return publicCleanAudioExists(audioUrl);
   });
