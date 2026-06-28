@@ -75,6 +75,60 @@ export async function POST(request: NextRequest) {
     });
   }
 
+  // THA_CORE_SCHEDULE_REFRESH_NO_LEAK_GUARD_V1
+  const isScheduleRefresh =
+    requestUrl.searchParams.get("scheduleRefresh") === "1" ||
+    requestUrl.searchParams.get("controlPanelBrain") === "1";
+
+  if (isScheduleRefresh) {
+    const scheduleState = await getJson(`/api/radio/smartzj-schedule?scheduleRefreshGuard=${now}`);
+    const activeBlock = ((scheduleState as any)?.activeBlock || null) as Record<string, any> | null;
+    const activeType = String(activeBlock?.type || activeBlock?.kind || "");
+    const selectedLane = String((scheduleState as any)?.selectedLane || activeBlock?.primaryLane || "");
+    const selectedLaneCount = Number((scheduleState as any)?.selectedLaneCount || 0);
+    const selectionReason = String((scheduleState as any)?.selectionReason || "");
+
+    const isMusicBlock = !activeType || /music/i.test(activeType);
+    const hasPlayableScheduledMusic =
+      Boolean((scheduleState as any)?.ok) &&
+      Boolean(activeBlock) &&
+      isMusicBlock &&
+      Boolean(selectedLane) &&
+      selectedLaneCount > 0 &&
+      !/NO_PLAYABLE|NOT_READY|MISSING|EMPTY|BLOCKED|FALLBACK/i.test(selectionReason);
+
+    if (!hasPlayableScheduledMusic) {
+      const current = await getJson(`/api/listener/now-playing?scheduleRefreshBlocked=${Date.now()}`);
+
+      return NextResponse.json(
+        {
+          ok: true,
+          action: "SCHEDULE_REFRESH_BLOCKED_NO_VALID_SCHEDULE_AUDIO",
+          kicked: false,
+          blockedSmartZjTakeover: true,
+          blockedFallbackLeak: true,
+          blockedRawAzura: true,
+          requestedLane,
+          activeTitle: String(activeBlock?.title || activeBlock?.name || ""),
+          activeType,
+          selectedLane,
+          selectedLaneCount,
+          selectionReason,
+          current,
+          message:
+            "Schedule Refresh found no valid scheduled music/audio. SmartZJ clean-next was not called. No fallback audio released.",
+        },
+        {
+          headers: {
+            "Cache-Control": "no-store, no-cache, must-revalidate",
+            "X-Tha-Core-Schedule-Refresh-No-Leak": "true",
+            "X-Tha-Core-No-Old-Fallback": "true",
+          },
+        }
+      );
+    }
+  }
+
   const cleanNextPath =
     `/api/listener/smartzj-clean-next?lane=${encodeURIComponent(requestedLane)}` +
     `&ended=1&ownerMonitorEnded=1&controlPanelBrain=1&endedResync=${now}`;
