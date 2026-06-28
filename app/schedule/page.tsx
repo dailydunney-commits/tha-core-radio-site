@@ -53,6 +53,82 @@ function joinLanes(value: unknown) {
   return splitLanes(value).join(", ");
 }
 
+
+function objectArray(value: unknown): AnyRecord[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((item) => item && typeof item === "object").map((item) => item as AnyRecord);
+}
+
+function normalizeInsertDays(value: unknown) {
+  const days = Array.isArray(value) ? value.map(clean).filter(Boolean) : splitLanes(value);
+  return days.length ? days : DAYS;
+}
+
+function normalizeNewsInsert(raw: unknown, index: number) {
+  const item = raw && typeof raw === "object" ? (raw as AnyRecord) : {};
+  return {
+    id: clean(item.id) || `news-${Date.now()}-${index}`,
+    title: clean(item.title || item.name || "Nia News Insert"),
+    type: clean(item.type || "nia-news"),
+    enabled: item.enabled !== false,
+    host: clean(item.host || "nia"),
+    start: clean(item.start || item.startTime || "10:00"),
+    end: clean(item.end || item.endTime || ""),
+    durationMinutes: Number(item.durationMinutes || item.minutes || item.targetMinutes || 10),
+    days: normalizeInsertDays(item.days || item.selectedDays),
+    priority: Number(item.priority || 80),
+    behavior: clean(item.behavior || item.priorityMode || "hard-break"),
+    topic: clean(item.topic || item.description || "Fresh Nia news update"),
+  };
+}
+
+function normalizeProgramInsert(raw: unknown, index: number) {
+  const item = raw && typeof raw === "object" ? (raw as AnyRecord) : {};
+  return {
+    id: clean(item.id) || `program-${Date.now()}-${index}`,
+    title: clean(item.title || item.name || "Program Insert"),
+    type: clean(item.type || "program"),
+    enabled: item.enabled !== false,
+    host: clean(item.host || item.hosts || "Prodigy & Diamond"),
+    start: clean(item.start || item.startTime || "12:00"),
+    end: clean(item.end || item.endTime || ""),
+    durationMinutes: Number(item.durationMinutes || item.minutes || 30),
+    days: normalizeInsertDays(item.days || item.selectedDays),
+    priority: Number(item.priority || 60),
+    behavior: clean(item.behavior || item.priorityMode || "break-safe"),
+    musicLane: clean(item.musicLane || item.primaryLane || ""),
+    songsBetweenSegments: Number(item.songsBetweenSegments || item.songsBetweenTalks || 2),
+  };
+}
+
+function normalizeJingleRule(raw: unknown, index: number) {
+  const item = raw && typeof raw === "object" ? (raw as AnyRecord) : {};
+  return {
+    id: clean(item.id) || `jingle-${Date.now()}-${index}`,
+    title: clean(item.title || item.name || "Jingle Rule"),
+    type: clean(item.type || "jingle"),
+    enabled: item.enabled !== false,
+    lane: clean(item.lane || item.jingleLane || "Jingles"),
+    songsBetween: Number(item.songsBetween || item.songsBetweenJingles || item.everySongs || 3),
+    allowOverlay: Boolean(item.allowOverlay || item.allowJingleOverlay),
+    days: normalizeInsertDays(item.days || item.selectedDays),
+  };
+}
+
+function normalizeNewsInserts(value: unknown) {
+  return objectArray(value).map((item, index) => normalizeNewsInsert(item, index));
+}
+
+function normalizeProgramInserts(value: unknown) {
+  return objectArray(value).map((item, index) => normalizeProgramInsert(item, index));
+}
+
+function normalizeJingleRules(value: unknown) {
+  return objectArray(value).map((item, index) => normalizeJingleRule(item, index));
+}
+
+// THA_CORE_SCHEDULE_EDITOR_INSERT_UI_RESTORE_V1
+
 function normalizeBlock(block: AnyRecord, index: number) {
   return {
     id: clean(block.id) || `block-${Date.now()}-${index}`,
@@ -80,6 +156,10 @@ function normalizeBlock(block: AnyRecord, index: number) {
         block.jingleEverySongs ??
         3
     ),
+    newsInserts: normalizeNewsInserts(block.newsInserts),
+    programInserts: normalizeProgramInserts(block.programInserts),
+    jingleRules: normalizeJingleRules(block.jingleRules),
+    adRules: objectArray(block.adRules),
   };
 }
 
@@ -281,6 +361,27 @@ export default function SmartZjSchedulePage() {
         ...(current || {}),
         blocks: nextBlocks,
       };
+    });
+  }
+
+  function addBlockArrayItem(index: number, key: string, item: AnyRecord) {
+    const currentBlock = blocks[index] || {};
+    updateBlock(index, { [key]: [...objectArray(currentBlock[key]), item] });
+  }
+
+  function updateBlockArrayItem(index: number, key: string, itemIndex: number, patch: AnyRecord) {
+    const currentBlock = blocks[index] || {};
+    updateBlock(index, {
+      [key]: objectArray(currentBlock[key]).map((item, currentIndex) =>
+        currentIndex === itemIndex ? { ...item, ...patch } : item
+      ),
+    });
+  }
+
+  function removeBlockArrayItem(index: number, key: string, itemIndex: number) {
+    const currentBlock = blocks[index] || {};
+    updateBlock(index, {
+      [key]: objectArray(currentBlock[key]).filter((_, currentIndex) => currentIndex !== itemIndex),
     });
   }
 
@@ -808,6 +909,93 @@ export default function SmartZjSchedulePage() {
                 </p>
               </div>
             </div>
+
+
+            {/* THA_CORE_SCHEDULE_EDITOR_INSERT_UI_RESTORE_V1 */}
+            <div style={{ border: "1px solid rgba(0,199,190,0.35)", borderRadius: "14px", padding: "12px", background: "rgba(0,199,190,0.06)", display: "grid", gap: "12px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
+                <div>
+                  <p style={{ margin: "0 0 4px", fontWeight: 900, color: "#00c7be" }}>News / Nia Inserts</p>
+                  <small style={{ color: "#bbb" }}>Protected news slots inside this music block.</small>
+                </div>
+                <button type="button" style={smallButtonStyle} onClick={() => addBlockArrayItem(index, "newsInserts", normalizeNewsInsert({}, objectArray(block.newsInserts).length))}>Add News / Nia</button>
+              </div>
+
+              {objectArray(block.newsInserts).length === 0 ? <p style={{ margin: 0, color: "#aaa", fontSize: "13px" }}>No news inserts added.</p> : null}
+
+              {objectArray(block.newsInserts).map((insert: AnyRecord, insertIndex: number) => (
+                <div key={String(insert.id || insertIndex)} style={{ border: "1px solid rgba(255,255,255,0.12)", borderRadius: "12px", padding: "10px", background: "#101010", display: "grid", gap: "10px" }}>
+                  <div style={smallButtonRowStyle}>
+                    <strong style={{ color: "#00c7be" }}>News #{insertIndex + 1}</strong>
+                    <button type="button" style={smallDangerStyle} onClick={() => removeBlockArrayItem(index, "newsInserts", insertIndex)}>Remove</button>
+                  </div>
+                  <label style={labelStyle}><span>Title</span><input style={inputStyle} value={clean(insert.title)} onChange={(event: ChangeEvent<HTMLInputElement>) => updateBlockArrayItem(index, "newsInserts", insertIndex, { title: event.target.value })} /></label>
+                  <div style={twoColStyle}>
+                    <label style={labelStyle}><span>Start Time</span><input style={inputStyle} type="time" value={clean(insert.start)} onChange={(event: ChangeEvent<HTMLInputElement>) => updateBlockArrayItem(index, "newsInserts", insertIndex, { start: event.target.value })} /></label>
+                    <label style={labelStyle}><span>Duration Minutes</span><input style={inputStyle} type="number" min="1" max="30" value={Number(insert.durationMinutes || 10)} onChange={(event: ChangeEvent<HTMLInputElement>) => updateBlockArrayItem(index, "newsInserts", insertIndex, { durationMinutes: Number(event.target.value || 10) })} /></label>
+                  </div>
+                  <div style={twoColStyle}>
+                    <label style={labelStyle}><span>Days</span><input style={inputStyle} value={joinLanes(insert.days)} onChange={(event: ChangeEvent<HTMLInputElement>) => updateBlockArrayItem(index, "newsInserts", insertIndex, { days: splitLanes(event.target.value) })} /></label>
+                    <label style={labelStyle}><span>Behavior</span><select style={inputStyle} value={clean(insert.behavior || "hard-break")} onChange={(event: ChangeEvent<HTMLSelectElement>) => updateBlockArrayItem(index, "newsInserts", insertIndex, { behavior: event.target.value })}><option value="hard-break">Hard Break</option><option value="break-safe">Break Safe</option><option value="defer">Defer</option><option value="skip">Skip</option></select></label>
+                  </div>
+                  <label style={{ display: "flex", alignItems: "center", gap: "10px", fontWeight: 800 }}><input type="checkbox" checked={insert.enabled !== false} onChange={(event: ChangeEvent<HTMLInputElement>) => updateBlockArrayItem(index, "newsInserts", insertIndex, { enabled: event.target.checked })} style={{ width: "16px", height: "16px" }} /><span>Enabled</span></label>
+                </div>
+              ))}
+
+              <div style={{ height: "1px", background: "rgba(255,255,255,0.12)" }} />
+
+              <div style={{ display: "flex", justifyContent: "space-between", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
+                <div>
+                  <p style={{ margin: "0 0 4px", fontWeight: 900, color: "#ffdf2e" }}>Program Inserts</p>
+                  <small style={{ color: "#bbb" }}>Shows/programs inside this music block.</small>
+                </div>
+                <button type="button" style={smallButtonStyle} onClick={() => addBlockArrayItem(index, "programInserts", normalizeProgramInsert({}, objectArray(block.programInserts).length))}>Add Program</button>
+              </div>
+
+              {objectArray(block.programInserts).length === 0 ? <p style={{ margin: 0, color: "#aaa", fontSize: "13px" }}>No program inserts added.</p> : null}
+
+              {objectArray(block.programInserts).map((insert: AnyRecord, insertIndex: number) => (
+                <div key={String(insert.id || insertIndex)} style={{ border: "1px solid rgba(255,255,255,0.12)", borderRadius: "12px", padding: "10px", background: "#101010", display: "grid", gap: "10px" }}>
+                  <div style={smallButtonRowStyle}>
+                    <strong style={{ color: "#ffdf2e" }}>Program #{insertIndex + 1}</strong>
+                    <button type="button" style={smallDangerStyle} onClick={() => removeBlockArrayItem(index, "programInserts", insertIndex)}>Remove</button>
+                  </div>
+                  <label style={labelStyle}><span>Title</span><input style={inputStyle} value={clean(insert.title)} onChange={(event: ChangeEvent<HTMLInputElement>) => updateBlockArrayItem(index, "programInserts", insertIndex, { title: event.target.value })} /></label>
+                  <div style={twoColStyle}>
+                    <label style={labelStyle}><span>Start Time</span><input style={inputStyle} type="time" value={clean(insert.start)} onChange={(event: ChangeEvent<HTMLInputElement>) => updateBlockArrayItem(index, "programInserts", insertIndex, { start: event.target.value })} /></label>
+                    <label style={labelStyle}><span>Duration Minutes</span><input style={inputStyle} type="number" min="1" max="180" value={Number(insert.durationMinutes || 30)} onChange={(event: ChangeEvent<HTMLInputElement>) => updateBlockArrayItem(index, "programInserts", insertIndex, { durationMinutes: Number(event.target.value || 30) })} /></label>
+                  </div>
+                  <label style={{ display: "flex", alignItems: "center", gap: "10px", fontWeight: 800 }}><input type="checkbox" checked={insert.enabled !== false} onChange={(event: ChangeEvent<HTMLInputElement>) => updateBlockArrayItem(index, "programInserts", insertIndex, { enabled: event.target.checked })} style={{ width: "16px", height: "16px" }} /><span>Enabled</span></label>
+                </div>
+              ))}
+
+              <div style={{ height: "1px", background: "rgba(255,255,255,0.12)" }} />
+
+              <div style={{ display: "flex", justifyContent: "space-between", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
+                <div>
+                  <p style={{ margin: "0 0 4px", fontWeight: 900, color: "#ff9500" }}>Jingle Rules</p>
+                  <small style={{ color: "#bbb" }}>Specific saved jingle rules inside this block.</small>
+                </div>
+                <button type="button" style={smallButtonStyle} onClick={() => addBlockArrayItem(index, "jingleRules", normalizeJingleRule({}, objectArray(block.jingleRules).length))}>Add Jingle Rule</button>
+              </div>
+
+              {objectArray(block.jingleRules).length === 0 ? <p style={{ margin: 0, color: "#aaa", fontSize: "13px" }}>No jingle rules added.</p> : null}
+
+              {objectArray(block.jingleRules).map((rule: AnyRecord, ruleIndex: number) => (
+                <div key={String(rule.id || ruleIndex)} style={{ border: "1px solid rgba(255,255,255,0.12)", borderRadius: "12px", padding: "10px", background: "#101010", display: "grid", gap: "10px" }}>
+                  <div style={smallButtonRowStyle}>
+                    <strong style={{ color: "#ff9500" }}>Jingle Rule #{ruleIndex + 1}</strong>
+                    <button type="button" style={smallDangerStyle} onClick={() => removeBlockArrayItem(index, "jingleRules", ruleIndex)}>Remove</button>
+                  </div>
+                  <div style={twoColStyle}>
+                    <label style={labelStyle}><span>Title</span><input style={inputStyle} value={clean(rule.title)} onChange={(event: ChangeEvent<HTMLInputElement>) => updateBlockArrayItem(index, "jingleRules", ruleIndex, { title: event.target.value })} /></label>
+                    <label style={labelStyle}><span>Every X Songs</span><input style={inputStyle} type="number" min="1" max="20" value={Number(rule.songsBetween || 3)} onChange={(event: ChangeEvent<HTMLInputElement>) => updateBlockArrayItem(index, "jingleRules", ruleIndex, { songsBetween: Number(event.target.value || 3) })} /></label>
+                  </div>
+                  <label style={{ display: "flex", alignItems: "center", gap: "10px", fontWeight: 800 }}><input type="checkbox" checked={rule.enabled !== false} onChange={(event: ChangeEvent<HTMLInputElement>) => updateBlockArrayItem(index, "jingleRules", ruleIndex, { enabled: event.target.checked })} style={{ width: "16px", height: "16px" }} /><span>Enabled</span></label>
+                </div>
+              ))}
+            </div>
+
 
             <label style={labelStyle}>
               <span>Days</span>
