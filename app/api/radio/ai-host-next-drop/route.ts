@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { mkdir, readFile, writeFile } from "fs/promises";
 import { join } from "path";
 
@@ -18,8 +18,7 @@ type AiHostId = "nia" | "prodigy" | "diamond";
 type AiHostProfile = {
   hostId: AiHostId;
   hostName: string;
-  voiceEnv: string;
-  defaultVoice: string;
+  localVoiceId: string;
   role: string;
 };
 
@@ -27,22 +26,19 @@ const AI_HOST_PROFILES: Record<AiHostId, AiHostProfile> = {
   nia: {
     hostId: "nia",
     hostName: "Nia from Tha Core",
-    voiceEnv: "OPENAI_AI_HOST_NIA_VOICE",
-    defaultVoice: "nova",
+    localVoiceId: "amy",
     role: "main-24-7-host-news-and-personality",
   },
   prodigy: {
     hostId: "prodigy",
     hostName: "Prodigy from Tha Core",
-    voiceEnv: "OPENAI_AI_HOST_PRODIGY_VOICE",
-    defaultVoice: "onyx",
+    localVoiceId: "ryan",
     role: "professional-talk-host",
   },
   diamond: {
     hostId: "diamond",
     hostName: "Diamond from Tha Core",
-    voiceEnv: "OPENAI_AI_HOST_DIAMOND_VOICE",
-    defaultVoice: "shimmer",
+    localVoiceId: "libritts",
     role: "entertainment-and-lifestyle-host",
   },
 };
@@ -639,17 +635,19 @@ export async function POST(req: NextRequest) {
     script: lockThaCorePronunciation(builtRaw.script),
   };
 
+    // OWN_AI_SWAP_NEXT_DROP_LOCAL_VOICE_V1
+    // Next-drop keeps its existing local script brain, but voice is forced through the local Piper bridge.
+    const voiceSegmentType = built.talkType === "feature-comment" ? "nia-interlude" : "nia-drop";
+
     const voiceRes = await fetch(`${internalBaseUrl()}/api/radio/ai-host-voice`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        provider: "local",
         hostName: hostProfile.hostName,
-        segmentType: "jingle-link",
+        segmentType: voiceSegmentType,
         title: `${hostProfile.hostName} ${built.talkType} ${built.breakCount}`,
-        voice:
-          process.env[hostProfile.voiceEnv] ||
-          process.env.OPENAI_AI_HOST_VOICE ||
-          hostProfile.defaultVoice,
+        voiceId: hostProfile.localVoiceId,
         script: built.script,
       }),
     });
@@ -671,8 +669,8 @@ export async function POST(req: NextRequest) {
     const track = {
       id: `AI-Host/${voiceData.fileName || Date.now()}`,
       trackId: `AI-Host/${voiceData.fileName || Date.now()}`,
-      title: "Nia from Tha Core",
-      artist: "Nia from Tha Core",
+      title: hostProfile.hostName,
+      artist: hostProfile.hostName,
       source: "AI_HOST",
       genreLane: "Jingles",
       lane: "Jingles",
@@ -717,9 +715,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       ok: true,
       route: "/api/radio/ai-host-next-drop",
-      phase: "AI_HOST_BETWEEN_SONG_BRAIN_V1",
+      phase: "AI_HOST_BETWEEN_SONG_BRAIN_V2_LOCAL_PIPER_VOICE",
       safety: "CLEAN_AI_HOST_BETWEEN_SONG_DROP_READY",
-      hostName: "Nia from Tha Core",
+      hostName: hostProfile.hostName,
       talkType: built.talkType,
       script: built.script,
       audioUrl: voiceData.audioUrl,
@@ -737,3 +735,4 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
