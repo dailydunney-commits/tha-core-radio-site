@@ -54,6 +54,11 @@ function hasAudio(data: NowPlayingResponse | null) {
 
 export default function PersistentRadioPlayer() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const listenerWantsPlaybackRef = useRef(false);
+  const autoRecoveringRef = useRef(false);
+  const lastAutoRecoveryAtRef = useRef(0);
+  const lastSeenTitleRef = useRef("");
+  const volumeRef = useRef(0.85);
 
   const [title, setTitle] = useState("Current Broadcast");
   const [volume, setVolume] = useState(0.85);
@@ -104,6 +109,23 @@ export default function PersistentRadioPlayer() {
       })
     );
 
+    const previousTitle = lastSeenTitleRef.current;
+    lastSeenTitleRef.current = nextTitle;
+
+    // LISTENER_CONTINUITY_WATCHDOG_V2
+    // If the broadcast changes while the listener already pressed play,
+    // rejoin the new current broadcast instead of sitting dead.
+    if (previousTitle && previousTitle !== nextTitle && hasAudio(data) && listenerWantsPlaybackRef.current) {
+      const now = Date.now();
+      if (now - lastAutoRecoveryAtRef.current > 2500) {
+        lastAutoRecoveryAtRef.current = now;
+        autoRecoveringRef.current = true;
+        window.setTimeout(() => {
+          if (listenerWantsPlaybackRef.current) void playCurrentBroadcast();
+        }, 350);
+      }
+    }
+
     return data;
   }, []);
 
@@ -120,8 +142,32 @@ export default function PersistentRadioPlayer() {
   }, [refreshNowPlaying]);
 
   useEffect(() => {
+    volumeRef.current = volume;
     if (audioRef.current) audioRef.current.volume = volume;
   }, [volume]);
+
+  function recoverListenerContinuity(reason: string, delayMs = 800) {
+    // LISTENER_CONTINUITY_WATCHDOG_V2
+    if (!listenerWantsPlaybackRef.current) return;
+
+    const now = Date.now();
+    if (now - lastAutoRecoveryAtRef.current < 2500) return;
+
+    lastAutoRecoveryAtRef.current = now;
+    autoRecoveringRef.current = true;
+    setStatusText("Rejoining current broadcast...");
+
+    fetch(`/api/listener/smartzj-ended-resync?desktopListenerEnded=1&playerWatchdog=1&reason=${encodeURIComponent(reason)}&t=${Date.now()}`, {
+      cache: "no-store",
+      headers: { "Cache-Control": "no-store" },
+    })
+      .catch(() => null)
+      .finally(() => {
+        window.setTimeout(() => {
+          if (listenerWantsPlaybackRef.current) void playCurrentBroadcast();
+        }, delayMs);
+      });
+  }
 
   async function playCurrentBroadcast() {
     const audio = audioRef.current;
@@ -131,13 +177,15 @@ export default function PersistentRadioPlayer() {
       return;
     }
 
+    listenerWantsPlaybackRef.current = true;
+
     try {
-      const liveUrl = `/api/listener/live-current-audio?fresh=${Date.now()}`;
+      const liveUrl = `/api/listener/live-current-audio?fresh=${Date.now()}&playerKeepalive=1`;
 
       // Important: do not await fetch before play().
       // Keep audio.play() inside the user click chain.
       audio.src = liveUrl;
-      audio.volume = volume;
+      audio.volume = volumeRef.current;
       audio.load();
 
       setStatusText("Starting current broadcast...");
@@ -145,6 +193,7 @@ export default function PersistentRadioPlayer() {
 
       await audio.play();
 
+      autoRecoveringRef.current = false;
       setIsPlaying(true);
       setStatusText("Playing current broadcast");
       pushGlobalState({
@@ -168,6 +217,8 @@ export default function PersistentRadioPlayer() {
     const audio = audioRef.current;
     if (!audio) return;
 
+    listenerWantsPlaybackRef.current = false;
+    autoRecoveringRef.current = false;
     audio.pause();
     setIsPlaying(false);
     setStatusText("Paused by listener");
@@ -222,6 +273,22 @@ export default function PersistentRadioPlayer() {
     pushGlobalState();
   }, [pushGlobalState]);
 
+  useEffect(() => {
+    const watchdog = window.setInterval(() => {
+      const audio = audioRef.current;
+      if (!audio || !listenerWantsPlaybackRef.current) return;
+
+      const duration = Number(audio.duration || 0);
+      const currentTime = Number(audio.currentTime || 0);
+      const almostEnded = Number.isFinite(duration) && duration > 5 && duration - currentTime <= 1.2;
+      const deadButWanted = audio.ended || almostEnded || (audio.paused && !autoRecoveringRef.current);
+
+      if (deadButWanted) recoverListenerContinuity("watchdog-dead-audio", 650);
+    }, 1000);
+
+    return () => window.clearInterval(watchdog);
+  }, []);
+
   return (
     <div
       style={{
@@ -247,33 +314,22 @@ export default function PersistentRadioPlayer() {
       <audio
         ref={audioRef}
         preload="none"
-        onEnded={() => {
-          // DESKTOP_LISTENER_CONTINUITY_KEEPALIVE_V1
-          // Natural track end must not mark listener stopped.
-          // Only user pause/stop should stop playback after listener pressed play.
-          fetch(`/api/listener/smartzj-ended-resync?desktopListenerEnded=1&t=${Date.now()}`, {
-            cache: "no-store",
-            headers: { "Cache-Control": "no-store" },
-          })
-            .catch(() => null)
-            .finally(() => {
-              window.setTimeout(() => {
-                void playCurrentBroadcast();
-              }, 800);
-            });
+        onEnded={() => recoverListenerContinuity("ended-event", 650)}
+        onStalled={() => recoverListenerContinuity("stalled-event", 1200)}
+        onWaiting={() => recoverListenerContinuity("waiting-event", 1500)}
+        onError={() => recoverListenerContinuity("error-event", 1500)}
+        onPause={() => {
+          if (listenerWantsPlaybackRef.current) {
+            recoverListenerContinuity("pause-event", 750);
+            return;
+          }
+          setIsPlaying(false);
         }}
-        onStalled={() => {
-          window.setTimeout(() => {
-            void playCurrentBroadcast();
-          }, 1500);
+        onPlay={() => {
+          listenerWantsPlaybackRef.current = true;
+          autoRecoveringRef.current = false;
+          setIsPlaying(true);
         }}
-        onError={() => {
-          window.setTimeout(() => {
-            void playCurrentBroadcast();
-          }, 2000);
-        }}
-        onPause={() => setIsPlaying(false)}
-        onPlay={() => setIsPlaying(true)}
       />
 
       <div style={{ display: "flex", alignItems: "center", gap: 14, minWidth: 0 }}>
