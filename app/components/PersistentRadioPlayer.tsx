@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -247,7 +247,31 @@ export default function PersistentRadioPlayer() {
       <audio
         ref={audioRef}
         preload="none"
-        onEnded={() => setIsPlaying(false)}
+        onEnded={() => {
+          // DESKTOP_LISTENER_CONTINUITY_KEEPALIVE_V1
+          // Natural track end must not mark listener stopped.
+          // Only user pause/stop should stop playback after listener pressed play.
+          fetch(`/api/listener/smartzj-ended-resync?desktopListenerEnded=1&t=${Date.now()}`, {
+            cache: "no-store",
+            headers: { "Cache-Control": "no-store" },
+          })
+            .catch(() => null)
+            .finally(() => {
+              window.setTimeout(() => {
+                void playCurrentBroadcast();
+              }, 800);
+            });
+        }}
+        onStalled={() => {
+          window.setTimeout(() => {
+            void playCurrentBroadcast();
+          }, 1500);
+        }}
+        onError={() => {
+          window.setTimeout(() => {
+            void playCurrentBroadcast();
+          }, 2000);
+        }}
         onPause={() => setIsPlaying(false)}
         onPlay={() => setIsPlaying(true)}
       />
