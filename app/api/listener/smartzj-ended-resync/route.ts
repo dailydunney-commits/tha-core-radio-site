@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 
@@ -77,7 +77,18 @@ export async function POST(request: NextRequest) {
   }
 
   // THA_CORE_SCHEDULE_REFRESH_NO_LEAK_GUARD_V1
+  // ENDED_RESYNC_GET_AND_LANE_FIX_V1
+  // Listener/homepage/device ended-resync must resolve the real active schedule lane too.
+  // Otherwise it can call clean-next with lane=schedule and stay stuck on the last handoff item.
+  const isListenerEndedRefresh =
+    requestUrl.searchParams.get("ended") === "1" ||
+    requestUrl.searchParams.get("listenerEnded") === "1" ||
+    requestUrl.searchParams.get("desktopListenerEnded") === "1" ||
+    requestUrl.searchParams.get("desktopManualEnded") === "1" ||
+    requestUrl.searchParams.get("ownerMonitorEnded") === "1";
+
   const isScheduleRefresh =
+    isListenerEndedRefresh ||
     requestUrl.searchParams.get("scheduleRefresh") === "1" ||
     requestUrl.searchParams.get("controlPanelBrain") === "1";
 
@@ -90,13 +101,21 @@ export async function POST(request: NextRequest) {
     const selectionReason = String((scheduleState as any)?.selectionReason || "");
 
     const isMusicBlock = !activeType || /music/i.test(activeType);
+    // ENDED_RESYNC_EMPTY_GUARD_FIX_V1
+    // A schedule reason like STRICT_SCHEDULE_PRIMARY_EMPTY_EMERGENCY_ANY_READY can still be valid
+    // when selectedLaneCount > 0. Do not block the ended handoff just because "EMPTY" appears
+    // in the reason text after the resolver already found an emergency any-ready lane.
+    const hardBlockedSelection =
+      /NO_PLAYABLE|NOT_READY|MISSING|BLOCKED|FALLBACK/i.test(selectionReason) ||
+      (/EMPTY/i.test(selectionReason) && selectedLaneCount <= 0);
+
     const hasPlayableScheduledMusic =
       Boolean((scheduleState as any)?.ok) &&
       Boolean(activeBlock) &&
       isMusicBlock &&
       Boolean(selectedLane) &&
       selectedLaneCount > 0 &&
-      !/NO_PLAYABLE|NOT_READY|MISSING|EMPTY|BLOCKED|FALLBACK/i.test(selectionReason);
+      !hardBlockedSelection;
 
     if (hasPlayableScheduledMusic && selectedLane) {
       effectiveRequestedLane = selectedLane;
@@ -104,6 +123,62 @@ export async function POST(request: NextRequest) {
 
     if (!hasPlayableScheduledMusic) {
       const current = await getJson(`/api/listener/now-playing?scheduleRefreshBlocked=${Date.now()}`);
+
+      // SMARTZJ_ENDED_RESYNC_JINGLE_RETURN_V1
+      // If the listener says a jingle ended, do not leave current-broadcast stuck on Jingles
+      // just because no active Schedule Editor music block is active. Return to normal clean music.
+      const currentBroadcastForJingleReturn = ((current as any)?.currentBroadcast || current || {}) as Record<string, any>;
+      const currentBroadcastLaneForJingleReturn = String(
+        currentBroadcastForJingleReturn?.genreLane ||
+          currentBroadcastForJingleReturn?.track?.genreLane ||
+          currentBroadcastForJingleReturn?.track?.lane ||
+          ""
+      ).toLowerCase();
+      const currentBroadcastAudioForJingleReturn = String(
+        currentBroadcastForJingleReturn?.audioUrl ||
+          currentBroadcastForJingleReturn?.directAudioUrl ||
+          currentBroadcastForJingleReturn?.track?.audioUrl ||
+          ""
+      ).toLowerCase();
+      const currentIsJingleForReturn =
+        currentBroadcastLaneForJingleReturn === "jingles" ||
+        currentBroadcastAudioForJingleReturn.includes("/jingles/");
+
+      const listenerEndedJingleForReturn =
+        currentIsJingleForReturn &&
+        (
+          requestUrl.searchParams.get("ended") === "1" ||
+          requestUrl.searchParams.get("listenerEnded") === "1" ||
+          requestUrl.searchParams.get("desktopManualEnded") === "1" ||
+          requestUrl.searchParams.get("desktopListenerEnded") === "1" ||
+          requestUrl.searchParams.get("afterJingleReturnTest") === "1" ||
+          requestUrl.searchParams.get("afterJingle") === "1"
+        );
+
+      if (listenerEndedJingleForReturn) {
+        const jingleReturnCleanNextPath =
+          `/api/listener/smartzj-clean-next?lane=auto` +
+          `&ended=1&ownerMonitorEnded=1&controlPanelBrain=1&afterJingleReturn=1&endedResync=${now}`;
+
+        const jingleReturnNextResult = await getJson(jingleReturnCleanNextPath, {
+          method: "POST",
+        });
+
+        await new Promise((resolve) => setTimeout(resolve, 1200));
+
+        const afterJingleReturnCurrent = await getJson(`/api/listener/now-playing?afterJingleReturn=${Date.now()}`);
+
+        return NextResponse.json({
+          ok: true,
+          action: "ENDED_RESYNC_JINGLE_RETURN_KICKED_MUSIC",
+          kicked: true,
+          requestedLane,
+          effectiveRequestedLane: "auto",
+          cleanNextPath: jingleReturnCleanNextPath,
+          nextResult: jingleReturnNextResult,
+          current: afterJingleReturnCurrent,
+        });
+      }
 
       return NextResponse.json(
         {
@@ -151,9 +226,41 @@ export async function POST(request: NextRequest) {
 
   lastKickAt = now;
 
-  const nextResult = await getJson(cleanNextPath, {
+  let nextResult: any = await getJson(cleanNextPath, {
     method: "POST",
   });
+
+  // ENDED_RESYNC_ANY_READY_FALLBACK_V1
+  // If Schedule selected a lane that clean-next cannot actually play,
+  // do not leave all devices in SAFE_STANDBY. Try the existing auto/any-ready clean handoff.
+  let fallbackNextPath = "";
+  let fallbackNextResult: any = null;
+
+  const nextResultStatus = String(
+    nextResult?.status ||
+      nextResult?.action ||
+      nextResult?.message ||
+      nextResult?.data?.status ||
+      ""
+  ).toUpperCase();
+
+  const selectedLaneFailed =
+    nextResult?.ok === false ||
+    /NO_READY|NO_PLAYABLE|NO_AUDIO|NO_VALID|NO_MATCH|SELECTED_LANE|STANDBY/.test(nextResultStatus);
+
+  if (selectedLaneFailed && effectiveRequestedLane) {
+    fallbackNextPath =
+      `/api/listener/smartzj-clean-next?lane=auto` +
+      `&ended=1&ownerMonitorEnded=1&controlPanelBrain=1&endedResyncAnyReadyFallback=1&endedResync=${Date.now()}`;
+
+    fallbackNextResult = await getJson(fallbackNextPath, {
+      method: "POST",
+    });
+
+    if (fallbackNextResult?.ok === true) {
+      nextResult = fallbackNextResult;
+    }
+  }
 
   await new Promise((resolve) => setTimeout(resolve, 1200));
 
@@ -166,7 +273,15 @@ export async function POST(request: NextRequest) {
     requestedLane,
     effectiveRequestedLane,
     cleanNextPath,
+    fallbackNextPath,
     nextResult,
+    fallbackNextResult,
     current,
   });
 }
+export async function GET(request: NextRequest) {
+  // ENDED_RESYNC_GET_AND_LANE_FIX_V1
+  // Some listener/browser callers hit this route with GET. Route must behave the same as POST.
+  return POST(request);
+}
+

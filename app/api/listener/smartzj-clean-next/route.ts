@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync , readdirSync } from "fs";
+﻿import { existsSync, mkdirSync, readFileSync, writeFileSync , readdirSync } from "fs";
 import { join } from "path";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -1463,7 +1463,9 @@ function loadScheduleJingleTracksFromDrops(): AnyTrack[] {
         .replace(/\s+/g, " ")
         .trim();
 
-      const url = `/drops/${safeFileName}`;
+      // SMARTZJ_JINGLE_CLEAN_AUDIO_PATH_V1
+      // Jingles are loaded from public/drops, but current-broadcast must use a clean SmartZJ audio path.
+      const url = `/audio/smartdj/clean/Jingles/${safeFileName}`;
       const trackId = `Jingles/${safeFileName}`;
 
       return {
@@ -1859,7 +1861,19 @@ const currentKey = getCurrentKey();
       : 9999;
     const holdSeconds = getScheduleJingleHoldSeconds(currentBroadcastState);
 
-    if (ageSeconds < holdSeconds) {
+    // SMARTZJ_JINGLE_HOLD_BYPASS_ON_ENDED_V1
+    // 200 only means the route answered. If listener says the jingle ended,
+    // do not return SMARTZJ_JINGLE_HOLD; move to music.
+    const jingleHoldBypassParams = req?.nextUrl?.searchParams;
+    const bypassJingleHoldForEndedReturn =
+      jingleHoldBypassParams?.get("ended") === "1" ||
+      jingleHoldBypassParams?.get("listenerEnded") === "1" ||
+      jingleHoldBypassParams?.get("desktopManualEnded") === "1" ||
+      jingleHoldBypassParams?.get("desktopListenerEnded") === "1" ||
+      jingleHoldBypassParams?.get("afterJingleReturn") === "1" ||
+      jingleHoldBypassParams?.get("afterJingleReturnTest") === "1";
+
+    if (ageSeconds < holdSeconds && !bypassJingleHoldForEndedReturn) {
       return NextResponse.json(
         {
           ok: true,
@@ -1886,18 +1900,28 @@ const currentKey = getCurrentKey();
   }
   const schedulePolicyAny = (schedulePolicy || {}) as Record<string, any>;
 
+  // SMARTZJ_JINGLE_RULE_LAYOUT_GUARD_V1
+  // Jingles must obey the active Schedule Editor toggle.
+  // A stale songsBetweenScheduleJingles counter must never turn jingles back on by itself.
   const scheduleJingleEnabled =
     Boolean(schedulePolicy?.playJinglesBetweenTracks) ||
     Boolean(schedulePolicyAny.enableJingles) ||
-    Boolean(schedulePolicyAny.jinglesEnabled) ||
-    Number(playerState.songsBetweenScheduleJingles || 0) > 0;
+    Boolean(schedulePolicyAny.jinglesEnabled);
 
   const scheduleJingleModeActive = scheduleModeActive || scheduleJingleEnabled;
 
-  const scheduleJingleTracks =
+  const rawScheduleJingleTracks =
     scheduleJingleEnabled && scheduleJingleModeActive
       ? loadScheduleJingleTracksFromDrops()
       : [];
+
+  // SMARTZJ_JINGLE_AUDIO_PROOF_GUARD_V1
+  // A jingle must prove it has playable local public audio before it can be selected.
+  // If not proven, skip the jingle and keep the music handoff alive.
+  const scheduleJingleTracks = rawScheduleJingleTracks.filter((track) =>
+    publicCleanAudioExists(pickSafeUrl(track))
+  );
+  const skippedScheduleJingleAudioCount = rawScheduleJingleTracks.length - scheduleJingleTracks.length;
 
   // SMARTZJ_SCHEDULE_JINGLE_FULL_POOL_ROTATION_V1
   // Rotate through all approved short jingles before repeating.
@@ -2144,6 +2168,7 @@ const currentKey = getCurrentKey();
       allCleanTrackCount: allCleanTracks.length,
       laneTrackCount: laneCleanTracks.length,
       skippedMissingAudioCount,
+      skippedScheduleJingleAudioCount,
       index: nextIndex,
       itemNumber: nextIndex + 1,
       isLast: nextIndex + 1 === cleanTracks.length,
@@ -2172,3 +2197,9 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   return runMiniAutoNext(req);
 }
+
+
+
+
+
+
