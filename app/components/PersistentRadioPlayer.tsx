@@ -52,12 +52,109 @@ function hasAudio(data: NowPlayingResponse | null) {
   );
 }
 
+// PLAYER_REFRESH_LIVE_SEEK_V1
+// On refresh/play, rejoin the live elapsed point instead of starting file at 0:00.
+function toTimeMs(value: unknown): number {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value > 100000000000 ? value : value * 1000;
+  }
+
+  const text = String(value || "").trim();
+  if (!text) return 0;
+
+  const parsed = Date.parse(text);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function pickLiveStartedMs(data: NowPlayingResponse | null): number {
+  const root = (data || {}) as any;
+  const current = root.currentBroadcast || {};
+  const track = current.track || root.track || {};
+
+  const candidates = [
+    current.startedAt,
+    current.started_at,
+    current.startedAtIso,
+    current.broadcastStartedAt,
+    current.playbackStartedAt,
+    current.currentStartedAt,
+    current.startedAtMs,
+    current.startTime,
+    track.startedAt,
+    track.startedAtMs,
+    root.startedAt,
+    root.startedAtMs,
+    root.currentStartedAt,
+    root.broadcastStartedAt,
+  ];
+
+  for (const item of candidates) {
+    const ms = toTimeMs(item);
+    if (ms > 0) return ms;
+  }
+
+  return 0;
+}
+
+function pickDurationSeconds(data: NowPlayingResponse | null): number {
+  const root = (data || {}) as any;
+  const current = root.currentBroadcast || {};
+  const track = current.track || root.track || {};
+
+  const value =
+    current.durationSec ||
+    current.durationSeconds ||
+    current.duration ||
+    track.durationSec ||
+    track.durationSeconds ||
+    track.duration ||
+    root.durationSec ||
+    root.durationSeconds ||
+    0;
+
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0 ? n : 0;
+}
+
+function liveSeekSeconds(data: NowPlayingResponse | null): number {
+  const startedMs = pickLiveStartedMs(data);
+  if (!startedMs) return 0;
+
+  const elapsed = Math.max(0, (Date.now() - startedMs) / 1000);
+  const duration = pickDurationSeconds(data);
+
+  if (duration > 5) {
+    return Math.max(0, Math.min(elapsed, duration - 2));
+  }
+
+  return elapsed;
+}
+
+function seekAudioToLivePosition(audio: HTMLAudioElement, data: NowPlayingResponse | null) {
+  const seek = liveSeekSeconds(data);
+  if (!Number.isFinite(seek) || seek < 2) return;
+
+  const applySeek = () => {
+    try {
+      const duration = Number(audio.duration || 0);
+      const safeSeek = duration > 5 ? Math.min(seek, Math.max(0, duration - 2)) : seek;
+      if (Number.isFinite(safeSeek) && safeSeek >= 2) audio.currentTime = safeSeek;
+    } catch {}
+  };
+
+  if (audio.readyState >= 1) {
+    applySeek();
+    return;
+  }
+
+  audio.addEventListener("loadedmetadata", applySeek, { once: true });
+}
+
 export default function PersistentRadioPlayer() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const listenerWantsPlaybackRef = useRef(false);
   const autoRecoveringRef = useRef(false);
   const lastAutoRecoveryAtRef = useRef(0);
-  const lastSeenTitleRef = useRef("");
   const volumeRef = useRef(0.85);
 
   const [title, setTitle] = useState("Current Broadcast");
@@ -108,23 +205,6 @@ export default function PersistentRadioPlayer() {
         },
       })
     );
-
-    const previousTitle = lastSeenTitleRef.current;
-    lastSeenTitleRef.current = nextTitle;
-
-    // LISTENER_CONTINUITY_WATCHDOG_V2
-    // If the broadcast changes while the listener already pressed play,
-    // rejoin the new current broadcast instead of sitting dead.
-    if (previousTitle && previousTitle !== nextTitle && hasAudio(data) && listenerWantsPlaybackRef.current) {
-      const now = Date.now();
-      if (now - lastAutoRecoveryAtRef.current > 2500) {
-        lastAutoRecoveryAtRef.current = now;
-        autoRecoveringRef.current = true;
-        window.setTimeout(() => {
-          if (listenerWantsPlaybackRef.current) void playCurrentBroadcast();
-        }, 350);
-      }
-    }
 
     return data;
   }, []);
@@ -180,6 +260,7 @@ export default function PersistentRadioPlayer() {
     listenerWantsPlaybackRef.current = true;
 
     try {
+      const nowPlayingPromise = refreshNowPlaying().catch(() => null);
       const liveUrl = `/api/listener/live-current-audio?fresh=${Date.now()}&playerKeepalive=1`;
 
       // Important: do not await fetch before play().
@@ -187,6 +268,10 @@ export default function PersistentRadioPlayer() {
       audio.src = liveUrl;
       audio.volume = volumeRef.current;
       audio.load();
+
+      void nowPlayingPromise.then((data) => {
+        seekAudioToLivePosition(audio, data);
+      });
 
       setStatusText("Starting current broadcast...");
       pushGlobalState({ message: "Starting current broadcast..." });
@@ -201,7 +286,7 @@ export default function PersistentRadioPlayer() {
         message: "Playing current broadcast",
       });
 
-      void refreshNowPlaying();
+      void nowPlayingPromise;
     } catch (error) {
       console.error("PLAY_CURRENT_BROADCAST_FAILED", error);
       setIsPlaying(false);
@@ -278,12 +363,7 @@ export default function PersistentRadioPlayer() {
       const audio = audioRef.current;
       if (!audio || !listenerWantsPlaybackRef.current) return;
 
-      const duration = Number(audio.duration || 0);
-      const currentTime = Number(audio.currentTime || 0);
-      const almostEnded = Number.isFinite(duration) && duration > 5 && duration - currentTime <= 1.2;
-      const deadButWanted = audio.ended || almostEnded || (audio.paused && !autoRecoveringRef.current);
-
-      if (deadButWanted) recoverListenerContinuity("watchdog-dead-audio", 650);
+      if (audio.ended) recoverListenerContinuity("watchdog-ended-audio", 650);
     }, 1000);
 
     return () => window.clearInterval(watchdog);
@@ -316,11 +396,12 @@ export default function PersistentRadioPlayer() {
         preload="none"
         onEnded={() => recoverListenerContinuity("ended-event", 650)}
         onStalled={() => recoverListenerContinuity("stalled-event", 1200)}
-        onWaiting={() => recoverListenerContinuity("waiting-event", 1500)}
+        onWaiting={() => setStatusText("Buffering current broadcast...")}
         onError={() => recoverListenerContinuity("error-event", 1500)}
         onPause={() => {
-          if (listenerWantsPlaybackRef.current) {
-            recoverListenerContinuity("pause-event", 750);
+          const audio = audioRef.current;
+          if (listenerWantsPlaybackRef.current && audio?.ended) {
+            recoverListenerContinuity("pause-ended-event", 750);
             return;
           }
           setIsPlaying(false);

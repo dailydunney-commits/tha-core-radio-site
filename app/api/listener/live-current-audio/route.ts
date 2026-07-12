@@ -1,4 +1,4 @@
-﻿import { NextRequest } from "next/server";
+import { NextRequest } from "next/server";
 import fs from "fs/promises";
 import path from "path";
 import { createReadStream } from "fs";
@@ -9,6 +9,7 @@ export const dynamic = "force-dynamic";
 const ROOT_DIR = process.cwd();
 const PUBLIC_DIR = path.join(ROOT_DIR, "public");
 const AI_HOST_DIR = path.join(PUBLIC_DIR, "audio", "ai-host");
+const AI_STUDIO_DIR = path.join(PUBLIC_DIR, "audio", "ai-studio");
 const DATA_DIR = path.join(ROOT_DIR, ".data");
 const PROGRAM_DIR = path.join(DATA_DIR, "ai-host-long-show-programs");
 const CURRENT_BROADCAST_FILE = path.join(DATA_DIR, "current-broadcast.json");
@@ -38,6 +39,20 @@ function safeMp3FileName(value: string | null): string | null {
   return file;
 }
 
+function safeOwnerAudioFileName(value: string | null): string | null {
+  const file = String(value || "").trim();
+  if (!/^[a-zA-Z0-9._-]+\.(mp3|wav)$/i.test(file)) return null;
+  if (file.includes("..") || file.includes("/") || file.includes("\\")) return null;
+  return file;
+}
+
+function contentTypeForFile(file: string) {
+  const lower = file.toLowerCase();
+  if (lower.endsWith(".wav")) return "audio/wav";
+  if (lower.endsWith(".mp3")) return "audio/mpeg";
+  return "application/octet-stream";
+}
+
 function getCurrentAudioUrl(current: AnyObj): string {
   return String(
     current.audioUrl ||
@@ -60,6 +75,14 @@ function resolveAudioFile(audioUrl: string): { file: string | null; reason: stri
     const safeName = safeMp3FileName(url.searchParams.get("file"));
     if (!safeName) return { file: null, reason: "UNSAFE_AI_HOST_AUDIO_FILE" };
     return { file: path.join(AI_HOST_DIR, safeName), reason: "OWNER_AI_HOST_AUDIO_ROUTE" };
+  }
+
+  if (raw.startsWith("/api/owner/ai-studio-audio")) {
+    // OWNER_AI_STUDIO_AUDIO_ROUTE_V1
+    const url = new URL(raw, "http://127.0.0.1");
+    const safeName = safeOwnerAudioFileName(url.searchParams.get("file"));
+    if (!safeName) return { file: null, reason: "UNSAFE_OWNER_AI_STUDIO_AUDIO_FILE" };
+    return { file: path.join(AI_STUDIO_DIR, safeName), reason: "OWNER_AI_STUDIO_AUDIO_ROUTE" };
   }
 
   if (raw.startsWith("/audio/")) {
@@ -239,8 +262,10 @@ async function handle(req: NextRequest) {
     range: range || null,
   });
 
+  const responseContentType = files.length === 1 ? contentTypeForFile(files[0].file) : "audio/mpeg";
+
   const baseHeaders: Record<string, string> = {
-    "Content-Type": "audio/mpeg",
+    "Content-Type": responseContentType,
     "Cache-Control": "no-store, no-cache, must-revalidate",
     Pragma: "no-cache",
     Expires: "0",
