@@ -7,6 +7,9 @@ type NowPlayingResponse = {
   streamUrl?: string;
   listen_url?: string;
   cleanAudioUrl?: string;
+  directAudioUrl?: string;
+  currentBroadcast?: Record<string, any>;
+  track?: Record<string, any>;
   title?: string;
   artist?: string;
   message?: string;
@@ -150,11 +153,44 @@ function seekAudioToLivePosition(audio: HTMLAudioElement, data: NowPlayingRespon
   audio.addEventListener("loadedmetadata", applySeek, { once: true });
 }
 
+
+function pickControlPanelAudioKey(data: NowPlayingResponse | null | undefined) {
+  // PLAYER_CONTROL_PANEL_AUDIO_KEY_OBEY_V1
+  const root = (data || {}) as Record<string, any>;
+  const current = (root.currentBroadcast || {}) as Record<string, any>;
+  const track = (current.track || root.track || {}) as Record<string, any>;
+
+  const audio =
+    root.directAudioUrl ||
+    current.directAudioUrl ||
+    current.audioUrl ||
+    current.streamUrl ||
+    current.listen_url ||
+    track.audioUrl ||
+    track.streamUrl ||
+    track.listen_url ||
+    root.audioUrl ||
+    root.streamUrl ||
+    root.listen_url ||
+    root.cleanAudioUrl ||
+    "";
+
+  const stamp =
+    current.updatedAt ||
+    current.startedAt ||
+    root.updatedAt ||
+    root.startedAt ||
+    "";
+
+  return String(audio ? audio + "::" + stamp : "").trim();
+}
+
 export default function PersistentRadioPlayer() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const listenerWantsPlaybackRef = useRef(false);
   const autoRecoveringRef = useRef(false);
   const lastAutoRecoveryAtRef = useRef(0);
+const lastControlPanelAudioKeyRef = useRef("");
   const volumeRef = useRef(0.85);
 
   const [title, setTitle] = useState("Current Broadcast");
@@ -185,6 +221,30 @@ export default function PersistentRadioPlayer() {
     });
 
     const data = (await res.json()) as NowPlayingResponse;
+  const nextControlPanelAudioKey = pickControlPanelAudioKey(data);
+  const previousControlPanelAudioKey = lastControlPanelAudioKeyRef.current;
+
+  if (nextControlPanelAudioKey) {
+    lastControlPanelAudioKeyRef.current = nextControlPanelAudioKey;
+  }
+
+  if (
+    previousControlPanelAudioKey &&
+    nextControlPanelAudioKey &&
+    previousControlPanelAudioKey !== nextControlPanelAudioKey &&
+    listenerWantsPlaybackRef.current
+  ) {
+    const now = Date.now();
+
+    if (now - lastAutoRecoveryAtRef.current > 2500) {
+      lastAutoRecoveryAtRef.current = now;
+      setStatusText("Control Panel changed broadcast. Rejoining live audio.");
+
+      window.setTimeout(() => {
+        if (listenerWantsPlaybackRef.current) void playCurrentBroadcast();
+      }, 350);
+    }
+  }
     const nextTitle = pickTitle(data);
     const nextListeners = data?.listeners?.current ?? data?.listeners?.total ?? 0;
     const nextStatus = hasAudio(data)
