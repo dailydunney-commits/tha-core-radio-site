@@ -1946,8 +1946,9 @@ const currentKey = getCurrentKey();
       nextMusicTrack: cleanTracks.find((candidate) => !isSmartZjJingleTrack(candidate)) || cleanTracks[0],
     });
 
-    if (niaDropTrack) {
-      scheduleJingleTracks.splice(0, scheduleJingleTracks.length, niaDropTrack);
+    // REGULAR_JINGLE_PRIORITY_OVER_NIA_V1
+    if (false && niaDropTrack) {
+      void niaDropTrack;
     }
     const lastScheduleJingleAudioUrl = String(playerState.lastScheduleJingleAudioUrl || "");
     const recentScheduleJingleSet = new Set(recentScheduleJingleAudioUrls);
@@ -2197,6 +2198,9 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   return runMiniAutoNext(req);
 }
+
+
+
 
 
 
