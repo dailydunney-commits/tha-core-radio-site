@@ -180,6 +180,40 @@ export async function POST(request: NextRequest) {
         });
       }
 
+      // ENDED_RESYNC_NO_ACTIVE_BLOCK_SMARTZJ_UNLOCK_V1
+      // If Schedule Editor has no active playable block but SmartZJ has a selected lane,
+      // do not leave current-broadcast stale/stuck. Hand off to SmartZJ clean-next.
+      if (
+        Number(selectedLaneCount || 0) > 0 ||
+        String(selectionReason || "") === "NO_ACTIVE_BLOCK_EMERGENCY_ANY_READY"
+      ) {
+        const unlockLane = String(selectedLane || effectiveRequestedLane || "auto");
+        effectiveRequestedLane = unlockLane;
+
+        const unlockCleanNextPath =
+          `/api/listener/smartzj-clean-next?lane=${encodeURIComponent(unlockLane)}` +
+          `&ended=1&ownerMonitorEnded=1&controlPanelBrain=1&noActiveBlockUnlock=1&endedResync=${now}`;
+
+        const unlockNextResult = await getJson(unlockCleanNextPath, {
+          method: "POST",
+        });
+
+        await new Promise((resolve) => setTimeout(resolve, 1200));
+
+        const unlockCurrent = await getJson(`/api/listener/now-playing?noActiveBlockUnlock=${Date.now()}`);
+
+        return NextResponse.json({
+          ok: true,
+          action: "ENDED_RESYNC_NO_ACTIVE_BLOCK_SMARTZJ_UNLOCK_V1",
+          kicked: true,
+          requestedLane,
+          effectiveRequestedLane,
+          cleanNextPath: unlockCleanNextPath,
+          nextResult: unlockNextResult,
+          current: unlockCurrent,
+        });
+      }
+
       return NextResponse.json(
         {
           ok: true,
