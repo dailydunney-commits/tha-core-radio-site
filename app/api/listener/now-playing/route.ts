@@ -82,8 +82,29 @@ export async function GET() {
     return standby();
   }
 
+  // NOW_PLAYING_MIRROR_CURRENT_DURATION_V1
+  const startedAt = text(
+    current.startedAt,
+    text(current.track?.startedAt, text(current.started_at, ""))
+  );
+  const updatedAt = text(
+    current.updatedAt,
+    text(current.track?.updatedAt, startedAt)
+  );
+  const durationValue = Number(
+    current.durationSec ??
+      current.durationSeconds ??
+      current.duration ??
+      current.track?.durationSec ??
+      current.track?.durationSeconds ??
+      current.track?.duration ??
+      0
+  );
+  const durationSec =
+    Number.isFinite(durationValue) && durationValue > 0 ? durationValue : null;
+
   const stamp = encodeURIComponent(
-    text(current.updatedAt, text(current.startedAt, String(Date.now())))
+    text(updatedAt, text(startedAt, String(Date.now())))
   );
 
   const liveUrl = `/api/listener/live-current-audio?t=${stamp}`;
@@ -91,6 +112,7 @@ export async function GET() {
   const artist = text(current.artist, text(current.track?.artist, "Tha Core Online Radio"));
   const programName = text(current.programName, text(current.track?.programName, "Owner Current Broadcast"));
   const source = text(current.source, text(current.track?.source, "CURRENT_BROADCAST"));
+  const directAudioUrl = current.audioUrl || current.streamUrl || current.listen_url || "";
 
   return NextResponse.json(
     {
@@ -109,7 +131,11 @@ export async function GET() {
       streamUrl: liveUrl,
       listen_url: liveUrl,
 
-      directAudioUrl: current.audioUrl || current.streamUrl || current.listen_url || "",
+      directAudioUrl,
+      durationSec,
+      durationSeconds: durationSec,
+      startedAt: startedAt || null,
+      updatedAt: updatedAt || null,
       currentBroadcast: current,
 
       station: {
@@ -123,7 +149,7 @@ export async function GET() {
       live: {
         is_live: true,
         streamer_name: programName,
-        broadcast_start: current.startedAt || null,
+        broadcast_start: startedAt || null,
         art: null,
       },
 
@@ -146,7 +172,7 @@ export async function GET() {
       cache: {
         disabled: true,
         generatedAt: new Date().toISOString(),
-        currentUpdatedAt: current.updatedAt || null,
+        currentUpdatedAt: updatedAt || null,
       },
 
       protectedBroadcast: current.protectedBroadcast !== false,
