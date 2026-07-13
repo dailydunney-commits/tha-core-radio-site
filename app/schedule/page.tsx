@@ -256,6 +256,43 @@ export default function SmartZjSchedulePage() {
     void loadSchedule();
   }, []);
 
+  async function refreshActiveBlockOnly() {
+    // SCHEDULE_EDITOR_AUTO_ACTIVE_BLOCK_REFRESH_V1
+    try {
+      const res = await fetch(`/api/radio/smartzj-schedule?activeBlockPoll=1&t=${Date.now()}`, {
+        cache: "no-store",
+      });
+
+      const data = await res.json();
+      if (res.ok && data?.ok !== false) {
+        setResponse(data);
+        if (data?.musicLibrary) setMusicLibrary(data.musicLibrary);
+      }
+
+      await fetch(`/api/listener/smartzj-ended-resync?lane=schedule&scheduleRefresh=1&controlPanelBrain=1&activeBlockPoll=1&t=${Date.now()}`, {
+        method: "POST",
+        cache: "no-store",
+      }).catch(() => null);
+    } catch {}
+  }
+
+  useEffect(() => {
+    let alive = true;
+
+    const run = () => {
+      if (!alive) return;
+      void refreshActiveBlockOnly();
+    };
+
+    const timer = window.setInterval(run, 5000);
+    window.setTimeout(run, 1200);
+
+    return () => {
+      alive = false;
+      window.clearInterval(timer);
+    };
+  }, []);
+
   const activeBlock = response?.activeBlock || {};
   const blocks = useMemo(() => {
     return Array.isArray(draft?.blocks) ? draft?.blocks : [];
