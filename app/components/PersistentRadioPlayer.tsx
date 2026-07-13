@@ -240,9 +240,35 @@ const lastControlPanelAudioKeyRef = useRef("");
       lastAutoRecoveryAtRef.current = now;
       setStatusText("Control Panel changed broadcast. Rejoining live audio.");
 
-      window.setTimeout(() => {
-        if (listenerWantsPlaybackRef.current) void playCurrentBroadcast();
-      }, 350);
+      // PLAYER_CONTROL_PANEL_HARD_AUDIO_RELOAD_V1
+      const audio = audioRef.current;
+      if (audio) {
+        const liveUrl = `/api/listener/live-current-audio?fresh=${Date.now()}&playerKeepalive=1&controlPanelHardReload=1`;
+        audio.pause();
+        audio.src = liveUrl;
+        audio.volume = volumeRef.current;
+        audio.load();
+
+        window.setTimeout(() => {
+          seekAudioToLivePosition(audio, data);
+          if (listenerWantsPlaybackRef.current) {
+            audio.play()
+              .then(() => {
+                autoRecoveringRef.current = false;
+                setIsPlaying(true);
+                setStatusText("Playing current Control Panel broadcast");
+                pushGlobalState({ isPlaying: true, message: "Playing current Control Panel broadcast" });
+              })
+              .catch(() => {
+                void playCurrentBroadcast();
+              });
+          }
+        }, 250);
+      } else {
+        window.setTimeout(() => {
+          if (listenerWantsPlaybackRef.current) void playCurrentBroadcast();
+        }, 350);
+      }
     }
   }
     const nextTitle = pickTitle(data);
