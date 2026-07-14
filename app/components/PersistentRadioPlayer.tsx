@@ -191,6 +191,7 @@ export default function PersistentRadioPlayer() {
   const autoRecoveringRef = useRef(false);
   const lastAutoRecoveryAtRef = useRef(0);
 const lastControlPanelAudioKeyRef = useRef("");
+const lastLoadedControlPanelAudioKeyRef = useRef(""); // PLAYER_CONTROL_PANEL_LOADED_AUDIO_KEY_SYNC_V2
   const volumeRef = useRef(0.85);
 
   const [title, setTitle] = useState("Current Broadcast");
@@ -222,56 +223,58 @@ const lastControlPanelAudioKeyRef = useRef("");
 
     const data = (await res.json()) as NowPlayingResponse;
   const nextControlPanelAudioKey = pickControlPanelAudioKey(data);
-  const previousControlPanelAudioKey = lastControlPanelAudioKeyRef.current;
+const loadedControlPanelAudioKey = lastLoadedControlPanelAudioKeyRef.current;
 
-  if (nextControlPanelAudioKey) {
-    lastControlPanelAudioKeyRef.current = nextControlPanelAudioKey;
-  }
+if (nextControlPanelAudioKey) {
+  lastControlPanelAudioKeyRef.current = nextControlPanelAudioKey;
+}
 
-  if (
-    previousControlPanelAudioKey &&
-    nextControlPanelAudioKey &&
-    previousControlPanelAudioKey !== nextControlPanelAudioKey &&
-    listenerWantsPlaybackRef.current
-  ) {
-    const now = Date.now();
+const audio = audioRef.current;
+const shouldHardSyncControlPanelAudio = Boolean(
+  nextControlPanelAudioKey &&
+  listenerWantsPlaybackRef.current &&
+  audio &&
+  !audio.paused &&
+  nextControlPanelAudioKey !== loadedControlPanelAudioKey
+);
 
-    if (now - lastAutoRecoveryAtRef.current > 2500) {
-      lastAutoRecoveryAtRef.current = now;
-      setStatusText("Control Panel changed broadcast. Rejoining live audio.");
+if (shouldHardSyncControlPanelAudio && audio) {
+  const now = Date.now();
 
-      // PLAYER_CONTROL_PANEL_HARD_AUDIO_RELOAD_V1
-      const audio = audioRef.current;
-      if (audio) {
-        const liveUrl = `/api/listener/live-current-audio?fresh=${Date.now()}&playerKeepalive=1&controlPanelHardReload=1`;
-        audio.pause();
-        audio.src = liveUrl;
-        audio.volume = volumeRef.current;
-        audio.load();
+  if (now - lastAutoRecoveryAtRef.current > 1500) {
+    lastAutoRecoveryAtRef.current = now;
+    setStatusText("Control Panel changed broadcast. Hard syncing live audio.");
 
-        window.setTimeout(() => {
-          seekAudioToLivePosition(audio, data);
-          if (listenerWantsPlaybackRef.current) {
-            audio.play()
-              .then(() => {
-                autoRecoveringRef.current = false;
-                setIsPlaying(true);
-                setStatusText("Playing current Control Panel broadcast");
-                pushGlobalState({ isPlaying: true, message: "Playing current Control Panel broadcast" });
-              })
-              .catch(() => {
-                void playCurrentBroadcast();
-              });
-          }
-        }, 250);
-      } else {
-        window.setTimeout(() => {
-          if (listenerWantsPlaybackRef.current) void playCurrentBroadcast();
-        }, 350);
+    // PLAYER_CONTROL_PANEL_HARD_AUDIO_RELOAD_V2
+    const hardSyncKey = nextControlPanelAudioKey;
+    const liveUrl = `/api/listener/live-current-audio?fresh=${Date.now()}&playerKeepalive=1&controlPanelHardReload=1&controlPanelHardSync=1`;
+
+    audio.pause();
+    audio.src = liveUrl;
+    audio.volume = volumeRef.current;
+    audio.load();
+
+    window.setTimeout(() => {
+      seekAudioToLivePosition(audio, data);
+
+      if (listenerWantsPlaybackRef.current) {
+        audio.play()
+          .then(() => {
+            lastLoadedControlPanelAudioKeyRef.current = hardSyncKey;
+            autoRecoveringRef.current = false;
+            setIsPlaying(true);
+            setStatusText("Playing current Control Panel broadcast");
+            pushGlobalState({ isPlaying: true, message: "Playing current Control Panel broadcast" });
+          })
+          .catch(() => {
+            void playCurrentBroadcast();
+          });
       }
-    }
+    }, 150);
   }
-    const nextTitle = pickTitle(data);
+}
+
+const nextTitle = pickTitle(data);
     const nextListeners = data?.listeners?.current ?? data?.listeners?.total ?? 0;
     const nextStatus = hasAudio(data)
       ? data.message || "Current broadcast audio ready"
@@ -356,8 +359,14 @@ const lastControlPanelAudioKeyRef = useRef("");
       audio.load();
 
       void nowPlayingPromise.then((data) => {
-        seekAudioToLivePosition(audio, data);
-      });
+  const loadedKey = pickControlPanelAudioKey(data);
+  if (loadedKey) {
+    lastControlPanelAudioKeyRef.current = loadedKey;
+    lastLoadedControlPanelAudioKeyRef.current = loadedKey;
+  }
+
+  seekAudioToLivePosition(audio, data);
+});
 
       setStatusText("Starting current broadcast...");
       pushGlobalState({ message: "Starting current broadcast..." });
