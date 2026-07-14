@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +16,79 @@ async function getJson(path: string, init?: RequestInit) {
   });
 
   return res.json().catch(() => ({}));
+}
+
+// ENDED_RESYNC_DURATION_LOCK_V1
+function getDurationLock(currentLike: any) {
+  const root = currentLike || {};
+  const current = root.currentBroadcast || root || {};
+  const track = current.track || root.track || {};
+
+  const type = String(current.type || root.type || track.type || "").toLowerCase();
+  const source = String(current.source || root.source || track.source || "").toLowerCase();
+  const directAudioUrl = String(
+    current.directAudioUrl ||
+      root.directAudioUrl ||
+      current.audioUrl ||
+      root.audioUrl ||
+      current.streamUrl ||
+      root.streamUrl ||
+      ""
+  );
+
+  const isMusic =
+    type.includes("music") ||
+    source.includes("smartdj") ||
+    source.includes("schedule") ||
+    directAudioUrl.includes("/audio/smartdj/clean/") ||
+    directAudioUrl.includes("/audio/control-panel/muzik/");
+
+  const isProtectedNonMusic =
+    type.includes("jingle") ||
+    type.includes("news") ||
+    type.includes("program") ||
+    directAudioUrl.includes("/jingle") ||
+    directAudioUrl.includes("/drops/") ||
+    directAudioUrl.includes("/ai-studio/") ||
+    directAudioUrl.includes("/ai-host/");
+
+  if (!isMusic || isProtectedNonMusic) return null;
+
+  const durationSec = Number(
+    current.durationSec ??
+      current.durationSeconds ??
+      root.durationSec ??
+      root.durationSeconds ??
+      track.durationSec ??
+      track.durationSeconds ??
+      0
+  );
+
+  const startedAtRaw =
+    current.startedAt ||
+    root.startedAt ||
+    track.startedAt ||
+    current.started_at ||
+    root.started_at ||
+    "";
+
+  const startedAtMs = Date.parse(String(startedAtRaw || ""));
+
+  if (!Number.isFinite(durationSec) || durationSec <= 10) return null;
+  if (!Number.isFinite(startedAtMs) || startedAtMs <= 0) return null;
+
+  const elapsedSec = Math.max(0, Math.floor((Date.now() - startedAtMs) / 1000));
+  const remainingSec = Math.ceil(durationSec - elapsedSec);
+
+  return {
+    shouldHold: remainingSec > 2,
+    durationSec,
+    elapsedSec,
+    remainingSec,
+    startedAt: String(startedAtRaw || ""),
+    title: String(current.title || root.title || track.title || ""),
+    directAudioUrl,
+  };
 }
 
 export async function POST(request: NextRequest) {
@@ -93,6 +166,29 @@ export async function POST(request: NextRequest) {
     requestUrl.searchParams.get("controlPanelBrain") === "1";
 
   if (isScheduleRefresh) {
+    const currentForDurationLock = await getJson(`/api/listener/now-playing?durationLock=${now}`);
+    const durationLock = getDurationLock(currentForDurationLock);
+
+    if (durationLock?.shouldHold) {
+      return NextResponse.json({
+        ok: true,
+        action: "DURATION_GUARD_HOLD_CURRENT",
+        marker: "ENDED_RESYNC_DURATION_LOCK_V1",
+        kicked: false,
+        blockedEarlyAdvance: true,
+        requestedLane,
+        effectiveRequestedLane,
+        durationLock,
+        current: currentForDurationLock,
+        message: "Current music has not reached durationSec yet. Ended-resync did not advance.",
+      }, {
+        headers: {
+          "Cache-Control": "no-store, no-cache, must-revalidate",
+          "X-Tha-Core-Duration-Lock": "true",
+        },
+      });
+    }
+
     const scheduleState = await getJson(`/api/radio/smartzj-schedule?scheduleRefreshGuard=${now}`);
     const activeBlock = ((scheduleState as any)?.activeBlock || null) as Record<string, any> | null;
     const activeType = String(activeBlock?.type || activeBlock?.kind || "");
