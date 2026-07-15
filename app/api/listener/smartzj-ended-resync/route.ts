@@ -166,10 +166,23 @@ export async function POST(request: NextRequest) {
     requestUrl.searchParams.get("controlPanelBrain") === "1";
 
   if (isScheduleRefresh) {
+    // ENDED_RESYNC_DURATION_LOCK_CONTROL_PANEL_BYPASS_V2
+    // Duration lock blocks only auto-poll / listener false-ended jumps.
+    // Real Control Panel / Schedule Editor refresh must obey immediately.
+    const isActiveBlockPoll = requestUrl.searchParams.get("activeBlockPoll") === "1";
+    const isManualOrControlPanelRefresh =
+      requestUrl.searchParams.get("manual") === "1" ||
+      requestUrl.searchParams.get("ownerManual") === "1" ||
+      requestUrl.searchParams.get("force") === "1" ||
+      (requestUrl.searchParams.get("scheduleRefresh") === "1" &&
+        requestUrl.searchParams.get("controlPanelBrain") === "1" &&
+        !isActiveBlockPoll &&
+        !isListenerEndedRefresh);
+
     const currentForDurationLock = await getJson(`/api/listener/now-playing?durationLock=${now}`);
     const durationLock = getDurationLock(currentForDurationLock);
 
-    if (durationLock?.shouldHold) {
+    if (!isManualOrControlPanelRefresh && durationLock?.shouldHold) {
       return NextResponse.json({
         ok: true,
         action: "DURATION_GUARD_HOLD_CURRENT",
