@@ -94,6 +94,36 @@ function getDurationLock(currentLike: any) {
 export async function POST(request: NextRequest) {
   const now = Date.now();
   const requestUrl = new URL(request.url);
+
+// ENDED_RESYNC_ACTIVE_BLOCK_POLL_NO_ADVANCE_V1
+// Schedule Editor active-block polling must never advance music.
+// It only refreshes status. Manual/owner refresh is handled later.
+if (requestUrl.searchParams.get("activeBlockPoll") === "1") {
+  let current: any = {};
+  try {
+    const nowPlayingUrl = new URL("/api/listener/now-playing?activeBlockPollNoAdvance=1", requestUrl);
+    const nowPlayingRes = await fetch(nowPlayingUrl, { cache: "no-store" });
+    current = await nowPlayingRes.json();
+  } catch (error: any) {
+    current = { ok: false, error: error?.message || String(error) };
+  }
+
+  return NextResponse.json(
+    {
+      ok: true,
+      action: "ACTIVE_BLOCK_POLL_NO_ADVANCE",
+      marker: "ENDED_RESYNC_ACTIVE_BLOCK_POLL_NO_ADVANCE_V1",
+      kicked: false,
+      current,
+    },
+    {
+      headers: {
+        "Cache-Control": "no-store",
+        "X-Tha-Core-Active-Block-Poll-No-Advance": "1",
+      },
+    }
+  );
+}
   const requestedLane = requestUrl.searchParams.get("lane") || "schedule";
   let effectiveRequestedLane = requestedLane; // THA_CORE_SCHEDULE_REFRESH_REAL_SELECTED_LANE_V1
   // NIA_PROGRAM_ENDED_RESYNC_ADVANCE_V1
