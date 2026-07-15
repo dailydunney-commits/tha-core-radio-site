@@ -64,6 +64,45 @@ function normalizeInsertDays(value: unknown) {
   return days.length ? days : DAYS;
 }
 
+function scheduleTimeToMinutesV1(value: unknown) {
+  const text = clean(value);
+  const match = text.match(/^(\d{1,2}):(\d{2})$/);
+  if (!match) return -1;
+
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+
+  if (!Number.isFinite(hour) || !Number.isFinite(minute)) return -1;
+  if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return -1;
+
+  return hour * 60 + minute;
+}
+
+// SCHEDULE_BLOCK_TIME_DURATION_LABEL_V1
+function scheduleBlockDurationLabelV1(block: Record<string, any>) {
+  const startMinutes = scheduleTimeToMinutesV1(block.start || block.startTime);
+  const endMinutes = scheduleTimeToMinutesV1(block.end || block.endTime);
+
+  let totalMinutes = 0;
+
+  if (startMinutes >= 0 && endMinutes >= 0) {
+    totalMinutes = endMinutes - startMinutes;
+    if (totalMinutes < 0) totalMinutes += 24 * 60;
+  }
+
+  if (totalMinutes <= 0) {
+    totalMinutes = Number(block.durationMinutes || block.minutes || block.targetMinutes || 0);
+  }
+
+  if (!Number.isFinite(totalMinutes) || totalMinutes <= 0) return "Not set";
+
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+
+  if (hours > 0 && minutes > 0) return `${hours} hr ${minutes} min`;
+  if (hours > 0) return `${hours} hr`;
+  return `${minutes} min`;
+}
 function normalizeNewsInsert(raw: unknown, index: number) {
   const item = raw && typeof raw === "object" ? (raw as AnyRecord) : {};
   return {
@@ -722,7 +761,7 @@ export default function SmartZjSchedulePage() {
                 <p style={{ margin: "0 0 6px", color: "#ccc" }}>Time: {clean(block.start)} - {clean(block.end)}</p>
                 <p style={{ margin: "0 0 6px", color: "#ccc" }}>Lane: {clean(block.primaryLane)}</p>
                 <p style={{ margin: "0 0 6px", color: "#ccc" }}>Tracks: {blockTrackCount(block)}</p>
-                <p style={{ margin: "0 0 6px", color: "#ccc" }}>Duration: pending length scan</p>
+                <p style={{ margin: "0 0 6px", color: "#ccc" }}>Duration: {scheduleBlockDurationLabelV1(block)}</p>
                 <p style={{ margin: "0 0 6px", color: "#ccc" }}>Playback: {clean(block.playbackOrder || "shuffled")}</p>
                 <p style={{ margin: "0 0 6px", color: "#ccc" }}>Priority: {Number(block.priority || 5)}</p>
                 <p style={{ margin: 0, color: "#ccc" }}>Days: {joinLanes(block.days)}</p>
