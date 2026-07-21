@@ -248,7 +248,18 @@ if (requestUrl.searchParams.get("activeBlockPoll") === "1") {
     requestUrl.searchParams.get("scheduleRefresh") === "1" ||
     requestUrl.searchParams.get("controlPanelBrain") === "1";
 
-  if (isScheduleRefresh) {
+  // ENDED_RESYNC_DURATION_LOCK_LANE_SCHEDULE_GUARD_V1
+
+  // Any lane=schedule ended-resync path must pass the duration guard.
+
+  // True manual / Control Panel refresh still bypasses below.
+
+  const shouldApplyScheduleDurationGuard =
+
+    isScheduleRefresh || requestedLane === "schedule";
+
+
+  if (shouldApplyScheduleDurationGuard) {
     // ENDED_RESYNC_DURATION_LOCK_CONTROL_PANEL_BYPASS_V2
     // Duration lock blocks only auto-poll / listener false-ended jumps.
     // Real Control Panel / Schedule Editor refresh must obey immediately.
