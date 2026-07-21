@@ -54,15 +54,7 @@ function getDurationLock(currentLike: any) {
 
   if (!isMusic || isProtectedNonMusic) return null;
 
-  const durationSec = Number(
-    current.durationSec ??
-      current.durationSeconds ??
-      root.durationSec ??
-      root.durationSeconds ??
-      track.durationSec ??
-      track.durationSeconds ??
-      0
-  );
+  const durationSec = ffprobeMissingDurationV1(root, current, track);
 
   const startedAtRaw =
     current.startedAt ||
