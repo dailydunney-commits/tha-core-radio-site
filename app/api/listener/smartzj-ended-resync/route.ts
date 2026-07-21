@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { execFileSync } from "child_process";
+import path from "path";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +21,65 @@ async function getJson(path: string, init?: RequestInit) {
 }
 
 // ENDED_RESYNC_DURATION_LOCK_V1
+
+function resolveCurrentAudioFileForDurationV1(root: any, current: any, track: any): string {
+  const audioUrl = String(
+    current?.directAudioUrl ||
+      current?.audioUrl ||
+      root?.directAudioUrl ||
+      root?.audioUrl ||
+      track?.directAudioUrl ||
+      track?.audioUrl ||
+      ""
+  ).trim();
+
+  if (!audioUrl) return "";
+
+  if (audioUrl.startsWith("/audio/")) {
+    return path.join(process.cwd(), "public", audioUrl.replace(/^\/+/, ""));
+  }
+
+  if (audioUrl.startsWith("audio/")) {
+    return path.join(process.cwd(), "public", audioUrl);
+  }
+
+  if (audioUrl.startsWith("public/audio/")) {
+    return path.join(process.cwd(), audioUrl);
+  }
+
+  return "";
+}
+
+// ENDED_RESYNC_FFPROBE_MISSING_DURATION_LOCK_V1
+function ffprobeMissingDurationV1(root: any, current: any, track: any): number {
+  const existing = Number(
+    current?.durationSec ??
+      current?.durationSeconds ??
+      root?.durationSec ??
+      root?.durationSeconds ??
+      track?.durationSec ??
+      track?.durationSeconds ??
+      0
+  );
+
+  if (Number.isFinite(existing) && existing > 10) return existing;
+
+  const file = resolveCurrentAudioFileForDurationV1(root, current, track);
+  if (!file) return 0;
+
+  try {
+    const raw = execFileSync(
+      "ffprobe",
+      ["-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", file],
+      { encoding: "utf8", timeout: 8000 }
+    ).trim();
+
+    const duration = Number(raw);
+    return Number.isFinite(duration) && duration > 10 ? duration : 0;
+  } catch {
+    return 0;
+  }
+}
 function getDurationLock(currentLike: any) {
   const root = currentLike || {};
   const current = root.currentBroadcast || root || {};
