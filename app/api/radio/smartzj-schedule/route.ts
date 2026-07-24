@@ -431,6 +431,63 @@ function getActiveBlock(schedule: AnyRecord, now: AnyRecord) {
       .includes(today);
   }
 
+  function normalizeDateKey(value: unknown) {
+    const raw = cleanValue(value);
+    const match = raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+    if (!match) return "";
+
+    return `${match[1]}-${String(match[2]).padStart(2, "0")}-${String(match[3]).padStart(2, "0")}`;
+  }
+
+  function currentDateKey() {
+    const fromNow =
+      normalizeDateKey(now?.dateKey) ||
+      normalizeDateKey(now?.date) ||
+      normalizeDateKey(now?.isoDate) ||
+      normalizeDateKey(now?.ymd);
+
+    if (fromNow) return fromNow;
+
+    try {
+      const parts = new Intl.DateTimeFormat("en-CA", {
+        timeZone: String(schedule?.timezone || "America/Jamaica"),
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).formatToParts(new Date());
+
+      const year = parts.find((part) => part.type === "year")?.value || "";
+      const month = parts.find((part) => part.type === "month")?.value || "";
+      const day = parts.find((part) => part.type === "day")?.value || "";
+
+      if (year && month && day) return `${year}-${month}-${day}`;
+    } catch {}
+
+    return "";
+  }
+
+  function dateRangeMatches(block: AnyRecord) {
+    // SMARTZJ_ACTIVE_BLOCK_DATE_RANGE_GUARD_V1
+    // A block outside startDate/endDate must not be treated as active,
+    // even if its weekday and time window match.
+    const today = currentDateKey();
+    if (!today) return true;
+
+    const startDate =
+      normalizeDateKey(block?.startDate) ||
+      normalizeDateKey(block?.activeStartDate) ||
+      normalizeDateKey(block?.validFromDate);
+
+    const endDate =
+      normalizeDateKey(block?.endDate) ||
+      normalizeDateKey(block?.activeEndDate) ||
+      normalizeDateKey(block?.validToDate);
+
+    if (startDate && today < startDate) return false;
+    if (endDate && today > endDate) return false;
+
+    return true;
+  }
   function isActive(block: AnyRecord) {
     const start = toMinutes(block?.start);
     const end = toMinutes(block?.end);
@@ -440,6 +497,7 @@ function getActiveBlock(schedule: AnyRecord, now: AnyRecord) {
     // A 00:00-00:00 or same-start/end block is a draft/empty block, not an all-day hijack.
     if (start < 0 || end < 0 || current < 0 || start === end) return false;
     if (!dayMatches(block)) return false;
+    if (!dateRangeMatches(block)) return false;
 
     if (start < end) {
       return current >= start && current < end;
