@@ -485,6 +485,57 @@ function getActiveBlock(schedule: AnyRecord, now: AnyRecord) {
 }
 
 
+function resolveActiveBlockForSelectedLaneV1(
+  schedule: AnyRecord,
+  activeBlock: AnyRecord | null,
+  selectedLaneValue: unknown
+) {
+  // SMARTZJ_DUPLICATE_ACTIVE_BLOCK_LANE_RESOLVER_V1
+  // Schedule Editor can store duplicated block ids for different lanes.
+  // Once SmartZJ chooses the playable lane, activeBlock must match that lane
+  // so playbackOrder random/sequential/shuffled follows the owner's saved setting.
+  if (!activeBlock) return activeBlock;
+
+  const selectedLane = canonicalLane(selectedLaneValue);
+  if (!selectedLane) return activeBlock;
+
+  const blocks = Array.isArray(schedule?.blocks) ? schedule.blocks : [];
+  if (!blocks.length) return activeBlock;
+
+  const text = (value: unknown) => String(value ?? "").trim();
+  const activeId = text(activeBlock.id);
+  const activeStart = text(activeBlock.start);
+  const activeEnd = text(activeBlock.end);
+
+  const laneForBlock = (block: AnyRecord) =>
+    canonicalLane(block?.primaryLane || block?.lane || block?.genreLane || block?.selectedLane || "");
+
+  const sameIdSameTimeSameLane = blocks.find((block: AnyRecord) => {
+    if (!block || typeof block !== "object") return false;
+    if (activeId && text(block.id) !== activeId) return false;
+    if (laneForBlock(block) !== selectedLane) return false;
+    if (activeStart && text(block.start) && text(block.start) !== activeStart) return false;
+    if (activeEnd && text(block.end) && text(block.end) !== activeEnd) return false;
+    return true;
+  });
+
+  const sameIdSameLane = sameIdSameTimeSameLane || blocks.find((block: AnyRecord) => {
+    if (!block || typeof block !== "object") return false;
+    if (activeId && text(block.id) !== activeId) return false;
+    return laneForBlock(block) === selectedLane;
+  });
+
+  if (!sameIdSameLane || sameIdSameLane === activeBlock) return activeBlock;
+
+  return {
+    ...activeBlock,
+    ...sameIdSameLane,
+    primaryLane: selectedLane,
+    scheduleSelectionRule: `${activeBlock.scheduleSelectionRule || "HIGHEST_PRIORITY_ACTIVE_BLOCK"}_LANE_MATCH_V1`,
+    duplicateLaneResolved: true,
+    duplicateLaneResolvedToLane: selectedLane,
+  };
+}
 function choosePlayableLane(schedule: AnyRecord, block: AnyRecord | null, counts: Record<string, number>) {
   const primaryLane = canonicalLane(
     block?.primaryLane ||
@@ -775,7 +826,7 @@ function buildScheduleEditorMusicLibraryV2() {
 function buildScheduleResponse() {
   const schedule = getSchedule();
   const now = timePartsForZone(String(schedule.timezone || "America/Jamaica"));
-  const activeBlock = schedule.enabled ? getActiveBlock(schedule, now) : null;
+  let activeBlock = schedule.enabled ? getActiveBlock(schedule, now) : null;
   const scheduleEditorMusicV2 = buildScheduleEditorMusicLibraryV2();
   const fallbackLaneCounts = countPlayableByLane();
   const laneCounts =
@@ -783,6 +834,8 @@ function buildScheduleResponse() {
       ? scheduleEditorMusicV2.laneCounts
       : fallbackLaneCounts;
   const laneChoice = choosePlayableLane(schedule, activeBlock, laneCounts);
+
+  activeBlock = resolveActiveBlockForSelectedLaneV1(schedule, activeBlock, laneChoice?.selectedLane);
 
   // SCHEDULE_ACTIVE_BLOCK_JINGLE_FREQUENCY_V1
   const scheduleAny = schedule as AnyRecord;
