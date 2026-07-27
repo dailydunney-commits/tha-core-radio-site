@@ -1,4 +1,3 @@
-import { execFileSync } from "child_process";
 ﻿import { existsSync, mkdirSync, readFileSync, writeFileSync , readdirSync } from "fs";
 import { join } from "path";
 import { NextRequest, NextResponse } from "next/server";
@@ -80,26 +79,6 @@ function laneKey(value: unknown) {
 
 function internalBaseUrl() {
   return String(process.env.SMARTZJ_INTERNAL_BASE_URL || "http://127.0.0.1:3101").replace(/\/+$/, "");
-}
-
-// SMARTZJ_CLEAN_NEXT_FFPROBE_DURATION_FALLBACK_V1
-function ffprobeAudioDurationSecondsV1(audioUrl: unknown) {
-  try {
-    const cleanUrl = cleanText(audioUrl).split("?")[0];
-    if (!cleanUrl.startsWith("/audio/")) return null;
-
-    const localPath = join(process.cwd(), "public", cleanUrl.replace(/^\/+/, ""));
-    const out = execFileSync(
-      "ffprobe",
-      ["-v", "error", "-show_entries", "format=duration", "-of", "default=nk=1:nw=1", localPath],
-      { encoding: "utf8", timeout: 4000 }
-    );
-
-    const seconds = Math.round(Number(String(out || "").trim()));
-    return Number.isFinite(seconds) && seconds > 0 ? seconds : null;
-  } catch {
-    return null;
-  }
 }
 
 async function getSchedulePolicy() {
@@ -2036,14 +2015,10 @@ const currentKey = getCurrentKey();
         (track as Record<string, any>).seconds ??
         0
     );
-    const probedDurationSeconds =
-      Number.isFinite(rawDurationSeconds) && rawDurationSeconds > 0
-        ? null
-        : ffprobeAudioDurationSecondsV1(audioUrl);
     const durationSeconds =
       Number.isFinite(rawDurationSeconds) && rawDurationSeconds > 0
         ? Math.round(rawDurationSeconds)
-        : probedDurationSeconds;
+        : null;
 
   const selectedIsScheduleJingle = isSmartZjJingleTrack(track);
   const nextSongsSinceScheduleJingle = selectedIsScheduleJingle
