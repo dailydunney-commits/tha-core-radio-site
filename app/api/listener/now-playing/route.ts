@@ -114,6 +114,18 @@ export async function GET() {
   const source = text(current.source, text(current.track?.source, "CURRENT_BROADCAST"));
   const directAudioUrl = current.audioUrl || current.streamUrl || current.listen_url || "";
 
+
+    // NOW_PLAYING_SCHEDULE_METADATA_MIRROR_V1
+    const reason = text(current.reason, text(current.selectionReason, text(current.track?.reason, text(current.track?.selectionReason, ""))));
+    const selectionReason = text(current.selectionReason, reason);
+    const playbackOrder = text(current.playbackOrder, text(current.track?.playbackOrder, text(current.activeBlock?.playbackOrder, "")));
+    const selectedLane = text(current.selectedLane, text(current.track?.selectedLane, text(current.activeBlock?.selectedLane, text(current.genreLane, text(current.track?.genreLane, "")))));
+    const primaryLane = text(current.primaryLane, text(current.track?.primaryLane, text(current.activeBlock?.primaryLane, selectedLane)));
+    const lane = text(current.lane, text(current.track?.lane, selectedLane));
+    const genreLane = text(current.genreLane, text(current.track?.genreLane, selectedLane));
+    const activeBlockId = text(current.activeBlockId, text(current.track?.activeBlockId, text(current.activeBlock?.id, "")));
+    const expectedEndAt = text(current.expectedEndAt, text(current.track?.expectedEndAt, ""));
+
   return NextResponse.json(
     {
       ok: true,
@@ -121,6 +133,16 @@ export async function GET() {
       safety: text(current.safety, "OWNER_CURRENT_BROADCAST_TRUTH"),
       source,
       type: text(current.type, "CURRENT_BROADCAST"),
+        reason: reason || null,
+        selectionReason: selectionReason || null,
+        playbackOrder: playbackOrder || null,
+        lane: lane || null,
+        selectedLane: selectedLane || null,
+        primaryLane: primaryLane || null,
+        genreLane: genreLane || null,
+        activeBlockId: activeBlockId || null,
+        activeBlock: current.activeBlock || null,
+        expectedEndAt: expectedEndAt || null,
       is_online: true,
 
       title,

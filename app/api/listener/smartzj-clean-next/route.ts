@@ -2002,6 +2002,24 @@ const currentKey = getCurrentKey();
   const title = titleFromTrack(track);
   const artist = artistFromTrack(track);
   const genreLane = getSmartZjGenreLane(track);
+
+    // CURRENT_BROADCAST_SCHEDULE_METADATA_CARRY_V1
+    const scheduleSelectedLane = cleanText(schedulePolicyAny.selectedLane || requestedLane || genreLane);
+    const schedulePrimaryLane = cleanText(schedulePolicyAny.primaryLane || scheduleSelectedLane || genreLane);
+    const scheduleActiveBlockId = cleanText(schedulePolicyAny.activeBlockId || "");
+    const scheduleActiveBlockName = cleanText(schedulePolicyAny.activeBlockName || "");
+    const rawDurationSeconds = Number(
+      (track as Record<string, any>).durationSec ??
+        (track as Record<string, any>).durationSeconds ??
+        (track as Record<string, any>).duration ??
+        (track as Record<string, any>).seconds ??
+        0
+    );
+    const durationSeconds =
+      Number.isFinite(rawDurationSeconds) && rawDurationSeconds > 0
+        ? Math.round(rawDurationSeconds)
+        : null;
+
   const selectedIsScheduleJingle = isSmartZjJingleTrack(track);
   const nextSongsSinceScheduleJingle = selectedIsScheduleJingle
     ? 0
@@ -2016,12 +2034,28 @@ const currentKey = getCurrentKey();
     selectionReason,
     playbackOrder,
     artist,
-    genreLane,
-    audioUrl,
-    streamUrl: audioUrl,
-    listen_url: audioUrl,
-    startedAt: now,
-    updatedAt: now,
+      lane: scheduleSelectedLane || genreLane,
+      selectedLane: scheduleSelectedLane || genreLane,
+      primaryLane: schedulePrimaryLane || scheduleSelectedLane || genreLane,
+      genreLane,
+      activeBlockId: scheduleActiveBlockId,
+      activeBlock: scheduleActiveBlockId
+        ? {
+            id: scheduleActiveBlockId,
+            name: scheduleActiveBlockName,
+            selectedLane: scheduleSelectedLane || genreLane,
+            primaryLane: schedulePrimaryLane || scheduleSelectedLane || genreLane,
+            playbackOrder,
+          }
+        : null,
+      durationSec: durationSeconds,
+      durationSeconds,
+      expectedEndAt: durationSeconds ? new Date(Date.parse(now) + durationSeconds * 1000).toISOString() : null,
+      audioUrl,
+      streamUrl: audioUrl,
+      listen_url: audioUrl,
+      startedAt: now,
+      updatedAt: now,
     message: `SmartZJ Mini AutoNext ${genreLane} item ${nextIndex + 1} of ${cleanTracks.length}. Fresh-first: ${selectionReason}. Raw Azura blocked.`,
     sequence: {
       mode: "SMARTZJ_MINI_AUTONEXT",
@@ -2053,6 +2087,14 @@ const currentKey = getCurrentKey();
     track: {
       ...track,
       genreLane,
+      // TRACK_SCHEDULE_METADATA_CARRY_V1
+      lane: scheduleSelectedLane || genreLane,
+      selectedLane: scheduleSelectedLane || genreLane,
+      primaryLane: schedulePrimaryLane || scheduleSelectedLane || genreLane,
+      playbackOrder,
+      activeBlockId: scheduleActiveBlockId,
+      durationSec: durationSeconds,
+      durationSeconds,
       id: cleanText(track.id || track.trackId || title),
       trackId: cleanText(track.trackId || track.id || title),
       title,
