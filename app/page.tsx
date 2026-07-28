@@ -286,6 +286,15 @@ export default function HomePage() {
     if (!audio) return;
 
     try {
+      // HOME_PLAYER_ENDED_RESYNC_KICK_V6
+      await fetch(
+        `/api/listener/smartzj-ended-resync?lane=schedule&ended=1&desktopListenerEnded=1&homeEnded=1&t=${Date.now()}`,
+        {
+          method: "POST",
+          cache: "no-store",
+        }
+      ).catch(() => null);
+
       setStatusText("Track ended. Asking SmartZJ watchdog for the next clean broadcast...");
       // PUBLIC_PLAYERS_FOLLOW_ONLY_V1: public players do not advance SmartZJ.
 
@@ -425,6 +434,15 @@ export default function HomePage() {
     if (!audio) return;
 
     try {
+      // HOME_PLAYER_ENDED_RESYNC_KICK_V6
+      await fetch(
+        `/api/listener/smartzj-ended-resync?lane=schedule&ended=1&desktopListenerEnded=1&homeEnded=1&t=${Date.now()}`,
+        {
+          method: "POST",
+          cache: "no-store",
+        }
+      ).catch(() => null);
+
       setStatusText("Track ended. Asking SmartZJ watchdog for the next clean broadcast...");
       // PUBLIC_PLAYERS_FOLLOW_ONLY_V1: public players do not advance SmartZJ.
 
@@ -546,6 +564,15 @@ export default function HomePage() {
     if (!audio) return;
 
     try {
+      // HOME_PLAYER_ENDED_RESYNC_KICK_V6
+      await fetch(
+        `/api/listener/smartzj-ended-resync?lane=schedule&ended=1&desktopListenerEnded=1&homeEnded=1&t=${Date.now()}`,
+        {
+          method: "POST",
+          cache: "no-store",
+        }
+      ).catch(() => null);
+
       setStatusText("Track ended. Asking SmartZJ watchdog for the next clean broadcast...");
       // PUBLIC_PLAYERS_FOLLOW_ONLY_V1: public players do not advance SmartZJ.
 
