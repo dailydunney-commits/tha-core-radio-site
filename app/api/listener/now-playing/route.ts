@@ -1,5 +1,6 @@
-﻿import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import fs from "fs/promises";
+import { execFile } from "child_process";
 import path from "path";
 
 export const runtime = "nodejs";
@@ -10,6 +11,43 @@ const DATA_DIR = path.join(ROOT_DIR, ".data");
 const CURRENT_BROADCAST_FILE = path.join(DATA_DIR, "current-broadcast.json");
 
 type AnyObj = Record<string, any>;
+
+
+function publicAudioUrlToFilePathV1(audioUrl: string) {
+  const raw = String(audioUrl || "").split("?")[0].split("#")[0];
+  if (!raw) return "";
+  const clean = decodeURIComponent(raw);
+  if (clean.startsWith("/audio/")) return path.join(ROOT_DIR, "public", clean.replace(/^\/+/, ""));
+  if (clean.startsWith("audio/")) return path.join(ROOT_DIR, "public", clean);
+  if (clean.startsWith("public/audio/")) return path.join(ROOT_DIR, clean);
+  return "";
+}
+
+async function ffprobeDurationFallbackV1(audioUrl: string): Promise<number | null> {
+  // NOW_PLAYING_FFPROBE_DURATION_FALLBACK_V1
+  const filePath = publicAudioUrlToFilePathV1(audioUrl);
+  if (!filePath) return null;
+
+  try {
+    const stat = await fs.stat(filePath);
+    if (!stat.isFile() || stat.size < 1000) return null;
+  } catch {
+    return null;
+  }
+
+  return await new Promise((resolve) => {
+    execFile(
+      "ffprobe",
+      ["-v", "error", "-show_entries", "format=duration", "-of", "default=nw=1:nk=1", filePath],
+      { windowsHide: true },
+      (_error, stdout) => {
+        const value = Number(String(stdout || "").trim());
+        resolve(Number.isFinite(value) && value > 0 ? value : null);
+      }
+    );
+  });
+}
+
 
 async function readJson(file: string): Promise<AnyObj | null> {
   try {
@@ -100,7 +138,7 @@ export async function GET() {
       current.track?.duration ??
       0
   );
-  const durationSec =
+  let durationSec =
     Number.isFinite(durationValue) && durationValue > 0 ? durationValue : null;
 
   const stamp = encodeURIComponent(
@@ -113,6 +151,22 @@ export async function GET() {
   const programName = text(current.programName, text(current.track?.programName, "Owner Current Broadcast"));
   const source = text(current.source, text(current.track?.source, "CURRENT_BROADCAST"));
   const directAudioUrl = current.audioUrl || current.streamUrl || current.listen_url || "";
+
+  if (!durationSec) {
+    durationSec = await ffprobeDurationFallbackV1(String(directAudioUrl || ""));
+  }
+
+  const startedMs = Date.parse(String(startedAt || ""));
+  const elapsedSec =
+    Number.isFinite(startedMs) && startedMs > 0
+      ? Math.max(0, Math.floor((Date.now() - startedMs) / 1000))
+      : 0;
+  const remainingSec =
+    durationSec && durationSec > 0 ? Math.max(0, Math.ceil(durationSec - elapsedSec)) : 0;
+  const computedExpectedEndAt =
+    durationSec && Number.isFinite(startedMs) && startedMs > 0
+      ? new Date(startedMs + durationSec * 1000).toISOString()
+      : null;
 
 
     // NOW_PLAYING_SCHEDULE_METADATA_MIRROR_V1
@@ -142,7 +196,7 @@ export async function GET() {
         genreLane: genreLane || null,
         activeBlockId: activeBlockId || null,
         activeBlock: current.activeBlock || null,
-        expectedEndAt: expectedEndAt || null,
+        expectedEndAt: expectedEndAt || computedExpectedEndAt || null,
       is_online: true,
 
       title,

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import type { CSSProperties } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -48,6 +48,7 @@ async function getPublicListenerStreamUrl() {
 type PublicHomeStreamInfo = {
   url: string;
   startedAt: string;
+  durationSec?: number | null;
 };
 
 async function getPublicListenerStreamInfo(): Promise<PublicHomeStreamInfo> {
@@ -61,10 +62,11 @@ async function getPublicListenerStreamInfo(): Promise<PublicHomeStreamInfo> {
 
     return {
       url: String(data?.streamUrl || data?.audioUrl || data?.listen_url || currentBroadcast?.audioUrl || "").trim(),
-      startedAt: String(currentBroadcast?.startedAt || data?.live?.broadcast_start || ""),
+      startedAt: String(currentBroadcast?.startedAt || data?.startedAt || data?.live?.broadcast_start || ""),
+      durationSec: Number(data?.durationSec || data?.durationSeconds || currentBroadcast?.durationSec || currentBroadcast?.durationSeconds || 0) || null,
     };
   } catch {
-    return { url: "", startedAt: "" };
+    return { url: "", startedAt: "", durationSec: null };
   }
 }
 
@@ -105,7 +107,10 @@ function syncHomeAudioToBroadcastTime(audio: HTMLAudioElement, info: PublicHomeS
   const elapsed = Math.max(0, Math.floor((Date.now() - started) / 1000));
   if (!elapsed) return;
 
-  const duration = Number(audio.duration || 0);
+  // HOME_PLAYER_SERVER_DURATION_SYNC_V1
+  const browserDuration = Number(audio.duration || 0);
+  const serverDuration = Number(info.durationSec || 0);
+  const duration = Number.isFinite(browserDuration) && browserDuration > 5 ? browserDuration : serverDuration;
   let target = elapsed;
 
   if (Number.isFinite(duration) && duration > 5) {
