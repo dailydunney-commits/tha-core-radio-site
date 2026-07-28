@@ -714,12 +714,12 @@ export default function SmartZjSchedulePage() {
           <h2 style={headingStyle}>Music Library</h2>
           <p style={bigStyle}>{Number(response?.musicLibrary?.trackCount || 0).toLocaleString()} tracks loaded</p>
           {/* MUSIC_LIBRARY_ALL_LANES_DISPLAY_V1 */}
+          {/* MUSIC_LIBRARY_HIDE_THIRD_DANCEHALL_ROW_V1 */}
           <p style={{ margin: "0 0 6px", color: "#ccc" }}>Reggae: {Number(response?.laneCounts?.Reggae || 0).toLocaleString()}</p>
           <p style={{ margin: "0 0 6px", color: "#ccc" }}>Fresh Dancehall: {Number(response?.laneCounts?.["Fresh-Dancehall"] || 0).toLocaleString()}</p>
           <p style={{ margin: "0 0 6px", color: "#ccc" }}>Old School Dancehall: {Number(response?.laneCounts?.["Ole-School-Dancehall"] || 0).toLocaleString()}</p>
           <p style={{ margin: "0 0 6px", color: "#ccc" }}>Hip-Hop: {Number(response?.laneCounts?.["Hip-Hop"] || 0).toLocaleString()}</p>
           <p style={{ margin: "0 0 6px", color: "#ccc" }}>R-n-B: {Number(response?.laneCounts?.["R-n-B"] || 0).toLocaleString()}</p>
-          <p style={{ margin: "0 0 6px", color: "#ccc" }}>Dancehall: {Number(response?.laneCounts?.Dancehall || 0).toLocaleString()}</p>
           {Number(response?.laneCounts?.UNKNOWN || 0) > 0 ? (
             <p style={{ margin: "0 0 6px", color: "#ccc" }}>Unmapped: {Number(response?.laneCounts?.UNKNOWN || 0).toLocaleString()}</p>
           ) : null}
