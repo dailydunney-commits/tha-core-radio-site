@@ -416,6 +416,8 @@ export default function HomePage() {
     audio.addEventListener("play", handlePlay);
     audio.addEventListener("pause", handlePause);
     audio.addEventListener("error", handleError);
+    // HOME_PLAYER_ENDED_HANDLER_WIRED_V3
+    audio.addEventListener("ended", handleSmartZjHomeEnded);
 
   // SMARTZJ_HOME_PLAYER_AUTONEXT_V1
   async function handleSmartZjHomeEnded() {
@@ -474,12 +476,47 @@ export default function HomePage() {
       audio.removeEventListener("play", handlePlay);
       audio.removeEventListener("pause", handlePause);
       audio.removeEventListener("error", handleError);
+      // HOME_PLAYER_ENDED_HANDLER_CLEANUP_V3
+      audio.removeEventListener("ended", handleSmartZjHomeEnded);
     };
   }, []);
 
   async function toggleRadio() {
+    // HOME_PLAYER_PLAY_BUTTON_LIVE_POSITION_SYNC_V3
+    const audio = audioRef.current;
+
     setStatusText("Starting current broadcast...");
     window.dispatchEvent(new CustomEvent("tha-core-radio-toggle"));
+
+    if (!audio) return;
+
+    try {
+      const streamInfo = await getPublicListenerStreamInfo();
+      const nextStreamUrl = streamInfo.url;
+
+      if (!nextStreamUrl) {
+        setStatusText("No current broadcast audio found.");
+        return;
+      }
+
+      const absoluteNextStreamUrl = getHomeAudioAbsoluteUrl(nextStreamUrl);
+
+      if (!audio.src || audio.src !== absoluteNextStreamUrl) {
+        audio.src = nextStreamUrl;
+        audio.load();
+      }
+
+      await waitForHomeAudioMetadata(audio);
+      syncHomeAudioToBroadcastTime(audio, streamInfo);
+
+      audio.volume = volume;
+      await audio.play();
+
+      setIsPlaying(true);
+      setStatusText("Synced to current broadcast.");
+    } catch {
+      setStatusText("Could not sync current broadcast. Press Play Live again.");
+    }
   }
   function stopRadio() {
     window.dispatchEvent(new CustomEvent("tha-core-radio-stop"));
